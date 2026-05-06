@@ -1,0 +1,53 @@
+{
+  "expo": {
+    "name": "דוחות",
+    "slug": "dohot",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "dohot",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#F5F3EE"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.dohot.app",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "הקלטת קול ליצירת דוחות",
+        "NSCameraUsageDescription": "צילום תמונות לדוח",
+        "NSPhotoLibraryUsageDescription": "בחירת תמונות מהגלריה"
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#F5F3EE"
+      },
+      "package": "com.dohot.app",
+      "permissions": [
+        "RECORD_AUDIO",
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ]
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      [
+        "expo-camera",
+        { "cameraPermission": "צילום תמונות לדוח" }
+      ],
+      [
+        "expo-av",
+        { "microphonePermission": "הקלטת קול ליצירת דוחות" }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
