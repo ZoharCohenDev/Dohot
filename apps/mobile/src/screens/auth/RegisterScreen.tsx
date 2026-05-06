@@ -4,52 +4,56 @@ import { Header, FixedBottom } from '@/components/layout';
 import { Button, Field } from '@/components/primitives';
 import { Icons } from '@/components/icons';
 import { lightColors, fonts } from '@/theme/tokens';
-import { sendPhoneOTP } from '@/services/auth';
-import { toE164, isValidIsraeliPhone } from '@/lib/phone';
+import { signUpWithEmail } from '@/services/auth';
 
 interface RegisterScreenProps {
   colors?: typeof lightColors;
-  onCodeSent?: (phone: string, name: string, profession: string) => void;
+  onRegistered?: (name: string, profession: string) => void;
   onBack?: () => void;
   onLogin?: () => void;
 }
 
-const PROFESSIONS = [
-  { id: 'leak_detection', label: 'גילוי נזילות', Icon: Icons.drop },
-  { id: 'plumber', label: 'אינסטלטור', Icon: Icons.pipe },
-  { id: 'electrician', label: 'חשמלאי', Icon: Icons.sparkle },
-  { id: 'renovation', label: 'שיפוצניק', Icon: Icons.building },
-  { id: 'roofing', label: 'איטום גגות', Icon: Icons.roof },
-  { id: 'other', label: 'אחר', Icon: Icons.more },
-];
-
-export function RegisterScreen({ colors = lightColors, onCodeSent, onBack, onLogin }: RegisterScreenProps) {
-  const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [profession, setProfession] = useState('leak_detection');
+export function RegisterScreen({ colors = lightColors, onRegistered, onBack, onLogin }: RegisterScreenProps) {
+  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleNext = async () => {
-    if (!name.trim()) {
-      Alert.alert('חסר שם', 'הכנס את שמך המלא');
+    if (!username.trim()) {
+      Alert.alert('חסר שם משתמש', 'הכנס שם משתמש');
       return;
     }
-    if (!isValidIsraeliPhone(phone)) {
-      Alert.alert('מספר לא תקין', 'הכנס מספר טלפון ישראלי תקין כגון 054-1234567');
+    if (!email.trim() || !email.includes('@')) {
+      Alert.alert('אימייל לא תקין', 'הכנס כתובת אימייל תקינה');
+      return;
+    }
+    if (password.length < 6) {
+      Alert.alert('סיסמה קצרה מדי', 'בחר סיסמה באורך 6 תווים לפחות');
       return;
     }
 
     setLoading(true);
-    const e164 = toE164(phone);
-    const result = await sendPhoneOTP(e164);
+    const result = await signUpWithEmail(email.trim().toLowerCase(), password, {
+      full_name: username.trim(),
+      profession: 'other',
+    });
     setLoading(false);
 
     if (!result.success) {
-      Alert.alert('שגיאה', result.error ?? 'לא ניתן לשלוח קוד כעת, נסה שוב');
+      Alert.alert('שגיאה', result.error ?? 'לא ניתן להירשם כעת, נסה שוב');
       return;
     }
 
-    onCodeSent?.(e164, name.trim(), profession);
+    if (result.emailConfirmationRequired) {
+      Alert.alert(
+        'אישור אימייל פעיל',
+        'כדי להירשם מיד בלי אימייל אישור, כבה את Confirm email בהגדרות Supabase.',
+      );
+      return;
+    }
+
+    onRegistered?.(username.trim(), 'other');
   };
 
   return (
@@ -71,58 +75,35 @@ export function RegisterScreen({ colors = lightColors, onCodeSent, onBack, onLog
         keyboardShouldPersistTaps="handled"
       >
         <Field
-          label="שם מלא"
-          placeholder="ישראל ישראלי"
+          label="שם משתמש"
+          placeholder="לדוגמה: זהר כהן"
           icon={<Icons.user size={20} color={colors.ink3} />}
-          value={name}
-          onChangeText={setName}
+          value={username}
+          onChangeText={setUsername}
           colors={colors}
         />
 
         <Field
-          label="מספר טלפון"
-          placeholder="054-0000000"
-          keyboardType="phone-pad"
-          icon={<Icons.phone size={20} color={colors.ink3} />}
-          value={phone}
-          onChangeText={setPhone}
+          label="אימייל"
+          placeholder="you@example.com"
+          keyboardType="email-address"
+          autoCapitalize="none"
+          autoCorrect={false}
+          icon={<Icons.mail size={20} color={colors.ink3} />}
+          value={email}
+          onChangeText={setEmail}
           colors={colors}
         />
 
-        {/* Profession picker */}
-        <View>
-          <Text style={[styles.sectionLabel, { color: colors.ink2, fontFamily: fonts.sans }]}>
-            התחום שלך
-          </Text>
-          <View style={styles.profGrid}>
-            {PROFESSIONS.map((p) => {
-              const isActive = profession === p.id;
-              return (
-                <Pressable
-                  key={p.id}
-                  onPress={() => setProfession(p.id)}
-                  style={[
-                    styles.profTile,
-                    {
-                      backgroundColor: isActive ? colors.accentBg : colors.bgElev,
-                      borderColor: isActive ? colors.accent : colors.line,
-                    },
-                  ]}
-                >
-                  <p.Icon size={22} color={isActive ? colors.accent : colors.ink3} />
-                  <Text
-                    style={[
-                      styles.profLabel,
-                      { color: isActive ? colors.accent : colors.ink2, fontWeight: isActive ? '700' : '500', fontFamily: fonts.sans },
-                    ]}
-                  >
-                    {p.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        </View>
+        <Field
+          label="סיסמה"
+          placeholder="לפחות 6 תווים"
+          secureTextEntry
+          icon={<Icons.shield size={20} color={colors.ink3} />}
+          value={password}
+          onChangeText={setPassword}
+          colors={colors}
+        />
 
         <Pressable onPress={onLogin} style={styles.loginRow}>
           <Text style={[styles.loginText, { color: colors.ink3, fontFamily: fonts.sans }]}>
@@ -141,7 +122,7 @@ export function RegisterScreen({ colors = lightColors, onCodeSent, onBack, onLog
           iconRight={<Icons.back size={20} color={colors.bg} />}
           colors={colors}
         >
-          {loading ? 'שולח קוד...' : 'המשך'}
+          {loading ? 'יוצר חשבון...' : 'המשך'}
         </Button>
       </FixedBottom>
     </View>
@@ -152,10 +133,6 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   scroll: { flex: 1 },
   content: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 120, gap: 14 },
-  sectionLabel: { fontSize: 13, fontWeight: '700', marginBottom: 10, letterSpacing: -0.1, textAlign: 'right' },
-  profGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  profTile: { width: '31%', paddingVertical: 14, paddingHorizontal: 10, borderRadius: 16, borderWidth: 1.5, alignItems: 'center', gap: 8 },
-  profLabel: { fontSize: 12, textAlign: 'center' },
   loginRow: { alignItems: 'center', paddingVertical: 8 },
   loginText: { fontSize: 14, textAlign: 'center' },
   loginLink: { fontWeight: '700' },

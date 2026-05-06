@@ -1,15 +1,19 @@
 import { useRouter } from 'expo-router';
 import { RegisterScreen } from '@/screens/auth/RegisterScreen';
+import { ROUTES } from '@/navigation/constants';
 
 export default function RegisterPage() {
   const router = useRouter();
   return (
     <RegisterScreen
-      onCodeSent={(phone, name, profession) =>
-        router.push({ pathname: '/(auth)/verify', params: { phone, name, profession } })
+      onRegistered={(name, profession) =>
+        router.replace({
+          pathname: ROUTES.ONBOARDING_BUSINESS,
+          params: { name, profession },
+        })
       }
       onBack={() => router.back()}
-      onLogin={() => router.push('/(auth)/login')}
+      onLogin={() => router.push(ROUTES.AUTH_LOGIN)}
     />
   );
 }

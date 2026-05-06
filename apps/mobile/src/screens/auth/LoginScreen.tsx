@@ -5,37 +5,40 @@ import { BrandMark } from '@/components/shared';
 import { Button, Field } from '@/components/primitives';
 import { Icons } from '@/components/icons';
 import { lightColors, fonts } from '@/theme/tokens';
-import { sendPhoneOTP } from '@/services/auth';
-import { toE164, isValidIsraeliPhone } from '@/lib/phone';
+import { signInWithEmail } from '@/services/auth';
 
 interface LoginScreenProps {
   colors?: typeof lightColors;
-  onCodeSent?: (phone: string) => void;
+  onLoggedIn?: () => void;
   onRegister?: () => void;
 }
 
-export function LoginScreen({ colors = lightColors, onCodeSent, onRegister }: LoginScreenProps) {
+export function LoginScreen({ colors = lightColors, onLoggedIn, onRegister }: LoginScreenProps) {
   const insets = useSafeAreaInsets();
-  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleSendCode = async () => {
-    if (!isValidIsraeliPhone(phone)) {
-      Alert.alert('מספר לא תקין', 'הכנס מספר טלפון ישראלי תקין כגון 054-1234567');
+  const handleLogin = async () => {
+    if (!email.trim() || !email.includes('@')) {
+      Alert.alert('אימייל לא תקין', 'הכנס כתובת אימייל תקינה');
+      return;
+    }
+    if (password.length < 6) {
+      Alert.alert('סיסמה חסרה', 'הכנס סיסמה באורך 6 תווים לפחות');
       return;
     }
 
     setLoading(true);
-    const e164 = toE164(phone);
-    const result = await sendPhoneOTP(e164);
+    const result = await signInWithEmail(email.trim().toLowerCase(), password);
     setLoading(false);
 
     if (!result.success) {
-      Alert.alert('שגיאה', result.error ?? 'לא ניתן לשלוח קוד כעת, נסה שוב');
+      Alert.alert('שגיאה', result.error ?? 'לא ניתן להתחבר כעת, נסה שוב');
       return;
     }
 
-    onCodeSent?.(e164);
+    onLoggedIn?.();
   };
 
   return (
@@ -58,26 +61,38 @@ export function LoginScreen({ colors = lightColors, onCodeSent, onRegister }: Lo
             ברוך הבא חזרה
           </Text>
           <Text style={[styles.sub, { color: colors.ink3, fontFamily: fonts.sans }]}>
-            הכנס את מספר הטלפון שלך כדי להתחבר
+            הכנס אימייל וסיסמה כדי להתחבר
           </Text>
         </View>
 
         {/* Form */}
         <View style={styles.form}>
           <Field
-            label="מספר טלפון"
-            placeholder="054-0000000"
-            keyboardType="phone-pad"
-            value={phone}
-            onChangeText={setPhone}
-            icon={<Icons.phone size={20} color={colors.ink3} />}
+            label="אימייל"
+            placeholder="you@example.com"
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
+            value={email}
+            onChangeText={setEmail}
+            icon={<Icons.mail size={20} color={colors.ink3} />}
+            colors={colors}
+          />
+
+          <Field
+            label="סיסמה"
+            placeholder="לפחות 6 תווים"
+            secureTextEntry
+            value={password}
+            onChangeText={setPassword}
+            icon={<Icons.shield size={20} color={colors.ink3} />}
             colors={colors}
           />
 
           <View style={[styles.infoRow, { backgroundColor: colors.aiBg, borderColor: 'rgba(90,135,112,0.2)' }]}>
             <Icons.sparkle size={16} color={colors.ai2} />
             <Text style={[styles.infoText, { color: colors.ai2, fontFamily: fonts.sans }]}>
-              נשלח אליך קוד אימות ב-SMS
+              התחברות מאובטחת עם אימייל וסיסמה
             </Text>
           </View>
 
@@ -85,11 +100,11 @@ export function LoginScreen({ colors = lightColors, onCodeSent, onRegister }: Lo
             kind="primary"
             size="lg"
             full
-            onPress={handleSendCode}
+            onPress={handleLogin}
             iconRight={<Icons.back size={20} color={colors.bg} />}
             colors={colors}
           >
-            {loading ? 'שולח...' : 'שלח קוד'}
+            {loading ? 'מתחבר...' : 'התחבר'}
           </Button>
         </View>
 

@@ -6,6 +6,7 @@ import type { Session, User, AuthChangeEvent } from '@supabase/supabase-js';
 export interface AuthResult {
   success: boolean;
   error?: string;
+  emailConfirmationRequired?: boolean;
 }
 
 export interface SessionResult {
@@ -13,7 +14,7 @@ export interface SessionResult {
   user: User | null;
 }
 
-// ─── Phone OTP (primary auth flow for Israeli field professionals) ─────────────
+// ─── Phone OTP (kept for future optional flows) ───────────────────────────────
 
 /**
  * Step 1 — send a 6-digit OTP via SMS to the given Israeli phone number.
@@ -35,19 +36,22 @@ export async function verifyPhoneOTP(phone: string, token: string): Promise<Auth
   return { success: true };
 }
 
-// ─── Email/password (fallback or admin use) ───────────────────────────────────
+// ─── Email/password ───────────────────────────────────────────────────────────
 
 export async function signUpWithEmail(
   email: string,
   password: string,
-  meta: { full_name: string; phone?: string },
+  meta: { full_name: string; phone?: string; profession?: string },
 ): Promise<AuthResult> {
-  const { error } = await supabase.auth.signUp({
+  const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: { data: meta },
   });
   if (error) return { success: false, error: error.message };
+  if (!data.session) {
+    return { success: true, emailConfirmationRequired: true };
+  }
   return { success: true };
 }
 
