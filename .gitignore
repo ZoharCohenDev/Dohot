@@ -4,3 +4,27 @@
 
 expo-env.d.ts
 # @end expo-cli
+
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Expo
+.expo/
+apps/mobile/expo-env.d.ts
+
+# OS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+
