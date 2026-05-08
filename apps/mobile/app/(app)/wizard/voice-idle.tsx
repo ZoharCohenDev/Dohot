@@ -3,6 +3,8 @@ import { View, Text, Pressable, StyleSheet, StatusBar } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Header } from '@/components/layout';
 import { Icons } from '@/components/icons';
+import { ROUTES } from '@/navigation/constants';
+import { safeBack } from '@/navigation/safeBack';
 import { fonts, voiceColors } from '@/theme/tokens';
 
 export default function VoiceIdlePage() {
@@ -14,7 +16,7 @@ export default function VoiceIdlePage() {
       <StatusBar barStyle="light-content" />
       <View style={styles.aurora} pointerEvents="none" />
 
-      <Header onBack={() => router.back()} />
+      <Header onBack={() => safeBack(router, ROUTES.APP_CREATE)} transparent />
 
       <View style={styles.body}>
         <View style={styles.aiLabel}>

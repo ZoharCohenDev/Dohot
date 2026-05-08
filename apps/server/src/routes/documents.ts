@@ -1,4 +1,6 @@
 import { Router } from 'express';
+import { requireAuth } from '../middleware/auth';
+import { generatePdfHandler } from '../controllers/documents';
 
 export const documentsRouter = Router();
 
@@ -17,3 +19,5 @@ documentsRouter.get('/:id', (req, res) => {
 documentsRouter.delete('/:id', (req, res) => {
   res.json({ deleted: req.params['id'] });
 });
+
+documentsRouter.post('/:documentId/generate-pdf', requireAuth, generatePdfHandler);

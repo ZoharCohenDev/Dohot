@@ -67,11 +67,11 @@ export function Header({
       {/* Large title */}
       {large && (
         <View style={styles.largeTitleBlock}>
-          <Text style={[styles.largeTitle, { color: colors.ink1, fontFamily: fonts.sans }]}>
+          <Text style={[styles.largeTitle, { color: colors.ink1, fontFamily: fonts.sans, textAlign: 'right' }]}>
             {title}
           </Text>
           {subtitle && (
-            <Text style={[styles.subtitle, { color: colors.ink3, fontFamily: fonts.sans }]}>
+            <Text style={[styles.subtitle, { color: colors.ink3, fontFamily: fonts.sans, textAlign: 'right' }]}>
               {subtitle}
             </Text>
           )}

@@ -1,6 +1,7 @@
 import { useRouter } from 'expo-router';
 import { RegisterScreen } from '@/screens/auth/RegisterScreen';
 import { ROUTES } from '@/navigation/constants';
+import { safeBack } from '@/navigation/safeBack';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -12,7 +13,7 @@ export default function RegisterPage() {
           params: { name, profession },
         })
       }
-      onBack={() => router.back()}
+      onBack={() => safeBack(router, ROUTES.AUTH_LOGIN)}
       onLogin={() => router.push(ROUTES.AUTH_LOGIN)}
     />
   );

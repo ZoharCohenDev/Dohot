@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, Animated, StyleSheet } from 'react-native';
+import { I18nManager, Pressable, Animated, StyleSheet } from 'react-native';
 import { lightColors, durations } from '@/theme/tokens';
 
 interface ToggleProps {
@@ -8,16 +8,24 @@ interface ToggleProps {
   colors?: typeof lightColors;
 }
 
+// Track inner travel distance: (50 - 2*2 - 26) = 20px
+const TRAVEL = 20;
+
 export function Toggle({ on, onChange, colors = lightColors }: ToggleProps) {
-  const translateX = React.useRef(new Animated.Value(on ? -20 : 0)).current;
+  // In RTL: thumb starts at RIGHT (flex-start = RTL leading side).
+  // OFF = 0 (thumb at right/start in RTL), ON = -TRAVEL (moves left = toward end in RTL).
+  // In LTR: thumb starts at LEFT (flex-start = LTR leading side).
+  // OFF = 0 (thumb at left), ON = +TRAVEL (moves right).
+  const onValue = I18nManager.isRTL ? -TRAVEL : TRAVEL;
+  const translateX = React.useRef(new Animated.Value(on ? onValue : 0)).current;
 
   React.useEffect(() => {
     Animated.timing(translateX, {
-      toValue: on ? -20 : 0,
+      toValue: on ? onValue : 0,
       duration: durations.normal,
       useNativeDriver: true,
     }).start();
-  }, [on, translateX]);
+  }, [on, translateX, onValue]);
 
   return (
     <Pressable
@@ -50,6 +58,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 2,
     elevation: 2,
-    alignSelf: 'flex-end',
+    alignSelf: 'flex-start',
   },
 });

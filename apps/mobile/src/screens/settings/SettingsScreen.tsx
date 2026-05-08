@@ -1,10 +1,12 @@
 import React from 'react';
-import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, Pressable, ScrollView, StyleSheet, Alert } from 'react-native';
 import { Header, BottomNav, type TabId } from '@/components/layout';
 import { Card, Toggle } from '@/components/primitives';
 import { Avatar } from '@/components/shared';
 import { Icons } from '@/components/icons';
 import { lightColors, fonts } from '@/theme/tokens';
+import { useAuth } from '@/context/AuthContext';
+import { signOut } from '@/services/auth';
 
 interface SettingsScreenProps {
   dark?: boolean;
@@ -63,6 +65,25 @@ function SettingGroup({ title, children, colors }: SettingGroupProps) {
 }
 
 export function SettingsScreen({ dark = false, colors = lightColors, onNavigate, onToggleTheme }: SettingsScreenProps) {
+  const { businessProfile } = useAuth();
+
+  const displayName = businessProfile?.full_name || businessProfile?.business_name || 'משתמש';
+  const businessName = businessProfile?.business_name || '';
+  const plan = businessProfile?.plan ?? 'free';
+
+  const handleLogout = () => {
+    Alert.alert('התנתקות', 'האם אתה בטוח שאתה רוצה להתנתק?', [
+      { text: 'ביטול', style: 'cancel' },
+      {
+        text: 'התנתק',
+        style: 'destructive',
+        onPress: async () => {
+          await signOut();
+        },
+      },
+    ]);
+  };
+
   return (
     <View style={[styles.root, { backgroundColor: colors.bg }]}>
       <Header large title="ההגדרות שלי" colors={colors} />
@@ -75,20 +96,24 @@ export function SettingsScreen({ dark = false, colors = lightColors, onNavigate,
         {/* Profile card */}
         <Card padding={20} colors={colors} style={{ marginBottom: 18 }}>
           <View style={styles.profileRow}>
-            <Avatar name="דניאל כהן" size={56} />
+            <Avatar name={displayName} size={56} />
             <View style={styles.profileInfo}>
               <Text style={[styles.profileName, { color: colors.ink1, fontFamily: fonts.sans }]}>
-                דניאל כהן
+                {displayName}
               </Text>
-              <Text style={[styles.profileBiz, { color: colors.ink3, fontFamily: fonts.sans }]}>
-                כהן גילוי נזילות בע״מ
-              </Text>
-              <View style={[styles.proBadge, { backgroundColor: colors.aiBg }]}>
-                <Icons.shieldCheck size={12} color={colors.ai2} />
-                <Text style={[styles.proBadgeText, { color: colors.ai2, fontFamily: fonts.sans }]}>
-                  תכנית פרו
+              {businessName ? (
+                <Text style={[styles.profileBiz, { color: colors.ink3, fontFamily: fonts.sans }]}>
+                  {businessName}
                 </Text>
-              </View>
+              ) : null}
+              {plan === 'pro' && (
+                <View style={[styles.proBadge, { backgroundColor: colors.aiBg }]}>
+                  <Icons.shieldCheck size={12} color={colors.ai2} />
+                  <Text style={[styles.proBadgeText, { color: colors.ai2, fontFamily: fonts.sans }]}>
+                    תכנית פרו
+                  </Text>
+                </View>
+              )}
             </View>
             <Pressable>
               <Icons.chevL size={20} color={colors.ink3} />
@@ -119,7 +144,7 @@ export function SettingsScreen({ dark = false, colors = lightColors, onNavigate,
         </SettingGroup>
 
         {/* Logout */}
-        <Pressable style={[styles.logoutBtn, { backgroundColor: colors.dangerBg }]}>
+        <Pressable onPress={handleLogout} style={[styles.logoutBtn, { backgroundColor: colors.dangerBg }]}>
           <Icons.logout size={18} color={colors.danger} />
           <Text style={[styles.logoutText, { color: colors.danger, fontFamily: fonts.sans }]}>
             התנתק

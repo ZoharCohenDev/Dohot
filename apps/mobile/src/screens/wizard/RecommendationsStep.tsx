@@ -4,38 +4,74 @@ import { Header, FixedBottom, ProgressBar } from '@/components/layout';
 import { Button, Card, Pill } from '@/components/primitives';
 import { Icons } from '@/components/icons';
 import { lightColors, fonts } from '@/theme/tokens';
+import type { Recommendation } from '@dohot/shared';
+import { useWizard } from '@/context/WizardContext';
 
 interface RecommendationsStepProps {
   colors?: typeof lightColors;
-  onNext?: () => void;
+  onNext?: (recs: Recommendation[]) => void;
   onBack?: () => void;
+  isSaving?: boolean;
 }
 
-const RECOMMENDATIONS = [
+type RecDisplay = Recommendation & {
+  priorityColor: (c: typeof lightColors) => string;
+  priorityBg: (c: typeof lightColors) => string;
+};
+
+const PRIORITY_STYLE: Record<string, { color: (c: typeof lightColors) => string; bg: (c: typeof lightColors) => string }> = {
+  'מיידי':          { color: (c) => c.danger, bg: (c) => c.dangerBg },
+  'תוך 48 שעות':    { color: (c) => c.warn,   bg: (c) => c.warnBg   },
+  'עד שבועיים':     { color: (c) => c.ai2,    bg: (c) => c.aiBg     },
+};
+
+const DEFAULT_PRIORITY_STYLE = { color: (c: typeof lightColors) => c.ink2, bg: (c: typeof lightColors) => c.bgSunken };
+
+function toDisplay(rec: Recommendation): RecDisplay {
+  const style = PRIORITY_STYLE[rec.priority] ?? DEFAULT_PRIORITY_STYLE;
+  return { ...rec, priorityColor: style.color, priorityBg: style.bg };
+}
+
+const FALLBACK_RECOMMENDATIONS: RecDisplay[] = [
   {
     priority: 'מיידי',
-    priorityColor: (c: typeof lightColors) => c.danger,
-    priorityBg: (c: typeof lightColors) => c.dangerBg,
+    priorityColor: (c) => c.danger,
+    priorityBg: (c) => c.dangerBg,
     title: 'ניתוק מים מקומי',
-    desc: 'הפסקת אספקת מים לדירה העליונה עד לאיתור מדויק של מקור הנזילה',
+    description: 'הפסקת אספקת מים לדירה העליונה עד לאיתור מדויק של מקור הנזילה',
   },
   {
     priority: 'תוך 48 שעות',
-    priorityColor: (c: typeof lightColors) => c.warn,
-    priorityBg: (c: typeof lightColors) => c.warnBg,
+    priorityColor: (c) => c.warn,
+    priorityBg: (c) => c.warnBg,
     title: 'פתיחת קיר ובדיקה',
-    desc: 'פירוק של 30×30 ס״מ באזור הסימון לחשיפת הצנרת ובדיקת מצב הצינור',
+    description: 'פירוק של 30×30 ס״מ באזור הסימון לחשיפת הצנרת ובדיקת מצב הצינור',
   },
   {
     priority: 'עד שבועיים',
-    priorityColor: (c: typeof lightColors) => c.ai2,
-    priorityBg: (c: typeof lightColors) => c.aiBg,
+    priorityColor: (c) => c.ai2,
+    priorityBg: (c) => c.aiBg,
     title: 'איטום וטיפול בקיר',
-    desc: 'לאחר תיקון: ייבוש מואץ, החלפת בידוד, צביעה ושיקום',
+    description: 'לאחר תיקון: ייבוש מואץ, החלפת בידוד, צביעה ושיקום',
   },
 ];
 
-export function RecommendationsStep({ colors = lightColors, onNext, onBack }: RecommendationsStepProps) {
+const FALLBACK_SUMMARY =
+  'במהלך הביקור התגלתה נזילה פעילה בקיר המערבי של חדר השינה, ליד החלון. בבדיקה תרמית זוהה הפרש טמפרטורה של 4.2°C, המעיד על מקור רטיבות מהצנרת הראשית בקומה העליונה.';
+
+export function RecommendationsStep({ colors = lightColors, onNext, onBack, isSaving }: RecommendationsStepProps) {
+  const wizard = useWizard();
+
+  // Initialise from AI result if available, otherwise use fallback
+  const initialRecs: RecDisplay[] =
+    wizard.state.recommendations.length > 0
+      ? wizard.state.recommendations.map(toDisplay)
+      : FALLBACK_RECOMMENDATIONS;
+
+  const summary = wizard.state.aiSummary || FALLBACK_SUMMARY;
+
+  const [recs, setRecs] = React.useState<RecDisplay[]>(initialRecs);
+
   return (
     <View style={[styles.root, { backgroundColor: colors.bg }]}>
       <Header step={5} ofSteps={5} onBack={onBack} colors={colors} />
@@ -57,7 +93,7 @@ export function RecommendationsStep({ colors = lightColors, onNext, onBack }: Re
           המלצות לטיפול
         </Text>
 
-        {/* Editable summary */}
+        {/* AI-generated summary — editable in the future */}
         <Card padding={18} colors={colors}>
           <View style={styles.summaryHeader}>
             <Text style={[styles.summaryTitle, { color: colors.ink1, fontFamily: fonts.sans }]}>
@@ -68,15 +104,13 @@ export function RecommendationsStep({ colors = lightColors, onNext, onBack }: Re
             </Pressable>
           </View>
           <Text style={[styles.summaryText, { color: colors.ink2, fontFamily: fonts.sans }]}>
-            {'במהלך הביקור התגלתה '}
-            <Text style={{ color: colors.ink1, fontWeight: '700' }}>נזילה פעילה בקיר המערבי</Text>
-            {' של חדר השינה, ליד החלון. בבדיקה תרמית זוהה הפרש טמפרטורה של 4.2°C, המעיד על מקור רטיבות מהצנרת הראשית בקומה העליונה.'}
+            {summary}
           </Text>
         </Card>
 
-        {/* Recommendations */}
+        {/* AI-generated recommendations */}
         <View style={styles.recList}>
-          {RECOMMENDATIONS.map((rec, i) => (
+          {recs.map((rec, i) => (
             <Card key={i} padding={16} elev={0} colors={colors}>
               <View style={styles.recRow}>
                 <View style={[styles.recNum, { backgroundColor: rec.priorityBg(colors) }]}>
@@ -92,7 +126,7 @@ export function RecommendationsStep({ colors = lightColors, onNext, onBack }: Re
                     {rec.title}
                   </Text>
                   <Text style={[styles.recDesc, { color: colors.ink3, fontFamily: fonts.sans }]}>
-                    {rec.desc}
+                    {rec.description}
                   </Text>
                 </View>
                 <Pressable>
@@ -113,8 +147,16 @@ export function RecommendationsStep({ colors = lightColors, onNext, onBack }: Re
       </ScrollView>
 
       <FixedBottom colors={colors}>
-        <Button kind="primary" size="lg" full onPress={onNext} iconRight={<Icons.back size={20} color={colors.bg} />} colors={colors}>
-          הצג תצוגה מקדימה
+        <Button
+          kind="primary"
+          size="lg"
+          full
+          disabled={isSaving}
+          onPress={() => onNext?.(recs.map(({ priority, title, description }) => ({ priority, title, description })))}
+          iconRight={<Icons.back size={20} color={colors.bg} />}
+          colors={colors}
+        >
+          {isSaving ? 'שומר…' : 'הצג תצוגה מקדימה'}
         </Button>
       </FixedBottom>
     </View>

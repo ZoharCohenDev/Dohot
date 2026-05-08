@@ -1,5 +1,5 @@
-export type DocumentType = 'report' | 'quote' | 'worklog' | 'agreement';
-export type DocumentStatus = 'draft' | 'sent' | 'pending' | 'signed' | 'approved';
+// Re-export canonical types from shared to avoid duplication
+export type { DocumentType, DocumentStatus } from '@dohot/shared';
 
 export interface AuthStackParams {
   login: undefined;

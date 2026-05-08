@@ -78,6 +78,7 @@ export function VoiceScreen({ onNext, onBack }: VoiceScreenProps) {
         step={4}
         ofSteps={5}
         onBack={onBack}
+        transparent
         action={
           <Pressable style={styles.moreBtn}>
             <Icons.more size={22} color="#fff" />

@@ -1,9 +1,12 @@
 import React from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { View, Text, Pressable, Share, Alert, Linking, StyleSheet } from 'react-native';
+import { File, Directory, Paths } from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Header } from '@/components/layout';
 import { Icons } from '@/components/icons';
 import { lightColors, fonts } from '@/theme/tokens';
+import { useWizard } from '@/context/WizardContext';
 
 interface SendScreenProps {
   colors?: typeof lightColors;
@@ -11,22 +14,151 @@ interface SendScreenProps {
   onDone?: () => void;
 }
 
-const SEND_OPTIONS = [
-  { Icon: Icons.whatsapp, iconColor: '#fff', bg: '#25D366', title: 'WhatsApp', subtitle: '052-2837461 · אבי כהן', big: true },
-  { Icon: Icons.mail, iconColor: '#fff', bg: (c: typeof lightColors) => c.info, title: 'דוא״ל', subtitle: 'avi.cohen@gmail.com', big: false },
-  { Icon: Icons.download, iconColor: '#fff', bg: (c: typeof lightColors) => c.ink1, title: 'הורדת PDF', subtitle: 'שמור במכשיר', big: false },
-  { Icon: Icons.share, iconColor: '#fff', bg: (c: typeof lightColors) => c.ink2, title: 'שיתוף קישור', subtitle: 'קישור מאומת ב-7 ימים', big: false },
-];
+function buildWhatsAppMessage(
+  customerName: string,
+  docTitle: string,
+  pdfUrl: string,
+): string {
+  const greeting = customerName ? `שלום ${customerName},` : 'שלום,';
+  return [
+    greeting,
+    `${docTitle} מוכן לעיונך.`,
+    '',
+    'תוכל לצפות בו בקישור הבא:',
+    pdfUrl,
+    '',
+    'לכל שאלה אני כאן.',
+  ].join('\n');
+}
 
 export function SendScreen({ colors = lightColors, onBack, onDone }: SendScreenProps) {
   const insets = useSafeAreaInsets();
+  const wizard = useWizard();
+
+  const pdfUrl = wizard.state.pdfUrl;
+  const customerName = wizard.state.customerName;
+  const customerPhone = wizard.state.customerPhone;
+  const issueType = wizard.state.issueType;
+  const [downloading, setDownloading] = React.useState(false);
+
+  const DOC_TYPE_LABELS: Record<string, string> = {
+    leak: 'דוח גילוי נזילה',
+    waterproofing: 'דוח איטום',
+    pipe: 'דוח בעיית צנרת',
+    roof: 'דוח נזק גג',
+    moisture: 'דוח עובש ולחות',
+    other: 'דוח בדיקה',
+  };
+  const docTitle = DOC_TYPE_LABELS[issueType] ?? 'דוח מקצועי';
+
+  const requirePdf = (): boolean => {
+    if (!pdfUrl) {
+      Alert.alert('PDF לא מוכן', 'המתן לסיום יצירת ה-PDF ונסה שוב.');
+      return false;
+    }
+    return true;
+  };
+
+  const handleWhatsApp = () => {
+    if (!requirePdf()) return;
+    const message = buildWhatsAppMessage(customerName, docTitle, pdfUrl!);
+    const phone = customerPhone.replace(/\D/g, '').replace(/^0/, '');
+    const url = `whatsapp://send?phone=972${phone}&text=${encodeURIComponent(message)}`;
+    Linking.openURL(url).catch(() => {
+      // WhatsApp not installed — fall back to generic share
+      Share.share({ message: `${docTitle}\n\n${pdfUrl!}` });
+    });
+  };
+
+  const handleNativeShare = () => {
+    if (!requirePdf()) return;
+    const message = buildWhatsAppMessage(customerName, docTitle, pdfUrl!);
+    Share.share({
+      message,
+      url: pdfUrl!,   // iOS attaches the URL separately
+      title: docTitle,
+    });
+  };
+
+  const handleDownload = async () => {
+    if (!requirePdf()) return;
+    const canShare = await Sharing.isAvailableAsync();
+    if (!canShare) {
+      Linking.openURL(pdfUrl!);
+      return;
+    }
+
+    setDownloading(true);
+    try {
+      const filename = `${docTitle.replace(/\s+/g, '_')}.pdf`;
+      const dest = new File(new Directory(Paths.cache), filename);
+      // downloadFileAsync is assigned dynamically outside the class body
+      const downloaded = await (File as unknown as {
+        downloadFileAsync: (url: string, dest: File, opts: object) => Promise<File>;
+      }).downloadFileAsync(pdfUrl!, dest, { idempotent: true });
+      await Sharing.shareAsync(downloaded.uri, {
+        mimeType: 'application/pdf',
+        dialogTitle: `שיתוף ${docTitle}`,
+        UTI: 'com.adobe.pdf',
+      });
+    } catch {
+      Alert.alert('שגיאה', 'לא ניתן להוריד את הקובץ. נסה לפתוח בדפדפן.');
+      Linking.openURL(pdfUrl!);
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  type Option = {
+    Icon: React.ComponentType<{ size: number; color: string }>;
+    iconColor: string;
+    bg: string;
+    title: string;
+    subtitle: string;
+    big: boolean;
+    onPress: () => void;
+    loading?: boolean;
+  };
+
+  const options: Option[] = [
+    {
+      Icon: Icons.whatsapp,
+      iconColor: '#fff',
+      bg: '#25D366',
+      title: 'WhatsApp',
+      subtitle: customerPhone
+        ? `${customerPhone} · ${customerName}`
+        : 'שלח הודעה ללקוח',
+      big: true,
+      onPress: handleWhatsApp,
+    },
+    {
+      Icon: Icons.share,
+      iconColor: '#fff',
+      bg: colors.ink1,
+      title: 'שיתוף',
+      subtitle: 'כל אפליקציה — מייל, טלגרם ועוד',
+      big: false,
+      onPress: handleNativeShare,
+    },
+    {
+      Icon: Icons.download,
+      iconColor: '#fff',
+      bg: colors.ink2,
+      title: downloading ? 'מוריד…' : 'הורדת PDF',
+      subtitle: 'שמור במכשיר או שתף קובץ',
+      big: false,
+      onPress: handleDownload,
+      loading: downloading,
+    },
+  ];
 
   return (
     <View style={[styles.root, { backgroundColor: colors.bg, paddingBottom: insets.bottom + 24 }]}>
       <Header onBack={onBack} colors={colors} />
 
       <View style={styles.body}>
-        {/* Success circle */}
+        {/* Success circle — unchanged from original */}
         <View style={styles.successWrap}>
           <View style={[styles.successOuter, { backgroundColor: colors.aiBg }]}>
             <View style={[styles.successDash, { borderColor: 'rgba(90,135,112,0.3)' }]} />
@@ -43,47 +175,46 @@ export function SendScreen({ colors = lightColors, onBack, onDone }: SendScreenP
           איך תרצה לשלוח אותו?
         </Text>
 
-        {/* Send options */}
         <View style={styles.options}>
-          {SEND_OPTIONS.map((opt, i) => {
-            const bg = typeof opt.bg === 'function' ? opt.bg(colors) : opt.bg;
-            return (
-              <Pressable
-                key={i}
+          {options.map((opt, i) => (
+            <Pressable
+              key={i}
+              onPress={opt.onPress}
+              disabled={opt.loading}
+              style={[
+                styles.optionRow,
+                {
+                  backgroundColor: colors.bgElev,
+                  borderColor: colors.line,
+                  padding: opt.big ? 18 : 14,
+                  opacity: opt.loading ? 0.6 : 1,
+                },
+              ]}
+            >
+              <View
                 style={[
-                  styles.optionRow,
+                  styles.optionIcon,
                   {
-                    backgroundColor: colors.bgElev,
-                    borderColor: colors.line,
-                    padding: opt.big ? 18 : 14,
+                    backgroundColor: opt.bg,
+                    width: opt.big ? 52 : 44,
+                    height: opt.big ? 52 : 44,
+                    borderRadius: opt.big ? 14 : 12,
                   },
                 ]}
               >
-                <View
-                  style={[
-                    styles.optionIcon,
-                    {
-                      backgroundColor: bg,
-                      width: opt.big ? 52 : 44,
-                      height: opt.big ? 52 : 44,
-                      borderRadius: opt.big ? 14 : 12,
-                    },
-                  ]}
-                >
-                  <opt.Icon size={opt.big ? 26 : 22} color={opt.iconColor} />
-                </View>
-                <View style={styles.optionInfo}>
-                  <Text style={[styles.optionTitle, { color: colors.ink1, fontFamily: fonts.sans, fontSize: opt.big ? 16 : 15 }]}>
-                    {opt.title}
-                  </Text>
-                  <Text style={[styles.optionSub, { color: colors.ink3, fontFamily: fonts.sans }]}>
-                    {opt.subtitle}
-                  </Text>
-                </View>
-                <Icons.chevL size={18} color={colors.ink4} />
-              </Pressable>
-            );
-          })}
+                <opt.Icon size={opt.big ? 26 : 22} color={opt.iconColor} />
+              </View>
+              <View style={styles.optionInfo}>
+                <Text style={[styles.optionTitle, { color: colors.ink1, fontFamily: fonts.sans, fontSize: opt.big ? 16 : 15 }]}>
+                  {opt.title}
+                </Text>
+                <Text style={[styles.optionSub, { color: colors.ink3, fontFamily: fonts.sans }]}>
+                  {opt.subtitle}
+                </Text>
+              </View>
+              <Icons.chevL size={18} color={colors.ink4} />
+            </Pressable>
+          ))}
         </View>
 
         <View style={styles.footer}>

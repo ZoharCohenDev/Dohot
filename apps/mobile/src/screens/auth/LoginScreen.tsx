@@ -101,6 +101,7 @@ export function LoginScreen({ colors = lightColors, onLoggedIn, onRegister }: Lo
             size="lg"
             full
             onPress={handleLogin}
+            disabled={loading}
             iconRight={<Icons.back size={20} color={colors.bg} />}
             colors={colors}
           >

@@ -93,6 +93,7 @@ export function onAuthStateChange(
 
 // ─── Current user helper ─────────────────────────────────────────────────────
 
-export function getCurrentUser(): User | null {
-  return supabase.auth.getUser().then(({ data }) => data.user) as unknown as User | null;
+export async function getCurrentUser(): Promise<User | null> {
+  const { data } = await supabase.auth.getUser();
+  return data.user ?? null;
 }

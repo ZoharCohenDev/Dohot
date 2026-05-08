@@ -1,35 +1,57 @@
 import React from 'react';
-import { View, Text, Pressable, TextInput, FlatList, StyleSheet } from 'react-native';
+import { View, Text, Pressable, TextInput, FlatList, ActivityIndicator, StyleSheet } from 'react-native';
 import { Header, BottomNav, type TabId } from '@/components/layout';
 import { Avatar } from '@/components/shared';
 import { Icons } from '@/components/icons';
 import { lightColors, fonts } from '@/theme/tokens';
+import { useCustomers } from '@/hooks/useCustomers';
+import type { CustomerType } from '@dohot/shared';
 
 interface CustomersScreenProps {
   colors?: typeof lightColors;
   onNavigate?: (tab: TabId) => void;
 }
 
-const FILTER_CHIPS = ['הכל', 'פרטיים', 'ועדי בית', 'חברות ביטוח', 'בעלי מקצוע'];
-
-const CUSTOMERS = [
-  { id: '1', name: 'אבי כהן', address: 'הרצליה • 6 דוחות', last: 'לפני יומיים', color: '#C2613B' },
-  { id: '2', name: 'משפחת לוי', address: 'תל אביב • 3 דוחות', last: 'לפני שבוע', color: '#5A8770' },
-  { id: '3', name: 'עמוס שלמה', address: 'רעננה • 2 דוחות', last: 'לפני שבועיים', color: '#4A7B9D' },
-  { id: '4', name: 'מירי דהן', address: 'גבעתיים • 1 דוח', last: 'לפני חודש', color: '#B8862B' },
-  { id: '5', name: 'ועד בית מנשה 14', address: 'תל אביב • 4 דוחות', last: 'אתמול', color: '#8B5A8B' },
-  { id: '6', name: "יעל ברקוביץ'", address: 'כפר סבא • 2 דוחות', last: 'לפני 3 ימים', color: '#5A8770' },
+const FILTER_CHIPS: { label: string; type?: CustomerType }[] = [
+  { label: 'הכל' },
+  { label: 'פרטיים', type: 'private' },
+  { label: 'ועדי בית', type: 'building_committee' },
+  { label: 'חברות ביטוח', type: 'insurance_company' },
+  { label: 'בעלי מקצוע', type: 'contractor' },
 ];
+
+function relativeDate(iso: string | null): string {
+  if (!iso) return '';
+  const diff = Date.now() - new Date(iso).getTime();
+  const days = Math.floor(diff / 86400000);
+  if (days === 0) return 'היום';
+  if (days === 1) return 'אתמול';
+  if (days < 7) return `לפני ${days} ימים`;
+  if (days < 14) return 'לפני שבוע';
+  return `לפני ${Math.floor(days / 7)} שבועות`;
+}
 
 export function CustomersScreen({ colors = lightColors, onNavigate }: CustomersScreenProps) {
   const [activeFilter, setActiveFilter] = React.useState(0);
+  const [searchQuery, setSearchQuery] = React.useState('');
+  const [debouncedSearch, setDebouncedSearch] = React.useState('');
+
+  React.useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery), 400);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const { customers, total, loading, error } = useCustomers(
+    debouncedSearch,
+    FILTER_CHIPS[activeFilter]?.type,
+  );
 
   return (
     <View style={[styles.root, { backgroundColor: colors.bg }]}>
       <Header
         large
         title="לקוחות"
-        subtitle="178 לקוחות פעילים"
+        subtitle={loading ? '' : `${total} לקוחות`}
         action={
           <Pressable style={[styles.addBtn, { backgroundColor: colors.ink1 }]}>
             <Icons.plus size={22} color={colors.bg} />
@@ -43,10 +65,13 @@ export function CustomersScreen({ colors = lightColors, onNavigate }: CustomersS
         <View style={[styles.searchBar, { backgroundColor: colors.bgElev, borderColor: colors.line }]}>
           <Icons.search size={20} color={colors.ink3} />
           <TextInput
+            value={searchQuery}
+            onChangeText={setSearchQuery}
             placeholder="חיפוש לפי שם, כתובת או טלפון…"
             placeholderTextColor={colors.ink3}
             style={[styles.searchInput, { color: colors.ink1, fontFamily: fonts.sans }]}
             textAlign="right"
+            autoCorrect={false}
           />
         </View>
 
@@ -54,7 +79,7 @@ export function CustomersScreen({ colors = lightColors, onNavigate }: CustomersS
         <FlatList
           horizontal
           data={FILTER_CHIPS}
-          keyExtractor={(item) => item}
+          keyExtractor={(item) => item.label}
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.chipsRow}
           renderItem={({ item, index }) => (
@@ -73,38 +98,54 @@ export function CustomersScreen({ colors = lightColors, onNavigate }: CustomersS
                   { color: index === activeFilter ? colors.bg : colors.ink2, fontFamily: fonts.sans },
                 ]}
               >
-                {item}
+                {item.label}
               </Text>
             </Pressable>
           )}
         />
 
-        {/* List */}
-        <FlatList
-          data={CUSTOMERS}
-          keyExtractor={(item) => item.id}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.listContent}
-          ItemSeparatorComponent={() => (
-            <View style={[styles.separator, { backgroundColor: colors.line }]} />
-          )}
-          renderItem={({ item }) => (
-            <Pressable style={styles.customerRow}>
-              <Avatar name={item.name} size={44} color={item.color} />
-              <View style={styles.customerInfo}>
-                <Text style={[styles.customerName, { color: colors.ink1, fontFamily: fonts.sans }]}>
-                  {item.name}
+        {loading ? (
+          <View style={styles.center}>
+            <ActivityIndicator color={colors.ink3} />
+          </View>
+        ) : error ? (
+          <View style={styles.center}>
+            <Text style={[styles.emptyText, { color: colors.ink3, fontFamily: fonts.sans }]}>{error}</Text>
+          </View>
+        ) : customers.length === 0 ? (
+          <View style={styles.center}>
+            <Icons.search size={40} color={colors.ink4} />
+            <Text style={[styles.emptyText, { color: colors.ink3, fontFamily: fonts.sans, marginTop: 12 }]}>
+              {debouncedSearch ? 'לא נמצאו לקוחות' : 'אין לקוחות עדיין'}
+            </Text>
+          </View>
+        ) : (
+          <FlatList
+            data={customers}
+            keyExtractor={(item) => item.id}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.listContent}
+            ItemSeparatorComponent={() => (
+              <View style={[styles.separator, { backgroundColor: colors.line }]} />
+            )}
+            renderItem={({ item }) => (
+              <Pressable style={styles.customerRow}>
+                <Avatar name={item.name} size={44} />
+                <View style={styles.customerInfo}>
+                  <Text style={[styles.customerName, { color: colors.ink1, fontFamily: fonts.sans }]}>
+                    {item.name}
+                  </Text>
+                  <Text style={[styles.customerAddr, { color: colors.ink3, fontFamily: fonts.sans }]}>
+                    {item.address ?? ''}
+                  </Text>
+                </View>
+                <Text style={[styles.customerLast, { color: colors.ink4, fontFamily: fonts.sans }]}>
+                  {relativeDate(item.last_contact_at)}
                 </Text>
-                <Text style={[styles.customerAddr, { color: colors.ink3, fontFamily: fonts.sans }]}>
-                  {item.address}
-                </Text>
-              </View>
-              <Text style={[styles.customerLast, { color: colors.ink4, fontFamily: fonts.sans }]}>
-                {item.last}
-              </Text>
-            </Pressable>
-          )}
-        />
+              </Pressable>
+            )}
+          />
+        )}
       </View>
 
       <BottomNav active="customers" onTab={onNavigate} colors={colors} />
@@ -153,6 +194,13 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
   },
+  center: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingBottom: 80,
+  },
+  emptyText: { fontSize: 14, textAlign: 'center' },
   listContent: {
     paddingBottom: 120,
   },

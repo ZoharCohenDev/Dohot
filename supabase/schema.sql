@@ -12,6 +12,7 @@ CREATE TABLE business_profiles (
   id                  uuid        PRIMARY KEY REFERENCES auth.users ON DELETE CASCADE,
   full_name           text        NOT NULL DEFAULT '',
   business_name       text        NOT NULL DEFAULT '',
+  email               text,
   -- profession matches RegisterScreen picker options
   profession          text        NOT NULL DEFAULT 'other'
                                   CHECK (profession IN (
@@ -241,15 +242,17 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-  INSERT INTO public.business_profiles (id, full_name, profession, phone)
+  INSERT INTO public.business_profiles (id, full_name, email, profession, phone)
   VALUES (
     NEW.id,
     COALESCE(NEW.raw_user_meta_data->>'full_name', split_part(NEW.email, '@', 1), ''),
+    NEW.email,
     COALESCE(NULLIF(NEW.raw_user_meta_data->>'profession', ''), 'other'),
     NULLIF(NEW.raw_user_meta_data->>'phone', '')
   )
   ON CONFLICT (id) DO UPDATE SET
     full_name = EXCLUDED.full_name,
+    email = EXCLUDED.email,
     profession = EXCLUDED.profession,
     phone = EXCLUDED.phone;
   RETURN NEW;

@@ -65,6 +65,7 @@ export interface BusinessProfile {
   id: string;                        // auth.uid()
   full_name: string;
   business_name: string;
+  email: string | null;
   profession: Profession;
   phone: string | null;
   license_number: string | null;     // ח.פ / עוסק

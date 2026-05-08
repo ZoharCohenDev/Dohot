@@ -1,11 +1,13 @@
 import React from 'react';
-import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, Pressable, ActivityIndicator, StyleSheet } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { Header, FixedBottom } from '@/components/layout';
 import { Button } from '@/components/primitives';
 import { DamageImage } from '@/components/shared';
 import { Icons } from '@/components/icons';
 import { lightColors, fonts } from '@/theme/tokens';
+import { useWizard } from '@/context/WizardContext';
+import { generateDocumentPdf } from '@/services/documents';
 
 interface PdfPreviewScreenProps {
   colors?: typeof lightColors;
@@ -20,6 +22,23 @@ const RECOMMENDATIONS_PDF = [
 ];
 
 export function PdfPreviewScreen({ colors = lightColors, onBack, onSend }: PdfPreviewScreenProps) {
+  const wizard = useWizard();
+  const [generatingPdf, setGeneratingPdf] = React.useState(false);
+  const [pdfError, setPdfError] = React.useState('');
+  const generated = React.useRef(false);
+
+  React.useEffect(() => {
+    const documentId = wizard.state.documentId;
+    if (!documentId || generated.current) return;
+    generated.current = true;
+
+    setGeneratingPdf(true);
+    generateDocumentPdf(documentId)
+      .then((url) => wizard.setPdfUrl(url))
+      .catch(() => setPdfError('לא ניתן היה ליצור PDF. ניתן לנסות שוב.'))
+      .finally(() => setGeneratingPdf(false));
+  }, []);
+
   return (
     <View style={[styles.root, { backgroundColor: colors.bgSunken }]}>
       <Header
@@ -144,12 +163,25 @@ export function PdfPreviewScreen({ colors = lightColors, onBack, onSend }: PdfPr
       </ScrollView>
 
       <FixedBottom colors={colors}>
+        {!!pdfError && (
+          <Text style={[styles.pdfError, { color: colors.danger, fontFamily: fonts.sans }]}>
+            {pdfError}
+          </Text>
+        )}
         <View style={styles.bottomRow}>
           <Button kind="ghost" size="lg" icon={<Icons.edit size={18} color={colors.ink1} />} colors={colors}>
             ערוך
           </Button>
-          <Button kind="primary" size="lg" full onPress={onSend} colors={colors}>
-            שלח ללקוח
+          <Button
+            kind="primary"
+            size="lg"
+            full
+            disabled={generatingPdf}
+            onPress={onSend}
+            iconRight={generatingPdf ? <ActivityIndicator size="small" color={colors.bg} /> : undefined}
+            colors={colors}
+          >
+            {generatingPdf ? 'מייצר PDF…' : 'שלח ללקוח'}
           </Button>
         </View>
       </FixedBottom>
@@ -245,4 +277,5 @@ const styles = StyleSheet.create({
   pageDot: { width: 6, height: 6, borderRadius: 3 },
   pageCount: { fontSize: 12, marginStart: 6 },
   bottomRow: { flexDirection: 'row', gap: 10 },
+  pdfError: { fontSize: 12, textAlign: 'center', marginBottom: 8 },
 });

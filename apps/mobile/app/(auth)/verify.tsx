@@ -1,6 +1,8 @@
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { OtpVerifyScreen } from '@/screens/auth/OtpVerifyScreen';
 import { supabase, tables } from '@/lib/supabase';
+import { ROUTES } from '@/navigation/constants';
+import { safeBack } from '@/navigation/safeBack';
 
 export default function VerifyPage() {
   const router = useRouter();
@@ -23,10 +25,10 @@ export default function VerifyPage() {
     const hasProfile = !!data?.business_name;
 
     if (hasProfile) {
-      router.replace('/(app)');
+      router.replace(ROUTES.APP_HOME);
     } else {
       router.replace({
-        pathname: '/(onboarding)/business-setup',
+        pathname: ROUTES.ONBOARDING_BUSINESS,
         params: { name: name ?? '', profession: profession ?? 'other' },
       });
     }
@@ -36,7 +38,7 @@ export default function VerifyPage() {
     <OtpVerifyScreen
       phone={phone}
       onVerified={handleVerified}
-      onBack={() => router.back()}
+      onBack={() => safeBack(router, ROUTES.AUTH_REGISTER)}
     />
   );
 }

@@ -8,11 +8,15 @@ import { Heebo_300Light, Heebo_400Regular, Heebo_500Medium, Heebo_600SemiBold, H
 import { FrankRuhlLibre_400Regular, FrankRuhlLibre_500Medium, FrankRuhlLibre_700Bold } from '@expo-google-fonts/frank-ruhl-libre';
 import { AuthProvider } from '@/context/AuthContext';
 
-I18nManager.allowRTL(true);
-I18nManager.forceRTL(true);
+// Force RTL at module level so it takes effect before the first render.
+// On Android this requires an app restart; the check prevents repeat calls.
+if (!I18nManager.isRTL) {
+  I18nManager.allowRTL(true);
+  I18nManager.forceRTL(true);
+}
 
 export default function RootLayout() {
-  const [fontsLoaded] = Font.useFonts({
+  const [fontsLoaded, fontError] = Font.useFonts({
     Heebo_300Light,
     Heebo_400Regular,
     Heebo_500Medium,
@@ -26,7 +30,8 @@ export default function RootLayout() {
     FrankRuhlLibre: FrankRuhlLibre_400Regular,
   });
 
-  if (!fontsLoaded) return null;
+  // Keep splash screen until fonts are ready (or an error occurred)
+  if (!fontsLoaded && !fontError) return null;
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>

@@ -1,35 +1,71 @@
 import React from 'react';
-import { View, Text, Pressable, FlatList, StyleSheet } from 'react-native';
+import { View, Text, Pressable, FlatList, ActivityIndicator, StyleSheet } from 'react-native';
 import { Header, BottomNav, type TabId } from '@/components/layout';
 import { Pill } from '@/components/primitives';
 import { Icons } from '@/components/icons';
 import { lightColors, fonts } from '@/theme/tokens';
+import { useDocuments } from '@/hooks/useDocuments';
+import type { DocumentType, DocumentStatus } from '@dohot/shared';
 
 interface DocumentsScreenProps {
   colors?: typeof lightColors;
   onNavigate?: (tab: TabId) => void;
 }
 
-const TABS = ['הכל', 'דוחות', 'הצעות', 'הסכמים'];
-
-const DOCS = [
-  { id: '1', title: 'דוח גילוי נזילה — דירת קוטון', status: 'נשלח', statusColor: (c: typeof lightColors) => c.ai2, statusBg: (c: typeof lightColors) => c.aiBg, date: 'היום, 09:42', Icon: Icons.doc, iconColor: (c: typeof lightColors) => c.accent, iconBg: (c: typeof lightColors) => c.accentBg, amount: '' },
-  { id: '2', title: 'הצעת מחיר — בניין מנשה 14', status: 'ממתין', statusColor: (c: typeof lightColors) => c.warn, statusBg: (c: typeof lightColors) => c.warnBg, date: 'אתמול', Icon: Icons.quote, iconColor: (c: typeof lightColors) => c.info, iconBg: (c: typeof lightColors) => c.infoBg, amount: '₪ 4,800' },
-  { id: '3', title: 'דוח איטום גג — משפחת לוי', status: 'נחתם', statusColor: (c: typeof lightColors) => c.ai2, statusBg: (c: typeof lightColors) => c.aiBg, date: '3 ימים', Icon: Icons.shieldCheck, iconColor: (c: typeof lightColors) => c.ai2, iconBg: (c: typeof lightColors) => c.aiBg, amount: '' },
-  { id: '4', title: 'הסכם עבודה — מירי דהן', status: 'טיוטה', statusColor: (c: typeof lightColors) => c.ink3, statusBg: (c: typeof lightColors) => c.bgSunken, date: '4 ימים', Icon: Icons.agreement, iconColor: (c: typeof lightColors) => c.warn, iconBg: (c: typeof lightColors) => c.warnBg, amount: '' },
-  { id: '5', title: 'דוח לחות — עמוס שלמה', status: 'נשלח', statusColor: (c: typeof lightColors) => c.ai2, statusBg: (c: typeof lightColors) => c.aiBg, date: 'שבוע שעבר', Icon: Icons.doc, iconColor: (c: typeof lightColors) => c.accent, iconBg: (c: typeof lightColors) => c.accentBg, amount: '' },
-  { id: '6', title: 'הצעת מחיר — ועד בית מנשה', status: 'אושר', statusColor: (c: typeof lightColors) => c.ai2, statusBg: (c: typeof lightColors) => c.aiBg, date: 'שבוע שעבר', Icon: Icons.quote, iconColor: (c: typeof lightColors) => c.info, iconBg: (c: typeof lightColors) => c.infoBg, amount: '₪ 12,400' },
+const TABS: { label: string; type?: DocumentType }[] = [
+  { label: 'הכל' },
+  { label: 'דוחות', type: 'report' },
+  { label: 'הצעות', type: 'quote' },
+  { label: 'הסכמים', type: 'agreement' },
 ];
+
+function docTypeStyle(type: DocumentType, colors: typeof lightColors) {
+  switch (type) {
+    case 'report':   return { Icon: Icons.doc,       iconColor: colors.accent, iconBg: colors.accentBg };
+    case 'quote':    return { Icon: Icons.quote,      iconColor: colors.info,   iconBg: colors.infoBg };
+    case 'worklog':  return { Icon: Icons.image,      iconColor: colors.ai2,    iconBg: colors.aiBg };
+    case 'agreement':return { Icon: Icons.agreement,  iconColor: colors.warn,   iconBg: colors.warnBg };
+  }
+}
+
+const STATUS_LABELS: Record<DocumentStatus, string> = {
+  draft:    'טיוטה',
+  sent:     'נשלח',
+  pending:  'ממתין',
+  signed:   'נחתם',
+  approved: 'אושר',
+};
+
+function docStatusStyle(status: DocumentStatus, colors: typeof lightColors) {
+  switch (status) {
+    case 'sent':
+    case 'signed':
+    case 'approved': return { color: colors.ai2,   bg: colors.aiBg };
+    case 'pending':  return { color: colors.warn,  bg: colors.warnBg };
+    case 'draft':    return { color: colors.ink3,  bg: colors.bgSunken };
+  }
+}
+
+function relativeDate(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const days = Math.floor(diff / 86400000);
+  if (days === 0) return 'היום';
+  if (days === 1) return 'אתמול';
+  if (days < 7)  return `לפני ${days} ימים`;
+  if (days < 14) return 'לפני שבוע';
+  return `לפני ${Math.floor(days / 7)} שבועות`;
+}
 
 export function DocumentsScreen({ colors = lightColors, onNavigate }: DocumentsScreenProps) {
   const [activeTab, setActiveTab] = React.useState(0);
+  const { documents, loading, error } = useDocuments(TABS[activeTab]?.type);
 
   return (
     <View style={[styles.root, { backgroundColor: colors.bg }]}>
       <Header
         large
         title="המסמכים שלי"
-        subtitle="73 מסמכים סך הכל"
+        subtitle={loading ? '' : `${documents.length} מסמכים`}
         action={
           <Pressable style={[styles.searchBtn, { backgroundColor: colors.bgElev, borderColor: colors.line }]}>
             <Icons.search size={20} color={colors.ink1} />
@@ -60,50 +96,66 @@ export function DocumentsScreen({ colors = lightColors, onNavigate }: DocumentsS
                   },
                 ]}
               >
-                {tab}
+                {tab.label}
               </Text>
             </Pressable>
           ))}
         </View>
 
-        {/* Group label */}
-        <Text style={[styles.groupLabel, { color: colors.ink3, fontFamily: fonts.sans }]}>
-          השבוע
-        </Text>
-
-        <FlatList
-          data={DOCS}
-          keyExtractor={(item) => item.id}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.listContent}
-          renderItem={({ item }) => (
-            <Pressable
-              style={[styles.docRow, { backgroundColor: colors.bgElev, borderColor: colors.line }]}
-            >
-              <View style={[styles.docIcon, { backgroundColor: item.iconBg(colors) }]}>
-                <item.Icon size={22} color={item.iconColor(colors)} />
-              </View>
-              <View style={styles.docInfo}>
-                <Text style={[styles.docTitle, { color: colors.ink1, fontFamily: fonts.sans }]} numberOfLines={1}>
-                  {item.title}
-                </Text>
-                <View style={styles.docMeta}>
-                  <Pill bg={item.statusBg(colors)} color={item.statusColor(colors)}>
-                    {item.status}
-                  </Pill>
-                  <Text style={[styles.docDate, { color: colors.ink3, fontFamily: fonts.sans }]}>
-                    {item.date}
-                  </Text>
-                  {item.amount ? (
-                    <Text style={[styles.docAmount, { color: colors.ink1, fontFamily: fonts.sans }]}>
-                      {item.amount}
+        {loading ? (
+          <View style={styles.center}>
+            <ActivityIndicator color={colors.ink3} />
+          </View>
+        ) : error ? (
+          <View style={styles.center}>
+            <Text style={[styles.emptyText, { color: colors.ink3, fontFamily: fonts.sans }]}>{error}</Text>
+          </View>
+        ) : documents.length === 0 ? (
+          <View style={styles.center}>
+            <Icons.doc size={40} color={colors.ink4} />
+            <Text style={[styles.emptyText, { color: colors.ink3, fontFamily: fonts.sans, marginTop: 12 }]}>
+              אין מסמכים עדיין
+            </Text>
+          </View>
+        ) : (
+          <FlatList
+            data={documents}
+            keyExtractor={(item) => item.id}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.listContent}
+            renderItem={({ item }) => {
+              const { Icon, iconColor, iconBg } = docTypeStyle(item.type, colors);
+              const { color: statusColor, bg: statusBg } = docStatusStyle(item.status, colors);
+              return (
+                <Pressable
+                  style={[styles.docRow, { backgroundColor: colors.bgElev, borderColor: colors.line }]}
+                >
+                  <View style={[styles.docIcon, { backgroundColor: iconBg }]}>
+                    <Icon size={22} color={iconColor} />
+                  </View>
+                  <View style={styles.docInfo}>
+                    <Text style={[styles.docTitle, { color: colors.ink1, fontFamily: fonts.sans }]} numberOfLines={1}>
+                      {item.title}
                     </Text>
-                  ) : null}
-                </View>
-              </View>
-            </Pressable>
-          )}
-        />
+                    <View style={styles.docMeta}>
+                      <Pill bg={statusBg} color={statusColor}>
+                        {STATUS_LABELS[item.status]}
+                      </Pill>
+                      <Text style={[styles.docDate, { color: colors.ink3, fontFamily: fonts.sans }]}>
+                        {relativeDate(item.created_at)}
+                      </Text>
+                      {item.amount != null && (
+                        <Text style={[styles.docAmount, { color: colors.ink1, fontFamily: fonts.sans }]}>
+                          {`₪ ${item.amount.toLocaleString('he-IL')}`}
+                        </Text>
+                      )}
+                    </View>
+                  </View>
+                </Pressable>
+              );
+            }}
+          />
+        )}
       </View>
 
       <BottomNav active="docs" onTab={onNavigate} colors={colors} />
@@ -144,14 +196,13 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   tabText: { fontSize: 13 },
-  groupLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-    marginBottom: 8,
-    paddingHorizontal: 4,
+  center: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingBottom: 80,
   },
+  emptyText: { fontSize: 14, textAlign: 'center' },
   listContent: { gap: 8, paddingBottom: 120 },
   docRow: {
     flexDirection: 'row',

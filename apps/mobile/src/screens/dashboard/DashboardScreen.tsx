@@ -5,6 +5,9 @@ import { BottomNav, type TabId } from '@/components/layout';
 import { Avatar, WaveBar } from '@/components/shared';
 import { Icons } from '@/components/icons';
 import { lightColors, fonts, shadows } from '@/theme/tokens';
+import { useAuth } from '@/context/AuthContext';
+import { useDashboard } from '@/hooks/useDashboard';
+import type { DocumentType } from '@dohot/shared';
 
 interface DashboardScreenProps {
   colors?: typeof lightColors;
@@ -13,27 +16,39 @@ interface DashboardScreenProps {
   onCreateType?: (type: string) => void;
 }
 
-const STATS = [
-  { value: '23', label: 'דוחות החודש', color: (c: typeof lightColors) => c.ink1 },
-  { value: '8', label: 'הצעות פעילות', color: (c: typeof lightColors) => c.accent },
-  { value: '4.9', label: 'דירוג', color: (c: typeof lightColors) => c.ai2, star: true },
-];
-
 const ACTIONS = [
-  { type: 'report', title: 'דוח מקצועי', desc: 'תיעוד נזק', Icon: Icons.doc, colorFn: (c: typeof lightColors) => c.accent, bgFn: (c: typeof lightColors) => c.accentBg },
-  { type: 'quote', title: 'הצעת מחיר', desc: 'תמחור פריטים', Icon: Icons.quote, colorFn: (c: typeof lightColors) => c.info, bgFn: (c: typeof lightColors) => c.infoBg },
-  { type: 'worklog', title: 'תיעוד עבודה', desc: 'לפני / אחרי', Icon: Icons.image, colorFn: (c: typeof lightColors) => c.ai2, bgFn: (c: typeof lightColors) => c.aiBg },
-  { type: 'agreement', title: 'הסכם עבודה', desc: 'חתימה דיגיטלית', Icon: Icons.agreement, colorFn: (c: typeof lightColors) => c.warn, bgFn: (c: typeof lightColors) => c.warnBg },
+  { type: 'report',    title: 'דוח מקצועי',   desc: 'תיעוד נזק',          Icon: Icons.doc,       colorFn: (c: typeof lightColors) => c.accent, bgFn: (c: typeof lightColors) => c.accentBg },
+  { type: 'quote',     title: 'הצעת מחיר',    desc: 'תמחור פריטים',       Icon: Icons.quote,     colorFn: (c: typeof lightColors) => c.info,   bgFn: (c: typeof lightColors) => c.infoBg },
+  { type: 'worklog',   title: 'תיעוד עבודה',  desc: 'לפני / אחרי',        Icon: Icons.image,     colorFn: (c: typeof lightColors) => c.ai2,    bgFn: (c: typeof lightColors) => c.aiBg },
+  { type: 'agreement', title: 'הסכם עבודה',   desc: 'חתימה דיגיטלית',    Icon: Icons.agreement, colorFn: (c: typeof lightColors) => c.warn,   bgFn: (c: typeof lightColors) => c.warnBg },
 ];
 
-const RECENT = [
-  { title: 'דוח גילוי נזילה — דירת קוטון', sub: 'נשלח ב-WhatsApp • היום', Icon: Icons.doc, colorFn: (c: typeof lightColors) => c.accent, bgFn: (c: typeof lightColors) => c.accentBg },
-  { title: 'הצעת מחיר — בניין מנשה 14', sub: 'ממתינה לאישור • אתמול', Icon: Icons.quote, colorFn: (c: typeof lightColors) => c.info, bgFn: (c: typeof lightColors) => c.infoBg },
-  { title: 'דוח איטום גג — משפחת לוי', sub: 'נחתם • 3 ימים', Icon: Icons.shieldCheck, colorFn: (c: typeof lightColors) => c.ai2, bgFn: (c: typeof lightColors) => c.aiBg },
-];
+function docTypeStyle(type: DocumentType, colors: typeof lightColors) {
+  switch (type) {
+    case 'report':    return { Icon: Icons.doc,       colorFn: colors.accent, bgFn: colors.accentBg };
+    case 'quote':     return { Icon: Icons.quote,     colorFn: colors.info,   bgFn: colors.infoBg };
+    case 'worklog':   return { Icon: Icons.image,     colorFn: colors.ai2,    bgFn: colors.aiBg };
+    case 'agreement': return { Icon: Icons.agreement, colorFn: colors.warn,   bgFn: colors.warnBg };
+  }
+}
+
+function relativeDate(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const days = Math.floor(diff / 86400000);
+  if (days === 0) return 'היום';
+  if (days === 1) return 'אתמול';
+  if (days < 7)  return `לפני ${days} ימים`;
+  if (days < 14) return 'לפני שבוע';
+  return `לפני ${Math.floor(days / 7)} שבועות`;
+}
 
 export function DashboardScreen({ colors = lightColors, onCreateReport, onNavigate, onCreateType }: DashboardScreenProps) {
   const insets = useSafeAreaInsets();
+  const { businessProfile } = useAuth();
+  const { stats, recent } = useDashboard();
+
+  const displayName = businessProfile?.full_name || businessProfile?.business_name || '';
+  const firstName = displayName.split(' ')[0] ?? displayName;
 
   return (
     <View style={[styles.root, { backgroundColor: colors.bg }]}>
@@ -45,13 +60,13 @@ export function DashboardScreen({ colors = lightColors, onCreateReport, onNaviga
         {/* Top bar */}
         <View style={styles.topBar}>
           <View style={styles.greeting}>
-            <Avatar name="דניאל כהן" size={42} />
+            <Avatar name={displayName} size={42} />
             <View>
               <Text style={[styles.greetSub, { color: colors.ink3, fontFamily: fonts.sans }]}>
                 בוקר טוב,
               </Text>
               <Text style={[styles.greetName, { color: colors.ink1, fontFamily: fonts.sans }]}>
-                דניאל
+                {firstName}
               </Text>
             </View>
           </View>
@@ -63,27 +78,26 @@ export function DashboardScreen({ colors = lightColors, onCreateReport, onNaviga
 
         {/* Stats strip */}
         <View style={styles.statsRow}>
-          {STATS.map((stat, i) => (
-            <View
-              key={i}
-              style={[styles.statCard, { backgroundColor: colors.bgElev, borderColor: colors.line }]}
-            >
-              <View style={styles.statValueRow}>
-                <Text style={[styles.statValue, { color: stat.color(colors), fontFamily: fonts.sans }]}>
-                  {stat.value}
-                </Text>
-                {stat.star && <Icons.star size={14} color={colors.ai2} />}
-              </View>
-              <Text style={[styles.statLabel, { color: colors.ink3, fontFamily: fonts.sans }]}>
-                {stat.label}
-              </Text>
-            </View>
-          ))}
+          <View style={[styles.statCard, { backgroundColor: colors.bgElev, borderColor: colors.line }]}>
+            <Text style={[styles.statValue, { color: colors.ink1, fontFamily: fonts.sans }]}>
+              {stats.monthlyReports}
+            </Text>
+            <Text style={[styles.statLabel, { color: colors.ink3, fontFamily: fonts.sans }]}>
+              דוחות החודש
+            </Text>
+          </View>
+          <View style={[styles.statCard, { backgroundColor: colors.bgElev, borderColor: colors.line }]}>
+            <Text style={[styles.statValue, { color: colors.accent, fontFamily: fonts.sans }]}>
+              {stats.activeQuotes}
+            </Text>
+            <Text style={[styles.statLabel, { color: colors.ink3, fontFamily: fonts.sans }]}>
+              הצעות פעילות
+            </Text>
+          </View>
         </View>
 
         {/* Hero voice card */}
         <Pressable onPress={onCreateReport} style={styles.voiceCard}>
-          {/* Sage aurora */}
           <View style={styles.voiceAurora} pointerEvents="none" />
           <View style={styles.voiceTagRow}>
             <Icons.sparkle size={16} color="#84B097" />
@@ -128,37 +142,49 @@ export function DashboardScreen({ colors = lightColors, onCreateReport, onNaviga
         </View>
 
         {/* Recent activity */}
-        <View style={styles.recentHeader}>
-          <Text style={[styles.sectionLabel, { color: colors.ink2, fontFamily: fonts.sans }]}>
-            פעילות אחרונה
-          </Text>
-          <Pressable>
-            <Text style={[styles.seeAll, { color: colors.ink3, fontFamily: fonts.sans }]}>
-              הכל ←
-            </Text>
-          </Pressable>
-        </View>
-        <View style={styles.recentList}>
-          {RECENT.map((r, i) => (
-            <Pressable
-              key={i}
-              style={[styles.recentRow, { backgroundColor: colors.bgElev, borderColor: colors.line }]}
-            >
-              <View style={[styles.recentIcon, { backgroundColor: r.bgFn(colors) }]}>
-                <r.Icon size={20} color={r.colorFn(colors)} />
-              </View>
-              <View style={styles.recentInfo}>
-                <Text style={[styles.recentTitle, { color: colors.ink1, fontFamily: fonts.sans }]} numberOfLines={1}>
-                  {r.title}
+        {recent.length > 0 && (
+          <>
+            <View style={styles.recentHeader}>
+              <Text style={[styles.sectionLabel, { color: colors.ink2, fontFamily: fonts.sans }]}>
+                פעילות אחרונה
+              </Text>
+              <Pressable style={styles.seeAllBtn} onPress={() => onNavigate?.('docs')}>
+                <Text style={[styles.seeAll, { color: colors.ink3, fontFamily: fonts.sans }]}>
+                  הכל
                 </Text>
-                <Text style={[styles.recentSub, { color: colors.ink3, fontFamily: fonts.sans }]}>
-                  {r.sub}
-                </Text>
-              </View>
-              <Icons.chevL size={18} color={colors.ink4} />
-            </Pressable>
-          ))}
-        </View>
+                <Icons.chevL size={14} color={colors.ink3} />
+              </Pressable>
+            </View>
+            <View style={styles.recentList}>
+              {recent.map((doc) => {
+                const { Icon, colorFn, bgFn } = docTypeStyle(doc.type, colors);
+                const customerName = doc.customers?.name;
+                const subtitle = customerName
+                  ? `${customerName} · ${relativeDate(doc.created_at)}`
+                  : relativeDate(doc.created_at);
+                return (
+                  <Pressable
+                    key={doc.id}
+                    style={[styles.recentRow, { backgroundColor: colors.bgElev, borderColor: colors.line }]}
+                  >
+                    <View style={[styles.recentIcon, { backgroundColor: bgFn }]}>
+                      <Icon size={20} color={colorFn} />
+                    </View>
+                    <View style={styles.recentInfo}>
+                      <Text style={[styles.recentTitle, { color: colors.ink1, fontFamily: fonts.sans }]} numberOfLines={1}>
+                        {doc.title}
+                      </Text>
+                      <Text style={[styles.recentSub, { color: colors.ink3, fontFamily: fonts.sans }]}>
+                        {subtitle}
+                      </Text>
+                    </View>
+                    <Icons.chevL size={18} color={colors.ink4} />
+                  </Pressable>
+                );
+              })}
+            </View>
+          </>
+        )}
       </ScrollView>
 
       <BottomNav active="home" onTab={onNavigate} colors={colors} />
@@ -211,14 +237,8 @@ const styles = StyleSheet.create({
     padding: 14,
     borderWidth: 1,
   },
-  statValueRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 4,
-  },
   statValue: { fontSize: 22, fontWeight: '800', letterSpacing: -0.6 },
   statLabel: { fontSize: 11, marginTop: 2 },
-  // Voice hero card
   voiceCard: {
     borderRadius: 24,
     padding: 20,
@@ -313,6 +333,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 12,
   },
+  seeAllBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   seeAll: { fontSize: 12, fontWeight: '600' },
   recentList: { gap: 8 },
   recentRow: {

@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icons } from '@/components/icons';
 import { lightColors, fonts, shadows, radii } from '@/theme/tokens';
 
@@ -20,11 +21,13 @@ const tabs: Array<{ id: TabId; label: string; Icon: (p: { size?: number; stroke?
 ];
 
 export function BottomNav({ active = 'home', onTab, colors = lightColors }: BottomNavProps) {
+  const insets = useSafeAreaInsets();
+
   return (
     <View
       style={[
         styles.nav,
-        { backgroundColor: colors.bgElev },
+        { backgroundColor: colors.bgElev, bottom: Math.max(insets.bottom + 8, 16) },
         shadows.lg,
       ]}
     >
@@ -76,7 +79,6 @@ export function BottomNav({ active = 'home', onTab, colors = lightColors }: Bott
 const styles = StyleSheet.create({
   nav: {
     position: 'absolute',
-    bottom: 16,
     left: 12,
     right: 12,
     height: 72,

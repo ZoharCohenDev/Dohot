@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { documentsRouter } from './routes/documents';
 import { pdfRouter } from './routes/pdf';
+import { aiRouter } from './routes/ai';
 
 dotenv.config();
 
@@ -18,6 +19,7 @@ app.get('/health', (_req, res) => {
 
 app.use('/api/documents', documentsRouter);
 app.use('/api/pdf', pdfRouter);
+app.use('/api/ai', aiRouter);
 
 app.listen(PORT, () => {
   console.log(`Dohot server running on port ${PORT}`);

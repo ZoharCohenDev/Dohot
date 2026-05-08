@@ -1,9 +1,11 @@
 import React from 'react';
 import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
 import { Header, FixedBottom, ProgressBar } from '@/components/layout';
-import { Button } from '@/components/primitives';
+import { Button, Field } from '@/components/primitives';
 import { Icons } from '@/components/icons';
 import { lightColors, fonts } from '@/theme/tokens';
+import { useWizard } from '@/context/WizardContext';
+import type { IssueType } from '@dohot/shared';
 
 interface IssueStepProps {
   colors?: typeof lightColors;
@@ -11,17 +13,19 @@ interface IssueStepProps {
   onBack?: () => void;
 }
 
-const ISSUES = [
+const ISSUES: Array<{ id: IssueType; label: string; desc: string; Icon: React.ComponentType<{ size: number; color: string }>; color: string; bg: string }> = [
   { id: 'leak', label: 'גילוי נזילה', desc: 'מים, לחות, רטיבות', Icon: Icons.drop, color: '#4A7B9D', bg: '#E2EBF1' },
   { id: 'waterproofing', label: 'איטום', desc: 'גג, מקלחת, חזיתות', Icon: Icons.shield, color: '#5A8770', bg: '#E5EDE7' },
   { id: 'pipe', label: 'בעיית צנרת', desc: 'פיצוץ, חסימה', Icon: Icons.pipe, color: '#C2613B', bg: '#F8E9DF' },
   { id: 'roof', label: 'נזק גג', desc: 'רעפים, יציאות', Icon: Icons.roof, color: '#B8862B', bg: '#F4ECD7' },
   { id: 'moisture', label: 'עובש ולחות', desc: 'בידוד, אוורור', Icon: Icons.moisture, color: '#8B5A8B', bg: '#EFE0EF' },
   { id: 'other', label: 'אחר', desc: 'תיאור חופשי', Icon: Icons.more, color: '#807A72', bg: '#EFEDE7' },
-] as const;
+];
 
 export function IssueStep({ colors = lightColors, onNext, onBack }: IssueStepProps) {
-  const [selected, setSelected] = React.useState<string>('leak');
+  const wizard = useWizard();
+  const [selected, setSelected] = React.useState<IssueType>(wizard.state.issueType);
+  const [issueNote, setIssueNote] = React.useState(wizard.state.issueNote);
 
   return (
     <View style={[styles.root, { backgroundColor: colors.bg }]}>
@@ -77,6 +81,16 @@ export function IssueStep({ colors = lightColors, onNext, onBack }: IssueStepPro
           })}
         </View>
 
+        <Field
+          label="הערות נוספות (אופציונלי)"
+          placeholder="תיאור קצר של הבעיה, מיקום, נסיבות…"
+          icon={<Icons.edit size={20} color={colors.ink3} />}
+          value={issueNote}
+          onChangeText={setIssueNote}
+          multiline
+          colors={colors}
+        />
+
         {/* AI tip */}
         <View style={[styles.tip, { backgroundColor: colors.bgSunken }]}>
           <Icons.sparkle size={18} color={colors.ai2} />
@@ -87,7 +101,18 @@ export function IssueStep({ colors = lightColors, onNext, onBack }: IssueStepPro
       </ScrollView>
 
       <FixedBottom colors={colors}>
-        <Button kind="primary" size="lg" full onPress={onNext} iconRight={<Icons.back size={20} color={colors.bg} />} colors={colors}>
+        <Button
+          kind="primary"
+          size="lg"
+          full
+          onPress={() => {
+            wizard.setIssueType(selected);
+            wizard.setIssueNote(issueNote);
+            onNext?.();
+          }}
+          iconRight={<Icons.back size={20} color={colors.bg} />}
+          colors={colors}
+        >
           המשך לתמונות
         </Button>
       </FixedBottom>

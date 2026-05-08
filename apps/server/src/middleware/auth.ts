@@ -2,6 +2,8 @@ import type { Request, Response, NextFunction } from 'express';
 import { getUserFromToken } from '../lib/supabase';
 
 declare global {
+  // Express uses declaration merging for request-scoped fields.
+  // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Express {
     interface Request {
       userId?: string;

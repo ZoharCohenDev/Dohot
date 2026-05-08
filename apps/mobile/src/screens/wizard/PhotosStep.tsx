@@ -1,11 +1,14 @@
 import React from 'react';
-import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, Pressable, ScrollView, StyleSheet, Alert, ActivityIndicator, Image } from 'react-native';
 import { Header, FixedBottom, ProgressBar } from '@/components/layout';
 import { Button } from '@/components/primitives';
 import { DamageImage } from '@/components/shared';
 import { Icons } from '@/components/icons';
 import { lightColors, fonts } from '@/theme/tokens';
 import Svg, { Path, Circle, Defs, Marker } from 'react-native-svg';
+import { useWizard } from '@/context/WizardContext';
+import { useAuth } from '@/context/AuthContext';
+import { pickAndUploadImage } from '@/services/storage';
 
 interface PhotosStepProps {
   colors?: typeof lightColors;
@@ -16,7 +19,7 @@ interface PhotosStepProps {
 
 type DamageKind = 'leak' | 'pipe' | 'moisture' | 'roof';
 
-const PHOTOS: Array<{ kind: DamageKind; label: string; tag: string; tagColor: string; annotated?: boolean }> = [
+const PLACEHOLDER_PHOTOS: Array<{ kind: DamageKind; label: string; tag: string; tagColor: string; annotated?: boolean }> = [
   { kind: 'leak', label: 'קיר מערבי', tag: 'לפני', tagColor: '#B33B2C', annotated: true },
   { kind: 'pipe', label: 'מתחת לכיור', tag: 'לפני', tagColor: '#B33B2C' },
   { kind: 'moisture', label: 'תקרת חדר אמבטיה', tag: 'לפני', tagColor: '#B33B2C' },
@@ -32,6 +35,25 @@ const TOOLS = [
 ];
 
 export function PhotosStep({ colors = lightColors, onNext, onBack, onAnnotate }: PhotosStepProps) {
+  const wizard = useWizard();
+  const { user } = useAuth();
+  const [uploading, setUploading] = React.useState(false);
+
+  const photos = wizard.state.photos;
+
+  const handleAddPhoto = async () => {
+    if (!user?.id) return;
+    setUploading(true);
+    try {
+      const url = await pickAndUploadImage(user.id, 'report-images', { aspect: [4, 3] });
+      if (url) wizard.addPhoto(url);
+    } catch {
+      Alert.alert('שגיאה', 'לא ניתן היה להעלות את התמונה. נסה שוב.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
   return (
     <View style={[styles.root, { backgroundColor: colors.bg }]}>
       <Header step={3} ofSteps={5} onBack={onBack} colors={colors} />
@@ -49,7 +71,9 @@ export function PhotosStep({ colors = lightColors, onNext, onBack, onAnnotate }:
               תמונות מהשטח
             </Text>
             <Text style={[styles.subtitle, { color: colors.ink3, fontFamily: fonts.sans }]}>
-              4 צולמו · אפשר לסמן ולהוסיף הערות
+              {photos.length > 0
+                ? `${photos.length} תמונות · אפשר לסמן ולהוסיף הערות`
+                : '4 צולמו · אפשר לסמן ולהוסיף הערות'}
             </Text>
           </View>
           <View style={[styles.aiTag, { backgroundColor: colors.aiBg }]}>
@@ -61,51 +85,78 @@ export function PhotosStep({ colors = lightColors, onNext, onBack, onAnnotate }:
         </View>
 
         {/* Camera tile (full width) */}
-        <Pressable style={styles.cameraBtn}>
-          <Icons.camera size={28} color="#fff" />
-          <View>
-            <Text style={styles.cameraBtnTitle}>צלם תמונה חדשה</Text>
-            <Text style={styles.cameraBtnSub}>או גלול למעלה לגלריה</Text>
-          </View>
+        <Pressable style={styles.cameraBtn} onPress={handleAddPhoto} disabled={uploading}>
+          {uploading ? (
+            <ActivityIndicator size="large" color="#fff" />
+          ) : (
+            <>
+              <Icons.camera size={28} color="#fff" />
+              <View>
+                <Text style={styles.cameraBtnTitle}>
+                  {photos.length > 0 ? 'הוסף תמונה נוספת' : 'צלם תמונה חדשה'}
+                </Text>
+                <Text style={styles.cameraBtnSub}>או גלול למעלה לגלריה</Text>
+              </View>
+            </>
+          )}
         </Pressable>
 
-        {/* Photo grid */}
-        <View style={styles.photoGrid}>
-          {PHOTOS.map((photo, i) => (
-            <Pressable
-              key={i}
-              onPress={() => i === 0 && onAnnotate?.()}
-              style={styles.photoTile}
-            >
-              <DamageImage kind={photo.kind} height={160} />
-
-              {/* Annotation overlay for first photo */}
-              {photo.annotated && (
-                <View style={styles.annotationOverlay} pointerEvents="none">
-                  <Svg width="100%" height="100%" viewBox="0 0 200 200">
-                    <Defs>
-                      <Marker id="arrow1" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto">
-                        <Path d="M0 0 L10 5 L0 10 z" fill="#C2613B" />
-                      </Marker>
-                    </Defs>
-                    <Circle cx="100" cy="80" r="32" fill="none" stroke="#C2613B" strokeWidth="3" />
-                    <Path d="M60 50 L 80 70" stroke="#C2613B" strokeWidth="3" markerEnd="url(#arrow1)" strokeLinecap="round" />
-                  </Svg>
+        {/* Photo grid — real photos or placeholders */}
+        {photos.length > 0 ? (
+          <View style={styles.photoGrid}>
+            {photos.map((uri, i) => (
+              <View key={i} style={styles.photoTile}>
+                <Image
+                  source={{ uri }}
+                  style={styles.photoTileImage}
+                  resizeMode="cover"
+                />
+                <View style={[styles.photoTag, { backgroundColor: '#B33B2C' }]}>
+                  <Text style={[styles.photoTagText, { fontFamily: fonts.sans }]}>לפני</Text>
                 </View>
-              )}
-
-              {/* Tag badge */}
-              <View style={[styles.photoTag, { backgroundColor: photo.tagColor }]}>
-                <Text style={[styles.photoTagText, { fontFamily: fonts.sans }]}>{photo.tag}</Text>
+                <View style={styles.photoLabelOverlay} pointerEvents="none">
+                  <Text style={[styles.photoLabel, { fontFamily: fonts.sans }]}>
+                    {`תמונה ${i + 1}`}
+                  </Text>
+                </View>
               </View>
+            ))}
+          </View>
+        ) : (
+          <View style={styles.photoGrid}>
+            {PLACEHOLDER_PHOTOS.map((photo, i) => (
+              <Pressable
+                key={i}
+                onPress={() => i === 0 && onAnnotate?.()}
+                style={styles.photoTile}
+              >
+                <DamageImage kind={photo.kind} height={160} />
 
-              {/* Label */}
-              <View style={styles.photoLabelOverlay} pointerEvents="none">
-                <Text style={[styles.photoLabel, { fontFamily: fonts.sans }]}>{photo.label}</Text>
-              </View>
-            </Pressable>
-          ))}
-        </View>
+                {photo.annotated && (
+                  <View style={styles.annotationOverlay} pointerEvents="none">
+                    <Svg width="100%" height="100%" viewBox="0 0 200 200">
+                      <Defs>
+                        <Marker id="arrow1" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+                          <Path d="M0 0 L10 5 L0 10 z" fill="#C2613B" />
+                        </Marker>
+                      </Defs>
+                      <Circle cx="100" cy="80" r="32" fill="none" stroke="#C2613B" strokeWidth="3" />
+                      <Path d="M60 50 L 80 70" stroke="#C2613B" strokeWidth="3" markerEnd="url(#arrow1)" strokeLinecap="round" />
+                    </Svg>
+                  </View>
+                )}
+
+                <View style={[styles.photoTag, { backgroundColor: photo.tagColor }]}>
+                  <Text style={[styles.photoTagText, { fontFamily: fonts.sans }]}>{photo.tag}</Text>
+                </View>
+
+                <View style={styles.photoLabelOverlay} pointerEvents="none">
+                  <Text style={[styles.photoLabel, { fontFamily: fonts.sans }]}>{photo.label}</Text>
+                </View>
+              </Pressable>
+            ))}
+          </View>
+        )}
 
         {/* Quick toolbar */}
         <View style={[styles.toolbarCard, { backgroundColor: colors.bgElev, borderColor: colors.line }]}>
@@ -129,7 +180,15 @@ export function PhotosStep({ colors = lightColors, onNext, onBack, onAnnotate }:
       </ScrollView>
 
       <FixedBottom colors={colors}>
-        <Button kind="primary" size="lg" full onPress={onNext} iconRight={<Icons.back size={20} color={colors.bg} />} colors={colors}>
+        <Button
+          kind="primary"
+          size="lg"
+          full
+          disabled={uploading}
+          onPress={onNext}
+          iconRight={<Icons.back size={20} color={colors.bg} />}
+          colors={colors}
+        >
           המשך לקול
         </Button>
       </FixedBottom>
@@ -190,6 +249,10 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     overflow: 'hidden',
     position: 'relative',
+  },
+  photoTileImage: {
+    width: '100%',
+    height: '100%',
   },
   annotationOverlay: {
     position: 'absolute',

@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS public.business_profiles (
   id                  uuid        PRIMARY KEY REFERENCES auth.users ON DELETE CASCADE,
   full_name           text        NOT NULL DEFAULT '',
   business_name       text        NOT NULL DEFAULT '',
+  email               text,
   profession          text        NOT NULL DEFAULT 'other'
                                   CHECK (profession IN (
                                     'leak_detection', 'plumber', 'electrician',
@@ -25,6 +26,9 @@ CREATE TABLE IF NOT EXISTS public.business_profiles (
   updated_at          timestamptz NOT NULL DEFAULT now()
 );
 
+ALTER TABLE public.business_profiles
+  ADD COLUMN IF NOT EXISTS email text;
+
 ALTER TABLE public.business_profiles ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "owner_all" ON public.business_profiles;
@@ -39,15 +43,17 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-  INSERT INTO public.business_profiles (id, full_name, profession, phone)
+  INSERT INTO public.business_profiles (id, full_name, email, profession, phone)
   VALUES (
     NEW.id,
     COALESCE(NEW.raw_user_meta_data->>'full_name', split_part(NEW.email, '@', 1), ''),
+    NEW.email,
     COALESCE(NULLIF(NEW.raw_user_meta_data->>'profession', ''), 'other'),
     NULLIF(NEW.raw_user_meta_data->>'phone', '')
   )
   ON CONFLICT (id) DO UPDATE SET
     full_name = EXCLUDED.full_name,
+    email = EXCLUDED.email,
     profession = EXCLUDED.profession,
     phone = EXCLUDED.phone;
 

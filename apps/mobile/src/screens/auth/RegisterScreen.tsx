@@ -119,6 +119,7 @@ export function RegisterScreen({ colors = lightColors, onRegistered, onBack, onL
           size="lg"
           full
           onPress={handleNext}
+          disabled={loading}
           iconRight={<Icons.back size={20} color={colors.bg} />}
           colors={colors}
         >
