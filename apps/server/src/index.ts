@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import { documentsRouter } from './routes/documents';
 import { pdfRouter } from './routes/pdf';
 import { aiRouter } from './routes/ai';
+import { adminRouter } from './routes/admin';
 
 dotenv.config();
 
@@ -20,6 +21,7 @@ app.get('/health', (_req, res) => {
 app.use('/api/documents', documentsRouter);
 app.use('/api/pdf', pdfRouter);
 app.use('/api/ai', aiRouter);
+app.use('/api/admin', adminRouter);
 
 app.listen(PORT, () => {
   console.log(`Dohot server running on port ${PORT}`);

@@ -30,6 +30,8 @@ export interface WizardStackParams {
   voice: undefined;
   processing: undefined;
   recommendations: undefined;
+  'quote-items': undefined;
+  'warranty-terms': undefined;
   preview: undefined;
   send: undefined;
 }

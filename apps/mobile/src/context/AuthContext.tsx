@@ -3,7 +3,16 @@ import type { Session, User } from '@supabase/supabase-js';
 import { getSession, onAuthStateChange } from '@/services/auth';
 import { supabase, tables } from '@/lib/supabase';
 import { saveBusinessProfile } from '@/services/profile';
-import type { BusinessProfile, UpdateBusinessProfile } from '@dohot/shared';
+import type { BusinessProfile, UpdateBusinessProfile, UserRole } from '@dohot/shared';
+
+function daysUntil(dateStr: string | null): number | null {
+  if (!dateStr) return null;
+  const expiry = new Date(dateStr);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  expiry.setHours(0, 0, 0, 0);
+  return Math.floor((expiry.getTime() - today.getTime()) / 86_400_000);
+}
 
 interface AuthContextValue {
   session: Session | null;
@@ -11,6 +20,13 @@ interface AuthContextValue {
   businessProfile: BusinessProfile | null;
   hasBusinessProfile: boolean;
   loading: boolean;
+  // role / subscription
+  role: UserRole | null;
+  isAdmin: boolean;
+  isActive: boolean;
+  daysUntilExpiration: number | null;
+  isSubscriptionExpired: boolean;
+  isSubscriptionWarning: boolean; // within 7 days of expiry
   refreshBusinessProfile: () => Promise<void>;
   updateProfile: (updates: UpdateBusinessProfile) => Promise<void>;
 }
@@ -21,6 +37,12 @@ const AuthContext = createContext<AuthContextValue>({
   businessProfile: null,
   hasBusinessProfile: false,
   loading: true,
+  role: null,
+  isAdmin: false,
+  isActive: true,
+  daysUntilExpiration: null,
+  isSubscriptionExpired: false,
+  isSubscriptionWarning: false,
   refreshBusinessProfile: async () => undefined,
   updateProfile: async () => undefined,
 });
@@ -58,7 +80,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setLoading(false);
       })
       .catch(() => {
-        // Shouldn't normally throw, but guard against it so loading never hangs
         setSession(null);
         setBusinessProfile(null);
         setLoading(false);
@@ -66,8 +87,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const unsubscribe = onAuthStateChange((event, session) => {
       if (event === 'SIGNED_OUT') {
-        // Also fires when the refresh token is invalid/expired (Supabase handles
-        // the purge internally and emits SIGNED_OUT rather than a separate event).
         setSession(null);
         setBusinessProfile(null);
         setLoading(false);
@@ -77,7 +96,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setSession(session);
         return;
       }
-      // SIGNED_IN, INITIAL_SESSION, USER_UPDATED, etc.
       setSession(session);
       if (session) {
         setLoading(true);
@@ -101,6 +119,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const hasBusinessProfile = Boolean(businessProfile?.business_name?.trim());
+  const role: UserRole | null = (businessProfile?.role as UserRole) ?? null;
+  const isAdmin = role === 'admin';
+  const isActive = businessProfile?.is_active ?? true;
+  const days = daysUntil(businessProfile?.subscription_expiration_date ?? null);
+  const isSubscriptionExpired = days !== null && days < 0;
+  const isSubscriptionWarning = days !== null && days >= 0 && days <= 7;
 
   return (
     <AuthContext.Provider
@@ -110,6 +134,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         businessProfile,
         hasBusinessProfile,
         loading,
+        role,
+        isAdmin,
+        isActive,
+        daysUntilExpiration: days,
+        isSubscriptionExpired,
+        isSubscriptionWarning,
         refreshBusinessProfile,
         updateProfile,
       }}

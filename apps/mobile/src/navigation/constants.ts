@@ -4,13 +4,12 @@ export const ROUTES = {
 
   // Auth
   AUTH_LOGIN: '/(auth)/login',
-  AUTH_REGISTER: '/(auth)/register',
-  AUTH_WELCOME: '/(auth)/welcome',
-  AUTH_PROFILE: '/(auth)/profile',
-  AUTH_TRUST: '/(auth)/trust',
+  AUTH_EXPIRED: '/(auth)/expired',
 
-  // Onboarding
-  ONBOARDING_BUSINESS: '/(onboarding)/business-setup',
+  // Admin
+  ADMIN_HOME: '/(admin)',
+  ADMIN_CREATE_USER: '/(admin)/create-user',
+  ADMIN_EDIT_USER: '/(admin)/edit-user',
 
   // Main app
   APP_HOME: '/(app)',
@@ -28,6 +27,8 @@ export const ROUTES = {
   WIZARD_VOICE: '/(app)/wizard/voice',
   WIZARD_PROCESSING: '/(app)/wizard/processing',
   WIZARD_RECOMMENDATIONS: '/(app)/wizard/recommendations',
+  WIZARD_QUOTE_ITEMS: '/(app)/wizard/quote-items',
+  WIZARD_WARRANTY_TERMS: '/(app)/wizard/warranty-terms',
   WIZARD_PREVIEW: '/(app)/wizard/preview',
   WIZARD_SEND: '/(app)/wizard/send',
 } as const;

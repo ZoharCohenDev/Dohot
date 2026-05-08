@@ -1,11 +1,14 @@
 import React from 'react';
-import { View, Pressable, TextInput, FlatList, ActivityIndicator, StyleSheet } from 'react-native';
+import {
+  View, Text, Pressable, TextInput, FlatList,
+  ActivityIndicator, StyleSheet,
+} from 'react-native';
 import { Header, BottomNav, type TabId } from '@/components/layout';
 import { ScaledText } from '@/components/primitives';
 import { Avatar } from '@/components/shared';
 import { Icons } from '@/components/icons';
 import { lightColors, fonts } from '@/theme/tokens';
-import { useCustomers } from '@/hooks/useCustomers';
+import { useCustomers, type CustomerWithStats } from '@/hooks/useCustomers';
 import type { CustomerType } from '@dohot/shared';
 
 interface CustomersScreenProps {
@@ -30,6 +33,84 @@ function relativeDate(iso: string | null): string {
   if (days < 7) return `לפני ${days} ימים`;
   if (days < 14) return 'לפני שבוע';
   return `לפני ${Math.floor(days / 7)} שבועות`;
+}
+
+function formatAddress(c: CustomerWithStats): string {
+  const line1 = [c.street, c.house_number].filter(Boolean).join(' ');
+  const apt = [
+    c.apartment ? `דירה ${c.apartment}` : '',
+    c.floor ? `קומה ${c.floor}` : '',
+  ].filter(Boolean).join(', ');
+  const parts = [line1, apt, c.city].filter(Boolean);
+  return parts.join(', ') || c.address || '';
+}
+
+function CustomerCard({ item, colors }: { item: CustomerWithStats; colors: typeof lightColors }) {
+  const address = formatAddress(item);
+  const lastActivity = relativeDate(item.last_contact_at);
+
+  return (
+    <Pressable style={[styles.card, { backgroundColor: colors.bgElev }]}>
+      <View style={styles.cardTop}>
+        <Avatar name={item.name} size={46} colors={colors} />
+        <View style={styles.cardMain}>
+          <View style={styles.nameRow}>
+            <Text style={[styles.customerName, { color: colors.ink1, fontFamily: fonts.sans }]}>
+              {item.name}
+            </Text>
+            {item.documentCount > 0 && (
+              <View style={[styles.docBadge, { backgroundColor: colors.accentBg }]}>
+                <Icons.doc size={11} color={colors.accent} />
+                <Text style={[styles.docBadgeText, { color: colors.accent, fontFamily: fonts.sans }]}>
+                  {item.documentCount}
+                </Text>
+              </View>
+            )}
+          </View>
+          {!!address && (
+            <View style={styles.infoRow}>
+              <Icons.pin2 size={13} color={colors.ink4} />
+              <Text
+                style={[styles.infoText, { color: colors.ink3, fontFamily: fonts.sans }]}
+                numberOfLines={1}
+              >
+                {address}
+              </Text>
+            </View>
+          )}
+        </View>
+        {!!lastActivity && (
+          <Text style={[styles.lastActivity, { color: colors.ink4, fontFamily: fonts.sans }]}>
+            {lastActivity}
+          </Text>
+        )}
+      </View>
+
+      {(!!item.phone || !!item.email) && (
+        <View style={[styles.cardBottom, { borderTopColor: colors.line }]}>
+          {!!item.phone && (
+            <View style={styles.contactChip}>
+              <Icons.phone size={13} color={colors.ink3} />
+              <Text style={[styles.contactText, { color: colors.ink2, fontFamily: fonts.sans }]}>
+                {item.phone}
+              </Text>
+            </View>
+          )}
+          {!!item.email && (
+            <View style={styles.contactChip}>
+              <Icons.mail size={13} color={colors.ink3} />
+              <Text
+                style={[styles.contactText, { color: colors.ink2, fontFamily: fonts.sans }]}
+                numberOfLines={1}
+              >
+                {item.email}
+              </Text>
+            </View>
+          )}
+        </View>
+      )}
+    </Pressable>
+  );
 }
 
 export function CustomersScreen({ colors = lightColors, onNavigate }: CustomersScreenProps) {
@@ -62,7 +143,7 @@ export function CustomersScreen({ colors = lightColors, onNavigate }: CustomersS
       />
 
       <View style={styles.body}>
-        {/* Search */}
+        {/* Search bar */}
         <View style={[styles.searchBar, { backgroundColor: colors.bgElev, borderColor: colors.line }]}>
           <Icons.search size={20} color={colors.ink3} />
           <TextInput
@@ -74,6 +155,11 @@ export function CustomersScreen({ colors = lightColors, onNavigate }: CustomersS
             textAlign="right"
             autoCorrect={false}
           />
+          {searchQuery.length > 0 && (
+            <Pressable onPress={() => setSearchQuery('')} hitSlop={8}>
+              <Icons.close size={18} color={colors.ink4} />
+            </Pressable>
+          )}
         </View>
 
         {/* Filter chips */}
@@ -93,12 +179,10 @@ export function CustomersScreen({ colors = lightColors, onNavigate }: CustomersS
                   : { backgroundColor: colors.bgElev, borderWidth: 1, borderColor: colors.line },
               ]}
             >
-              <ScaledText
-                style={[
-                  styles.chipText,
-                  { color: index === activeFilter ? colors.bg : colors.ink2, fontFamily: fonts.sans },
-                ]}
-              >
+              <ScaledText style={[
+                styles.chipText,
+                { color: index === activeFilter ? colors.bg : colors.ink2, fontFamily: fonts.sans },
+              ]}>
                 {item.label}
               </ScaledText>
             </Pressable>
@@ -111,13 +195,20 @@ export function CustomersScreen({ colors = lightColors, onNavigate }: CustomersS
           </View>
         ) : error ? (
           <View style={styles.center}>
-            <ScaledText style={[styles.emptyText, { color: colors.ink3, fontFamily: fonts.sans }]}>{error}</ScaledText>
+            <ScaledText style={[styles.emptyText, { color: colors.ink3, fontFamily: fonts.sans }]}>
+              {error}
+            </ScaledText>
           </View>
         ) : customers.length === 0 ? (
           <View style={styles.center}>
-            <Icons.search size={40} color={colors.ink4} />
-            <ScaledText style={[styles.emptyText, { color: colors.ink3, fontFamily: fonts.sans, marginTop: 12 }]}>
+            <View style={[styles.emptyIcon, { backgroundColor: colors.bgElev }]}>
+              <Icons.customers size={32} color={colors.ink4} />
+            </View>
+            <ScaledText style={[styles.emptyTitle, { color: colors.ink2, fontFamily: fonts.sans }]}>
               {debouncedSearch ? 'לא נמצאו לקוחות' : 'אין לקוחות עדיין'}
+            </ScaledText>
+            <ScaledText style={[styles.emptyText, { color: colors.ink4, fontFamily: fonts.sans }]}>
+              {debouncedSearch ? 'נסה מילות חיפוש אחרות' : 'לקוחות יופיעו כאן לאחר יצירת מסמכים'}
             </ScaledText>
           </View>
         ) : (
@@ -126,25 +217,8 @@ export function CustomersScreen({ colors = lightColors, onNavigate }: CustomersS
             keyExtractor={(item) => item.id}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.listContent}
-            ItemSeparatorComponent={() => (
-              <View style={[styles.separator, { backgroundColor: colors.line }]} />
-            )}
-            renderItem={({ item }) => (
-              <Pressable style={styles.customerRow}>
-                <Avatar name={item.name} size={44} />
-                <View style={styles.customerInfo}>
-                  <ScaledText style={[styles.customerName, { color: colors.ink1, fontFamily: fonts.sans }]}>
-                    {item.name}
-                  </ScaledText>
-                  <ScaledText style={[styles.customerAddr, { color: colors.ink3, fontFamily: fonts.sans }]}>
-                    {item.address ?? ''}
-                  </ScaledText>
-                </View>
-                <ScaledText style={[styles.customerLast, { color: colors.ink4, fontFamily: fonts.sans }]}>
-                  {relativeDate(item.last_contact_at)}
-                </ScaledText>
-              </Pressable>
-            )}
+            ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
+            renderItem={({ item }) => <CustomerCard item={item} colors={colors} />}
           />
         )}
       </View>
@@ -156,68 +230,58 @@ export function CustomersScreen({ colors = lightColors, onNavigate }: CustomersS
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  body: {
-    flex: 1,
-    paddingHorizontal: 20,
-  },
+  body: { flex: 1, paddingHorizontal: 20 },
   addBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 999,
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: 44, height: 44, borderRadius: 999,
+    alignItems: 'center', justifyContent: 'center',
   },
   searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    height: 48,
-    paddingHorizontal: 14,
-    borderRadius: 16,
-    borderWidth: 1,
-    marginBottom: 14,
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    height: 48, paddingHorizontal: 14,
+    borderRadius: 16, borderWidth: 1, marginBottom: 14,
   },
-  searchInput: {
-    flex: 1,
-    fontSize: 15,
-    padding: 0,
+  searchInput: { flex: 1, fontSize: 15, padding: 0 },
+  chipsRow: { gap: 8, marginBottom: 16 },
+  chip: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 999 },
+  chipText: { fontSize: 13, fontWeight: '600' },
+  listContent: { paddingBottom: 120 },
+
+  // Card
+  card: {
+    borderRadius: 18,
+    overflow: 'hidden',
+    shadowColor: '#1B1916',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
   },
-  chipsRow: {
-    gap: 8,
-    marginBottom: 16,
+  cardTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, padding: 14 },
+  cardMain: { flex: 1, minWidth: 0 },
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
+  customerName: { fontSize: 15, fontWeight: '700', flex: 1 },
+  docBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    paddingHorizontal: 7, paddingVertical: 3, borderRadius: 999,
   },
-  chip: {
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: 999,
+  docBadgeText: { fontSize: 11, fontWeight: '700' },
+  infoRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  infoText: { fontSize: 12, flex: 1 },
+  lastActivity: { fontSize: 11, marginTop: 2, flexShrink: 0 },
+  cardBottom: {
+    flexDirection: 'row', flexWrap: 'wrap',
+    gap: 12, paddingHorizontal: 14, paddingVertical: 10,
+    borderTopWidth: 1,
   },
-  chipText: {
-    fontSize: 13,
-    fontWeight: '600',
+  contactChip: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  contactText: { fontSize: 12 },
+
+  // Empty state
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingBottom: 80, gap: 8 },
+  emptyIcon: {
+    width: 64, height: 64, borderRadius: 20,
+    alignItems: 'center', justifyContent: 'center', marginBottom: 4,
   },
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingBottom: 80,
-  },
-  emptyText: { fontSize: 14, textAlign: 'center' },
-  listContent: {
-    paddingBottom: 120,
-  },
-  separator: {
-    height: 1,
-    marginHorizontal: 4,
-  },
-  customerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    paddingVertical: 12,
-    paddingHorizontal: 4,
-  },
-  customerInfo: { flex: 1, minWidth: 0 },
-  customerName: { fontSize: 15, fontWeight: '600' },
-  customerAddr: { fontSize: 12, marginTop: 2 },
-  customerLast: { fontSize: 11 },
+  emptyTitle: { fontSize: 16, fontWeight: '700' },
+  emptyText: { fontSize: 13, textAlign: 'center' },
 });

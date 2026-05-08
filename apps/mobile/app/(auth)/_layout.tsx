@@ -1,11 +1,10 @@
-import { Redirect, Stack } from 'expo-router';
+import { Stack } from 'expo-router';
 import { ActivityIndicator, View } from 'react-native';
 import { useAuth } from '@/context/AuthContext';
-import { ROUTES } from '@/navigation/constants';
 import { lightColors } from '@/theme/tokens';
 
 export default function AuthLayout() {
-  const { session, loading, hasBusinessProfile } = useAuth();
+  const { loading } = useAuth();
 
   if (loading) {
     return (
@@ -13,10 +12,6 @@ export default function AuthLayout() {
         <ActivityIndicator size="large" color={lightColors.accent} />
       </View>
     );
-  }
-
-  if (session) {
-    return <Redirect href={hasBusinessProfile ? ROUTES.APP_HOME : ROUTES.ONBOARDING_BUSINESS} />;
   }
 
   return (

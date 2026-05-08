@@ -893,8 +893,14 @@ function SettingGroup({ title, children, colors }: { title: string; children: Re
 
 // ─── SettingsScreen ───────────────────────────────────────────────────────────
 
+function formatSubscriptionDate(iso: string | null): string {
+  if (!iso) return 'ללא תוקף';
+  const d = new Date(iso);
+  return `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}`;
+}
+
 export function SettingsScreen({ dark = false, colors = lightColors, onNavigate, onToggleTheme }: SettingsScreenProps) {
-  const { businessProfile } = useAuth();
+  const { businessProfile, daysUntilExpiration, isSubscriptionExpired, isSubscriptionWarning } = useAuth();
   const { fontSizePref } = useSettings();
   const [openModal, setModal] = React.useState<ModalKey>(null);
 
@@ -906,6 +912,22 @@ export function SettingsScreen({ dark = false, colors = lightColors, onNavigate,
   const hasSig = Boolean(businessProfile?.signature_url);
   const hasDisclaimer = Boolean(businessProfile?.default_disclaimer);
   const fontLabel = fontSizePref === 'sm' ? 'קטן' : fontSizePref === 'lg' ? 'גדול' : 'רגיל';
+
+  const professionLabel: Record<string, string> = {
+    leak_detection: 'גילוי נזילות', plumber: 'אינסטלציה', electrician: 'חשמלאי',
+    renovation: 'שיפוצים', roofing: 'גגות', ac: 'מיזוג אוויר',
+    waterproofing: 'איטום', general_technician: 'טכנאי כללי', other: 'אחר',
+  };
+  const profLabel = professionLabel[businessProfile?.profession ?? ''] ?? businessProfile?.profession ?? '';
+  const subDateLabel = formatSubscriptionDate(businessProfile?.subscription_expiration_date ?? null);
+  const subStatusColor = isSubscriptionExpired ? colors.danger : isSubscriptionWarning ? '#E08A3A' : colors.accent;
+  const subStatusLabel = isSubscriptionExpired
+    ? 'פג תוקף'
+    : isSubscriptionWarning
+      ? `${daysUntilExpiration} ימים נותרו`
+      : daysUntilExpiration !== null
+        ? `${daysUntilExpiration} ימים`
+        : 'פעיל';
 
   const handleLogout = () => {
     Alert.alert('התנתקות', 'האם אתה בטוח שאתה רוצה להתנתק?', [
@@ -955,11 +977,28 @@ export function SettingsScreen({ dark = false, colors = lightColors, onNavigate,
             value={fontLabel} colors={colors} last onPress={() => setModal('fontsize')} />
         </SettingGroup>
 
-        <SettingGroup title="מנוי" colors={colors}>
-          <SettingRow icon={<Icons.star size={20} color={colors.ink2} />} label="תכנית ומנוי"
-            value={plan === 'pro' ? 'פרו' : 'חינמי'} colors={colors} onPress={() => setModal('upgrade')} />
-          <SettingRow icon={<Icons.history size={20} color={colors.ink2} />} label="היסטוריית חיובים"
-            colors={colors} last onPress={() => setModal('billing')} />
+        <SettingGroup title="מנוי ופרופיל" colors={colors}>
+          {profLabel ? (
+            <SettingRow icon={<Icons.building size={20} color={colors.ink2} />} label="תחום"
+              value={profLabel} colors={colors} />
+          ) : null}
+          <SettingRow icon={<Icons.history size={20} color={colors.ink2} />} label="תוקף מנוי"
+            value={subDateLabel} colors={colors} />
+          <SettingRow
+            icon={<Icons.shieldCheck size={20} color={subStatusColor} />}
+            label="סטטוס מנוי"
+            right={
+              <View style={[styles.subStatusBadge, { backgroundColor: isSubscriptionExpired ? colors.dangerBg : isSubscriptionWarning ? '#FEF5EC' : colors.accentBg }]}>
+                <ScaledText style={[styles.subStatusText, { color: subStatusColor, fontFamily: fonts.sans }]}>{subStatusLabel}</ScaledText>
+              </View>
+            }
+            colors={colors}
+            last={plan !== 'free' && plan !== 'pro'}
+          />
+          {(plan === 'free' || plan === 'pro') && (
+            <SettingRow icon={<Icons.star size={20} color={colors.ink2} />} label="תכנית"
+              value={plan === 'pro' ? 'פרו' : 'חינמי'} colors={colors} onPress={() => setModal('upgrade')} last />
+          )}
         </SettingGroup>
 
         <Pressable onPress={handleLogout} style={[styles.logoutBtn, { backgroundColor: colors.dangerBg }]}>
@@ -1010,6 +1049,8 @@ const styles = StyleSheet.create({
   logoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', height: 56, borderRadius: 16, marginTop: 18, gap: 8 },
   logoutText: { fontWeight: '600', fontSize: 15 },
   version: { textAlign: 'center', marginTop: 16, fontSize: 11 },
+  subStatusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
+  subStatusText: { fontSize: 12, fontWeight: '600' },
 
   // BottomSheet
   overlay: { flex: 1, justifyContent: 'flex-end' },

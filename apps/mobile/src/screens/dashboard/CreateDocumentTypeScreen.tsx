@@ -4,60 +4,36 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomNav, type TabId } from '@/components/layout';
 import { Icons } from '@/components/icons';
 import { lightColors, fonts, shadows } from '@/theme/tokens';
-import type { DocumentType } from '@/navigation/types';
+import { DOCUMENT_TYPES } from '@/config/documentTypes';
+import type { DocType } from '@/config/documentTypes';
 
 interface CreateDocumentTypeScreenProps {
   colors?: typeof lightColors;
-  onSelectType?: (type: DocumentType) => void;
+  onSelectType?: (type: DocType) => void;
   onNavigate?: (tab: TabId) => void;
 }
 
-const TYPES: Array<{
-  type: DocumentType;
-  title: string;
-  desc: string;
-  detail: string;
+const TYPE_VISUALS: Record<DocType, {
   Icon: (p: { size?: number; color?: string }) => React.ReactElement;
   colorFn: (c: typeof lightColors) => string;
   bgFn: (c: typeof lightColors) => string;
-}> = [
-  {
-    type: 'report',
-    title: 'דוח מקצועי',
-    desc: 'תיעוד נזק, ממצאים והמלצות',
-    detail: 'מתאים לביקורי שטח, גילוי נזילות ואיטום',
+}> = {
+  report: {
     Icon: Icons.doc,
     colorFn: (c) => c.accent,
     bgFn: (c) => c.accentBg,
   },
-  {
-    type: 'quote',
-    title: 'הצעת מחיר',
-    desc: 'רשימת פריטים עם מחירים',
-    detail: 'חישוב אוטומטי של מע"מ וסה"כ',
+  quote: {
     Icon: Icons.quote,
     colorFn: (c) => c.info,
     bgFn: (c) => c.infoBg,
   },
-  {
-    type: 'worklog',
-    title: 'תיעוד עבודה',
-    desc: 'תמונות לפני ואחרי',
-    detail: 'הוכחת ביצוע לחברות ביטוח',
-    Icon: Icons.image,
-    colorFn: (c) => c.ai,
-    bgFn: (c) => c.aiBg,
-  },
-  {
-    type: 'agreement',
-    title: 'הסכם עבודה',
-    desc: 'חוזה עם חתימה דיגיטלית',
-    detail: 'מותאם לדרישות משפטיות בישראל',
-    Icon: Icons.agreement,
+  warranty: {
+    Icon: Icons.shieldCheck,
     colorFn: (c) => c.warn,
     bgFn: (c) => c.warnBg,
   },
-];
+};
 
 export function CreateDocumentTypeScreen({
   colors = lightColors,
@@ -91,32 +67,36 @@ export function CreateDocumentTypeScreen({
 
         {/* Type cards */}
         <View style={styles.cards}>
-          {TYPES.map((t) => (
-            <Pressable
-              key={t.type}
-              onPress={() => onSelectType?.(t.type)}
-              style={[styles.card, { backgroundColor: colors.bgElev }, shadows.card]}
-            >
-              <View style={[styles.cardIcon, { backgroundColor: t.bgFn(colors) }]}>
-                <t.Icon size={28} color={t.colorFn(colors)} />
-              </View>
-              <View style={styles.cardBody}>
-                <Text style={[styles.cardTitle, { color: colors.ink1, fontFamily: fonts.sans }]}>
-                  {t.title}
-                </Text>
-                <Text style={[styles.cardDesc, { color: colors.ink2, fontFamily: fonts.sans }]}>
-                  {t.desc}
-                </Text>
-                <Text style={[styles.cardDetail, { color: colors.ink4, fontFamily: fonts.sans }]}>
-                  {t.detail}
-                </Text>
-              </View>
-              <Icons.chevL size={20} color={colors.ink4} />
-            </Pressable>
-          ))}
+          {(Object.keys(DOCUMENT_TYPES) as DocType[]).map((docType) => {
+            const config = DOCUMENT_TYPES[docType];
+            const visuals = TYPE_VISUALS[docType];
+            return (
+              <Pressable
+                key={docType}
+                onPress={() => onSelectType?.(docType)}
+                style={[styles.card, { backgroundColor: colors.bgElev }, shadows.card]}
+              >
+                <View style={[styles.cardIcon, { backgroundColor: visuals.bgFn(colors) }]}>
+                  <visuals.Icon size={28} color={visuals.colorFn(colors)} />
+                </View>
+                <View style={styles.cardBody}>
+                  <Text style={[styles.cardTitle, { color: colors.ink1, fontFamily: fonts.sans }]}>
+                    {config.label}
+                  </Text>
+                  <Text style={[styles.cardDesc, { color: colors.ink2, fontFamily: fonts.sans }]}>
+                    {config.desc}
+                  </Text>
+                  <Text style={[styles.cardDetail, { color: colors.ink4, fontFamily: fonts.sans }]}>
+                    {config.detail}
+                  </Text>
+                </View>
+                <Icons.chevL size={20} color={colors.ink4} />
+              </Pressable>
+            );
+          })}
         </View>
 
-        {/* Voice shortcut */}
+        {/* Voice shortcut — only relevant for reports */}
         <Pressable
           onPress={() => onSelectType?.('report')}
           style={[styles.voiceShortcut, { backgroundColor: '#1B2A22' }]}
@@ -125,7 +105,7 @@ export function CreateDocumentTypeScreen({
             <Icons.micFill size={22} color="#84B097" />
             <View>
               <Text style={[styles.voiceTitle, { fontFamily: fonts.sans }]}>
-                צור עם קול
+                צור דוח עם קול
               </Text>
               <Text style={[styles.voiceSub, { fontFamily: fonts.sans }]}>
                 דבר ואנחנו נכתוב — הכי מהיר

@@ -1,29 +1,51 @@
 import React, { createContext, useContext, useState } from 'react';
-import type {
-  DocumentType,
-  PropertyType,
-  IssueType,
-  Recommendation,
-} from '@dohot/shared';
+import type { PropertyType, Recommendation } from '@dohot/shared';
+import type { DocType } from '@/config/documentTypes';
 import {
   upsertCustomer,
   createDraftDocument,
   upsertReport,
+  upsertQuoteItems,
+  type CustomerFields,
 } from '@/services/documents';
+import { DOCUMENT_TYPES } from '@/config/documentTypes';
+
+export interface WizardQuoteItem {
+  key: string;       // local React key (not saved to DB)
+  title: string;
+  qty: number;
+  unitPrice: number;
+}
 
 interface WizardState {
-  documentType: DocumentType;
+  docType: DocType;
+  // Customer (shared)
   customerName: string;
   customerPhone: string;
-  customerAddress: string;
+  customerEmail: string;
+  customerCity: string;
+  customerStreet: string;
+  customerHouseNumber: string;
+  customerApartment: string;
+  customerFloor: string;
+  customerAddress: string;  // legacy formatted string
+  // Report-specific
   propertyType: PropertyType;
-  issueType: IssueType;
+  issueType: string;      // profession-specific issue ID
+  issueLabel: string;     // Hebrew label used in AI prompt + PDF
   issueNote: string;
   photos: string[];
   voiceTranscript: string;
-  /** AI-generated professional summary text (from /api/ai/clean-report-text) */
   aiSummary: string;
   recommendations: Recommendation[];
+  // Quote-specific
+  quoteItems: WizardQuoteItem[];
+  quoteNotes: string;
+  // Warranty-specific
+  warrantyDuration: string;
+  warrantyConditions: string;
+  warrantyWorkDescription: string;
+  // Shared output
   documentId: string | null;
   pdfUrl: string | null;
 }
@@ -31,35 +53,49 @@ interface WizardState {
 interface WizardContextValue {
   state: WizardState;
   saving: boolean;
-  setDocumentType: (t: DocumentType) => void;
-  setCustomer: (name: string, phone: string, address: string) => void;
+  setDocType: (t: DocType) => void;
+  setCustomer: (fields: CustomerFields) => void;
   setPropertyType: (t: PropertyType) => void;
-  setIssueType: (t: IssueType) => void;
+  setIssueData: (id: string, label: string) => void;
   setIssueNote: (n: string) => void;
   addPhoto: (uri: string) => void;
+  removePhoto: (uri: string) => void;
   setVoiceTranscript: (t: string) => void;
-  /** Called by the processing screen once the AI response arrives */
   setAiResult: (summary: string, recommendations: Recommendation[]) => void;
   setRecommendations: (recs: Recommendation[]) => void;
-  /** Creates customer + document draft after step 1, fires in the background */
-  initDraft: (professionalId: string, data: { name: string; phone: string; address: string }) => Promise<void>;
+  setQuoteItems: (items: WizardQuoteItem[]) => void;
+  setQuoteNotes: (n: string) => void;
+  setWarrantyData: (duration: string, conditions: string, workDescription: string) => void;
+  initDraft: (professionalId: string, fields: CustomerFields) => Promise<void>;
   saveDocument: (professionalId: string) => Promise<void>;
   setPdfUrl: (url: string) => void;
   reset: () => void;
 }
 
 const DEFAULT: WizardState = {
-  documentType: 'report',
+  docType: 'report',
   customerName: '',
   customerPhone: '',
+  customerEmail: '',
+  customerCity: '',
+  customerStreet: '',
+  customerHouseNumber: '',
+  customerApartment: '',
+  customerFloor: '',
   customerAddress: '',
   propertyType: 'apartment',
   issueType: 'leak',
+  issueLabel: 'גילוי נזילה',
   issueNote: '',
   photos: [],
   voiceTranscript: '',
   aiSummary: '',
   recommendations: [],
+  quoteItems: [],
+  quoteNotes: '',
+  warrantyDuration: '12 חודשים',
+  warrantyConditions: '',
+  warrantyWorkDescription: '',
   documentId: null,
   pdfUrl: null,
 };
@@ -67,42 +103,67 @@ const DEFAULT: WizardState = {
 const WizardContext = createContext<WizardContextValue>({
   state: DEFAULT,
   saving: false,
-  setDocumentType: () => {},
-  setCustomer: () => {},
+  setDocType: () => {},
+  setCustomer: (_f: CustomerFields) => {},
   setPropertyType: () => {},
-  setIssueType: () => {},
+  setIssueData: () => {},
   setIssueNote: () => {},
   addPhoto: () => {},
+  removePhoto: () => {},
   setVoiceTranscript: () => {},
   setAiResult: () => {},
   setRecommendations: () => {},
+  setQuoteItems: () => {},
+  setQuoteNotes: () => {},
+  setWarrantyData: () => {},
   initDraft: async () => {},
   saveDocument: async () => {},
   setPdfUrl: () => {},
   reset: () => {},
 });
 
+function docTitle(docType: DocType, customerName: string): string {
+  return `${DOCUMENT_TYPES[docType].titlePrefix} ${customerName}`;
+}
+
 export function WizardProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<WizardState>(DEFAULT);
   const [saving, setSaving] = useState(false);
 
-  const setDocumentType = (documentType: DocumentType) =>
-    setState((s) => ({ ...s, documentType }));
+  const setDocType = (docType: DocType) =>
+    setState((s) => ({ ...s, docType }));
 
-  const setCustomer = (customerName: string, customerPhone: string, customerAddress: string) =>
-    setState((s) => ({ ...s, customerName, customerPhone, customerAddress }));
+  const setCustomer = (fields: CustomerFields) =>
+    setState((s) => ({
+      ...s,
+      customerName: fields.name,
+      customerPhone: fields.phone,
+      customerEmail: fields.email,
+      customerCity: fields.city,
+      customerStreet: fields.street,
+      customerHouseNumber: fields.houseNumber,
+      customerApartment: fields.apartment,
+      customerFloor: fields.floor,
+      customerAddress: [
+        [fields.street, fields.houseNumber].filter(Boolean).join(' '),
+        fields.city,
+      ].filter(Boolean).join(', '),
+    }));
 
   const setPropertyType = (propertyType: PropertyType) =>
     setState((s) => ({ ...s, propertyType }));
 
-  const setIssueType = (issueType: IssueType) =>
-    setState((s) => ({ ...s, issueType }));
+  const setIssueData = (issueType: string, issueLabel: string) =>
+    setState((s) => ({ ...s, issueType, issueLabel }));
 
   const setIssueNote = (issueNote: string) =>
     setState((s) => ({ ...s, issueNote }));
 
   const addPhoto = (uri: string) =>
     setState((s) => ({ ...s, photos: [...s.photos, uri] }));
+
+  const removePhoto = (uri: string) =>
+    setState((s) => ({ ...s, photos: s.photos.filter((p) => p !== uri) }));
 
   const setVoiceTranscript = (voiceTranscript: string) =>
     setState((s) => ({ ...s, voiceTranscript }));
@@ -113,6 +174,15 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
   const setRecommendations = (recommendations: Recommendation[]) =>
     setState((s) => ({ ...s, recommendations }));
 
+  const setQuoteItems = (quoteItems: WizardQuoteItem[]) =>
+    setState((s) => ({ ...s, quoteItems }));
+
+  const setQuoteNotes = (quoteNotes: string) =>
+    setState((s) => ({ ...s, quoteNotes }));
+
+  const setWarrantyData = (warrantyDuration: string, warrantyConditions: string, warrantyWorkDescription: string) =>
+    setState((s) => ({ ...s, warrantyDuration, warrantyConditions, warrantyWorkDescription }));
+
   const setPdfUrl = (pdfUrl: string) =>
     setState((s) => ({ ...s, pdfUrl }));
 
@@ -120,20 +190,16 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
 
   const initDraft = async (
     professionalId: string,
-    data: { name: string; phone: string; address: string },
+    fields: CustomerFields,
   ): Promise<void> => {
     try {
-      const customer = await upsertCustomer(
-        professionalId,
-        data.name || 'לא צוין',
-        data.phone,
-        data.address,
-      );
-      const title = `דוח בדיקה – ${customer.name}`;
-      const doc = await createDraftDocument(professionalId, customer.id, title);
+      const customer = await upsertCustomer(professionalId, { ...fields, name: fields.name || 'לא צוין' });
+      const title = docTitle(state.docType, customer.name);
+      const dbType = DOCUMENT_TYPES[state.docType].dbType;
+      const doc = await createDraftDocument(professionalId, customer.id, title, dbType);
       setState((s) => ({ ...s, documentId: doc.id }));
     } catch {
-      // Silently swallow — saveDocument will retry the full create if documentId is missing
+      // Silently swallow — saveDocument will retry
     }
   };
 
@@ -143,26 +209,46 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
       let docId = state.documentId;
 
       if (!docId) {
-        const customer = await upsertCustomer(
-          professionalId,
-          state.customerName || 'לא צוין',
-          state.customerPhone,
-          state.customerAddress,
-        );
-        const title = `דוח בדיקה – ${customer.name}`;
-        const doc = await createDraftDocument(professionalId, customer.id, title);
+        const customer = await upsertCustomer(professionalId, {
+          name: state.customerName || 'לא צוין',
+          phone: state.customerPhone,
+          email: state.customerEmail,
+          city: state.customerCity,
+          street: state.customerStreet,
+          houseNumber: state.customerHouseNumber,
+          apartment: state.customerApartment,
+          floor: state.customerFloor,
+        });
+        const title = docTitle(state.docType, customer.name);
+        const dbType = DOCUMENT_TYPES[state.docType].dbType;
+        const doc = await createDraftDocument(professionalId, customer.id, title, dbType);
         docId = doc.id;
       }
 
-      await upsertReport(docId, {
-        propertyType: state.propertyType,
-        issueType: state.issueType,
-        issueNote: state.issueNote,
-        photos: state.photos,
-        voiceTranscript: state.voiceTranscript,
-        aiSummary: state.aiSummary,
-        recommendations: state.recommendations,
-      });
+      if (state.docType === 'report') {
+        await upsertReport(docId, {
+          propertyType: state.propertyType,
+          issueType: state.issueType,
+          issueNote: state.issueNote,
+          photos: state.photos,
+          voiceTranscript: state.voiceTranscript,
+          aiSummary: state.aiSummary,
+          recommendations: state.recommendations,
+        });
+      } else if (state.docType === 'quote') {
+        const total = state.quoteItems.reduce((sum, i) => sum + i.qty * i.unitPrice, 0);
+        await upsertQuoteItems(docId, state.quoteItems, total);
+      } else if (state.docType === 'warranty') {
+        await upsertReport(docId, {
+          propertyType: state.propertyType,
+          issueType: state.warrantyDuration,
+          issueNote: state.warrantyConditions,
+          photos: state.photos,
+          voiceTranscript: '',
+          aiSummary: state.warrantyWorkDescription,
+          recommendations: [],
+        });
+      }
 
       setState((s) => ({ ...s, documentId: docId! }));
     } finally {
@@ -174,15 +260,19 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
     <WizardContext.Provider value={{
       state,
       saving,
-      setDocumentType,
+      setDocType,
       setCustomer,
       setPropertyType,
-      setIssueType,
+      setIssueData,
       setIssueNote,
       addPhoto,
+      removePhoto,
       setVoiceTranscript,
       setAiResult,
       setRecommendations,
+      setQuoteItems,
+      setQuoteNotes,
+      setWarrantyData,
       initDraft,
       saveDocument,
       setPdfUrl,

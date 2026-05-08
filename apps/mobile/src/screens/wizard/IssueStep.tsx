@@ -1,11 +1,14 @@
 import React from 'react';
-import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, Pressable, ScrollView, StyleSheet, TextInput } from 'react-native';
 import { Header, FixedBottom, ProgressBar } from '@/components/layout';
 import { Button, Field } from '@/components/primitives';
 import { Icons } from '@/components/icons';
 import { lightColors, fonts } from '@/theme/tokens';
 import { useWizard } from '@/context/WizardContext';
-import type { IssueType } from '@dohot/shared';
+import { useAuth } from '@/context/AuthContext';
+import { PROFESSION_ISSUES, type IssueOption } from '@/config/professionIssues';
+import { useWizardStep } from '@/hooks/useWizardStep';
+import type { Profession } from '@dohot/shared';
 
 interface IssueStepProps {
   colors?: typeof lightColors;
@@ -13,24 +16,45 @@ interface IssueStepProps {
   onBack?: () => void;
 }
 
-const ISSUES: Array<{ id: IssueType; label: string; desc: string; Icon: React.ComponentType<{ size: number; color: string }>; color: string; bg: string }> = [
-  { id: 'leak', label: 'גילוי נזילה', desc: 'מים, לחות, רטיבות', Icon: Icons.drop, color: '#4A7B9D', bg: '#E2EBF1' },
-  { id: 'waterproofing', label: 'איטום', desc: 'גג, מקלחת, חזיתות', Icon: Icons.shield, color: '#5A8770', bg: '#E5EDE7' },
-  { id: 'pipe', label: 'בעיית צנרת', desc: 'פיצוץ, חסימה', Icon: Icons.pipe, color: '#C2613B', bg: '#F8E9DF' },
-  { id: 'roof', label: 'נזק גג', desc: 'רעפים, יציאות', Icon: Icons.roof, color: '#B8862B', bg: '#F4ECD7' },
-  { id: 'moisture', label: 'עובש ולחות', desc: 'בידוד, אוורור', Icon: Icons.moisture, color: '#8B5A8B', bg: '#EFE0EF' },
-  { id: 'other', label: 'אחר', desc: 'תיאור חופשי', Icon: Icons.more, color: '#807A72', bg: '#EFEDE7' },
-];
+const ICON_MAP = {
+  drop: Icons.drop,
+  pipe: Icons.pipe,
+  roof: Icons.roof,
+  moisture: Icons.moisture,
+  sparkle: Icons.sparkle,
+  building: Icons.building,
+  shield: Icons.shield,
+  more: Icons.more,
+} as const;
 
 export function IssueStep({ colors = lightColors, onNext, onBack }: IssueStepProps) {
   const wizard = useWizard();
-  const [selected, setSelected] = React.useState<IssueType>(wizard.state.issueType);
+  const { businessProfile } = useAuth();
+  const { progress, stepNum, stepOf, goNext, goBack } = useWizardStep();
+
+  const profession = (businessProfile?.profession ?? 'other') as Profession;
+  const issues: IssueOption[] = PROFESSION_ISSUES[profession] ?? PROFESSION_ISSUES.other;
+
+  const [selectedId, setSelectedId] = React.useState<string>(wizard.state.issueType || issues[0]?.id || '');
   const [issueNote, setIssueNote] = React.useState(wizard.state.issueNote);
+  const [customText, setCustomText] = React.useState('');
+
+  const selectedIssue = issues.find((i) => i.id === selectedId) ?? issues[0];
+
+  const handleNext = () => {
+    const label = selectedId === 'other' && customText.trim()
+      ? customText.trim()
+      : (selectedIssue?.label ?? selectedId);
+    wizard.setIssueData(selectedId, label);
+    wizard.setIssueNote(issueNote);
+    if (onNext) onNext();
+    else goNext();
+  };
 
   return (
     <View style={[styles.root, { backgroundColor: colors.bg }]}>
-      <Header step={2} ofSteps={5} onBack={onBack} colors={colors} />
-      <ProgressBar value={2 / 5} colors={colors} />
+      <Header step={stepNum} ofSteps={stepOf} onBack={onBack ?? goBack} colors={colors} />
+      <ProgressBar value={progress} colors={colors} />
 
       <ScrollView
         style={styles.scroll}
@@ -45,12 +69,13 @@ export function IssueStep({ colors = lightColors, onNext, onBack }: IssueStepPro
         </Text>
 
         <View style={styles.grid}>
-          {ISSUES.map((issue) => {
-            const on = selected === issue.id;
+          {issues.map((issue) => {
+            const on = selectedId === issue.id;
+            const IssueIcon = ICON_MAP[issue.icon] ?? Icons.more;
             return (
               <Pressable
                 key={issue.id}
-                onPress={() => setSelected(issue.id)}
+                onPress={() => setSelectedId(issue.id)}
                 style={[
                   styles.tile,
                   {
@@ -61,7 +86,7 @@ export function IssueStep({ colors = lightColors, onNext, onBack }: IssueStepPro
                 ]}
               >
                 <View style={[styles.tileIcon, { backgroundColor: on ? '#fff' : issue.bg }]}>
-                  <issue.Icon size={22} color={issue.color} />
+                  <IssueIcon size={22} color={issue.color} />
                 </View>
                 <View>
                   <Text style={[styles.tileLabel, { color: on ? issue.color : colors.ink1, fontFamily: fonts.sans }]}>
@@ -81,9 +106,24 @@ export function IssueStep({ colors = lightColors, onNext, onBack }: IssueStepPro
           })}
         </View>
 
+        {/* Custom input when "other" is selected */}
+        {selectedId === 'other' && (
+          <View style={[styles.customInputWrap, { borderColor: colors.line, backgroundColor: colors.bgElev }]}>
+            <Icons.edit size={18} color={colors.ink3} />
+            <TextInput
+              style={[styles.customInput, { color: colors.ink1, fontFamily: fonts.sans }]}
+              placeholder="תאר את הבעיה…"
+              placeholderTextColor={colors.ink4}
+              value={customText}
+              onChangeText={setCustomText}
+              textAlign="right"
+            />
+          </View>
+        )}
+
         <Field
           label="הערות נוספות (אופציונלי)"
-          placeholder="תיאור קצר של הבעיה, מיקום, נסיבות…"
+          placeholder="מיקום, נסיבות, משך הבעיה…"
           icon={<Icons.edit size={20} color={colors.ink3} />}
           value={issueNote}
           onChangeText={setIssueNote}
@@ -91,11 +131,11 @@ export function IssueStep({ colors = lightColors, onNext, onBack }: IssueStepPro
           colors={colors}
         />
 
-        {/* AI tip */}
         <View style={[styles.tip, { backgroundColor: colors.bgSunken }]}>
           <Icons.sparkle size={18} color={colors.ai2} />
           <Text style={[styles.tipText, { color: colors.ink2, fontFamily: fonts.sans }]}>
-            <Text style={[styles.tipBold, { color: colors.ai2 }]}>טיפ:</Text> ניתן להוסיף תקלות נוספות בהמשך
+            <Text style={[styles.tipBold, { color: colors.ai2 }]}>טיפ:</Text>{' '}
+            ניתן להוסיף פרטים נוספים בשלב ההקלטה
           </Text>
         </View>
       </ScrollView>
@@ -105,11 +145,7 @@ export function IssueStep({ colors = lightColors, onNext, onBack }: IssueStepPro
           kind="primary"
           size="lg"
           full
-          onPress={() => {
-            wizard.setIssueType(selected);
-            wizard.setIssueNote(issueNote);
-            onNext?.();
-          }}
+          onPress={handleNext}
           iconRight={<Icons.back size={20} color={colors.bg} />}
           colors={colors}
         >
@@ -123,12 +159,7 @@ export function IssueStep({ colors = lightColors, onNext, onBack }: IssueStepPro
 const styles = StyleSheet.create({
   root: { flex: 1 },
   scroll: { flex: 1 },
-  content: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 140,
-    gap: 14,
-  },
+  content: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 140, gap: 14 },
   title: { fontSize: 30, fontWeight: '500', lineHeight: 33, letterSpacing: -0.6 },
   subtitle: { fontSize: 14 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
@@ -140,13 +171,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     position: 'relative',
   },
-  tileIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  tileIcon: { width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   tileLabel: { fontSize: 15, fontWeight: '700' },
   tileDesc: { fontSize: 11, marginTop: 2 },
   checkBadge: {
@@ -159,13 +184,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  tip: {
+  customInputWrap: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    padding: 14,
-    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 16,
+    borderWidth: 1,
   },
+  customInput: { flex: 1, fontSize: 15 },
+  tip: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, borderRadius: 14 },
   tipText: { fontSize: 13, flex: 1 },
   tipBold: { fontWeight: '700' },
 });

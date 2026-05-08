@@ -1,12 +1,12 @@
 import React from 'react';
-import { View, Text, Pressable, StyleSheet, StatusBar } from 'react-native';
+import { View, Text, Pressable, StyleSheet, StatusBar, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Svg, { Circle, Path, Defs, Marker } from 'react-native-svg';
-import { DamageImage } from '@/components/shared';
+import Svg, { Path, Defs, Marker } from 'react-native-svg';
 import { Icons } from '@/components/icons';
 import { fonts } from '@/theme/tokens';
 
 interface PhotoAnnotateScreenProps {
+  photoUri?: string;
   onBack?: () => void;
   onDone?: () => void;
 }
@@ -20,7 +20,7 @@ const TOOLS = [
   { label: 'AI', Icon: Icons.wand, ai: true },
 ];
 
-export function PhotoAnnotateScreen({ onBack, onDone }: PhotoAnnotateScreenProps) {
+export function PhotoAnnotateScreen({ photoUri, onBack, onDone }: PhotoAnnotateScreenProps) {
   const insets = useSafeAreaInsets();
   const [selectedColor, setSelectedColor] = React.useState(0);
   const [selectedTool, setSelectedTool] = React.useState(0);
@@ -34,7 +34,7 @@ export function PhotoAnnotateScreen({ onBack, onDone }: PhotoAnnotateScreenProps
         <Pressable onPress={onBack} style={styles.topBtn}>
           <Icons.close size={20} color="#fff" />
         </Pressable>
-        <Text style={[styles.topTitle, { fontFamily: fonts.sans }]}>קיר מערבי · 1/4</Text>
+        <Text style={[styles.topTitle, { fontFamily: fonts.sans }]}>סימון תמונה</Text>
         <Pressable onPress={onDone} style={styles.saveBtn}>
           <Text style={[styles.saveBtnText, { fontFamily: fonts.sans }]}>שמור</Text>
         </Pressable>
@@ -43,16 +43,18 @@ export function PhotoAnnotateScreen({ onBack, onDone }: PhotoAnnotateScreenProps
       {/* Image canvas */}
       <View style={styles.canvas}>
         <View style={styles.imageWrap}>
-          <DamageImage kind="leak" height={460} />
-          <View style={[StyleSheet.absoluteFill, { borderRadius: 18 }]} pointerEvents="none">
-            <Svg width="100%" height="100%" viewBox="0 0 360 460" preserveAspectRatio="none">
+          {photoUri ? (
+            <Image source={{ uri: photoUri }} style={styles.photo} resizeMode="contain" />
+          ) : (
+            <View style={styles.photoPlaceholder} />
+          )}
+          <View style={StyleSheet.absoluteFill} pointerEvents="none">
+            <Svg width="100%" height="100%">
               <Defs>
                 <Marker id="arrowA" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
                   <Path d="M0 0 L10 5 L0 10 z" fill="#C2613B" />
                 </Marker>
               </Defs>
-              <Circle cx="180" cy="180" r="55" fill="none" stroke="#C2613B" strokeWidth="4" />
-              <Path d="M260 90 L 215 145" stroke="#C2613B" strokeWidth="4" markerEnd="url(#arrowA)" strokeLinecap="round" />
             </Svg>
           </View>
         </View>
@@ -144,6 +146,14 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     overflow: 'hidden',
     flex: 1,
+  },
+  photo: {
+    width: '100%',
+    height: '100%',
+  },
+  photoPlaceholder: {
+    flex: 1,
+    backgroundColor: '#1A1917',
   },
   bottomBar: {
     position: 'absolute',

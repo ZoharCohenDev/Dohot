@@ -7,7 +7,7 @@ import { ROUTES } from '@/navigation/constants';
 import { lightColors } from '@/theme/tokens';
 
 export default function AppLayout() {
-  const { session, loading, hasBusinessProfile } = useAuth();
+  const { session, loading, isSubscriptionExpired, isActive } = useAuth();
 
   if (loading) {
     return (
@@ -18,7 +18,7 @@ export default function AppLayout() {
   }
 
   if (!session) return <Redirect href={ROUTES.AUTH_LOGIN} />;
-  if (!hasBusinessProfile) return <Redirect href={ROUTES.ONBOARDING_BUSINESS} />;
+  if (!isActive || isSubscriptionExpired) return <Redirect href={ROUTES.AUTH_EXPIRED} />;
 
   return (
     <Stack screenOptions={{ headerShown: false }} />

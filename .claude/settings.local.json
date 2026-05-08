@@ -1,12 +1,15 @@
 {
   "permissions": {
     "allow": [
+      "Bash(git mv *)",
+      "Bash(mkdir -p /Users/ronitwito/Dohot/apps/mobile/src/navigation)",
+      "Bash(mkdir -p /Users/ronitwito/Dohot/apps/mobile/src/data)",
+      "Bash(mkdir -p /Users/ronitwito/Dohot/apps/mobile/src/context)",
+      "Bash(mkdir -p /Users/ronitwito/Dohot/apps/mobile/src/screens/auth)",
       "Bash(npx tsc *)",
-      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d.get\\('scripts',{}\\), ensure_ascii=False, indent=2\\)\\)\")",
-      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); deps={**d.get\\('dependencies',{}\\), **d.get\\('devDependencies',{}\\)}; [print\\(k,v\\) for k,v in sorted\\(deps.items\\(\\)\\)]\")",
-      "Bash(xargs ls -la)",
-      "Bash(xargs ls)",
-      "Bash(node *)"
+      "Bash(grep -v \"^$\")",
+      "Bash(grep -E '\\\\.tsx?$')",
+      "Bash(grep -E \"\\\\.\\(tsx|ts\\)$\")"
     ]
   }
 }

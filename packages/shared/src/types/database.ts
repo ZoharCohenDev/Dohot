@@ -6,7 +6,12 @@ export type Profession =
   | 'electrician'
   | 'renovation'
   | 'roofing'
+  | 'ac'
+  | 'waterproofing'
+  | 'general_technician'
   | 'other';
+
+export type UserRole = 'admin' | 'technician';
 
 export type CustomerType =
   | 'private'            // פרטיים
@@ -77,6 +82,11 @@ export interface BusinessProfile {
   certifications_note: string | null;
   certifications: Certification[];
   plan: Plan;
+  // admin/role system
+  username: string | null;
+  role: UserRole;
+  subscription_expiration_date: string | null; // ISO date 'YYYY-MM-DD'
+  is_active: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -86,7 +96,13 @@ export interface Customer {
   professional_id: string;
   name: string;
   phone: string | null;
-  address: string | null;
+  email: string | null;
+  address: string | null;        // legacy / formatted composite
+  city: string | null;
+  street: string | null;
+  house_number: string | null;
+  apartment: string | null;
+  floor: string | null;
   type: CustomerType;
   notes: string | null;
   last_contact_at: string | null;

@@ -14,43 +14,22 @@ export interface SessionResult {
   user: User | null;
 }
 
-// ─── Phone OTP (kept for future optional flows) ───────────────────────────────
+// ─── Username/password ────────────────────────────────────────────────────────
 
 /**
- * Step 1 — send a 6-digit OTP via SMS to the given Israeli phone number.
- * Phone must be in E.164 format: +972501234567
+ * Sign in with username + password.
+ * Internally maps username → username@dohot.app (Supabase email auth).
+ * Admin creates users via the server API using this same email convention.
  */
-export async function sendPhoneOTP(phone: string): Promise<AuthResult> {
-  const { error } = await supabase.auth.signInWithOtp({ phone });
-  if (error) return { success: false, error: error.message };
-  return { success: true };
-}
-
-/**
- * Step 2 — verify the OTP received by the user.
- * On success, Supabase sets and persists the session automatically.
- */
-export async function verifyPhoneOTP(phone: string, token: string): Promise<AuthResult> {
-  const { error } = await supabase.auth.verifyOtp({ phone, token, type: 'sms' });
-  if (error) return { success: false, error: error.message };
-  return { success: true };
-}
-
-// ─── Email/password ───────────────────────────────────────────────────────────
-
-export async function signUpWithEmail(
-  email: string,
-  password: string,
-  meta: { full_name: string; phone?: string; profession?: string },
-): Promise<AuthResult> {
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: { data: meta },
-  });
-  if (error) return { success: false, error: error.message };
-  if (!data.session) {
-    return { success: true, emailConfirmationRequired: true };
+export async function signInWithUsername(username: string, password: string): Promise<AuthResult> {
+  const email = `${username.toLowerCase().trim()}@dohot.app`;
+  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) {
+    // Surface a friendlier message for wrong credentials
+    const msg = error.message.includes('Invalid login credentials')
+      ? 'שם משתמש או סיסמה שגויים'
+      : error.message;
+    return { success: false, error: msg };
   }
   return { success: true };
 }

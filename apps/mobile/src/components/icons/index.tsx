@@ -358,6 +358,24 @@ export const Icons = {
       <Path d="M3 12h2M7 8v8M11 5v14M15 9v6M19 12h2" />
     </Icon>
   ),
+  lock: ({ size, color, stroke }: IconProps) => (
+    <Icon size={size} color={color} stroke={stroke}>
+      <Rect x="5" y="11" width="14" height="11" rx="2" />
+      <Path d="M8 11V7a4 4 0 0 1 8 0v4" />
+    </Icon>
+  ),
+  eye: ({ size, color, stroke }: IconProps) => (
+    <Icon size={size} color={color} stroke={stroke}>
+      <Path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" />
+      <Circle cx="12" cy="12" r="3" />
+    </Icon>
+  ),
+  at: ({ size, color, stroke }: IconProps) => (
+    <Icon size={size} color={color} stroke={stroke}>
+      <Circle cx="12" cy="12" r="4" />
+      <Path d="M16 12v1.5a2.5 2.5 0 0 0 5 0V12a9 9 0 1 0-3.4 7" />
+    </Icon>
+  ),
 } satisfies Record<string, IconComponent>;
 
 export type IconName = keyof typeof Icons;

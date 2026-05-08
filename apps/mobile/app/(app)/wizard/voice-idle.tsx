@@ -1,22 +1,20 @@
-import { useRouter } from 'expo-router';
 import { View, Text, Pressable, StyleSheet, StatusBar } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Header } from '@/components/layout';
 import { Icons } from '@/components/icons';
-import { ROUTES } from '@/navigation/constants';
-import { safeBack } from '@/navigation/safeBack';
 import { fonts, voiceColors } from '@/theme/tokens';
+import { useWizardStep } from '@/hooks/useWizardStep';
 
 export default function VoiceIdlePage() {
-  const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { goNext, goBack } = useWizardStep();
 
   return (
     <View style={styles.root}>
       <StatusBar barStyle="light-content" />
       <View style={styles.aurora} pointerEvents="none" />
 
-      <Header onBack={() => safeBack(router, ROUTES.APP_CREATE)} transparent />
+      <Header onBack={goBack} transparent />
 
       <View style={styles.body}>
         <View style={styles.aiLabel}>
@@ -42,7 +40,7 @@ export default function VoiceIdlePage() {
 
       <View style={[styles.micSection, { paddingBottom: insets.bottom + 32 }]}>
         <Pressable
-          onPress={() => router.push('/(app)/wizard/voice')}
+          onPress={goNext}
           style={styles.bigMic}
         >
           <Icons.micFill size={48} color={voiceColors.bg} />

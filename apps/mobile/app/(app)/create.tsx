@@ -1,18 +1,13 @@
 import { useRouter } from 'expo-router';
 import { CreateDocumentTypeScreen } from '@/screens/dashboard/CreateDocumentTypeScreen';
-import type { DocumentType } from '@/navigation/types';
 import { ROUTES } from '@/navigation/constants';
+import type { DocType } from '@/config/documentTypes';
 
 export default function CreatePage() {
   const router = useRouter();
 
-  const handleSelectType = (type: DocumentType) => {
-    // Voice-first flow for reports; direct wizard for others
-    if (type === 'report') {
-      router.push(ROUTES.WIZARD_VOICE_IDLE);
-    } else {
-      router.push(ROUTES.WIZARD_CUSTOMER);
-    }
+  const handleSelectType = (docType: DocType) => {
+    router.push(`${ROUTES.WIZARD_CUSTOMER}?docType=${docType}` as never);
   };
 
   return (

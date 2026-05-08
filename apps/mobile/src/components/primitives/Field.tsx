@@ -9,6 +9,7 @@ interface FieldProps extends Omit<TextInputProps, 'style'> {
   multiline?: boolean;
   rows?: number;
   colors?: typeof lightColors;
+  error?: boolean;
 }
 
 export function Field({
@@ -18,6 +19,7 @@ export function Field({
   multiline,
   rows = 3,
   colors = lightColors,
+  error = false,
   ...inputProps
 }: FieldProps) {
   return (
@@ -32,7 +34,7 @@ export function Field({
           styles.inputRow,
           {
             backgroundColor: colors.bgElev,
-            borderColor: colors.lineStrong,
+            borderColor: error ? colors.danger : colors.lineStrong,
             borderRadius: radii.md,
             minHeight: multiline ? undefined : 56,
             alignItems: multiline ? 'flex-start' : 'center',

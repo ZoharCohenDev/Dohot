@@ -5,41 +5,74 @@ import type {
   InsertReport,
   Customer,
   Document,
+  DocumentType,
   Report,
   PropertyType,
-  IssueType,
   Recommendation,
   ReportPhoto,
 } from '@dohot/shared';
+import type { WizardQuoteItem } from '@/context/WizardContext';
+
+export interface CustomerFields {
+  name: string;
+  phone: string;
+  email: string;
+  city: string;
+  street: string;
+  houseNumber: string;
+  apartment: string;
+  floor: string;
+}
+
+function buildAddress(f: Pick<CustomerFields, 'street' | 'houseNumber' | 'apartment' | 'floor' | 'city'>): string {
+  const line1 = [f.street, f.houseNumber].filter(Boolean).join(' ');
+  const line2 = [f.apartment && `דירה ${f.apartment}`, f.floor && `קומה ${f.floor}`].filter(Boolean).join(', ');
+  return [line1, line2, f.city].filter(Boolean).join(', ');
+}
 
 export async function upsertCustomer(
   professionalId: string,
-  name: string,
-  phone: string,
-  address: string,
+  fields: CustomerFields,
 ): Promise<Customer> {
+  const address = buildAddress(fields);
+
   const { data: existing } = await supabase
     .from(tables.customers)
     .select()
     .eq('professional_id', professionalId)
-    .eq('name', name)
+    .eq('name', fields.name)
     .maybeSingle();
 
-  if (existing) return existing as Customer;
-
-  const row: InsertCustomer = {
+  const payload = {
     professional_id: professionalId,
-    name,
-    phone: phone || null,
+    name: fields.name,
+    phone: fields.phone || null,
+    email: fields.email || null,
     address: address || null,
-    type: 'private',
+    city: fields.city || null,
+    street: fields.street || null,
+    house_number: fields.houseNumber || null,
+    apartment: fields.apartment || null,
+    floor: fields.floor || null,
+    type: 'private' as const,
     notes: null,
     last_contact_at: null,
   };
 
+  if (existing) {
+    const { data, error } = await supabase
+      .from(tables.customers)
+      .update(payload)
+      .eq('id', (existing as Customer).id)
+      .select()
+      .single();
+    if (error) throw error;
+    return data as Customer;
+  }
+
   const { data, error } = await supabase
     .from(tables.customers)
-    .insert(row)
+    .insert(payload)
     .select()
     .single();
 
@@ -47,15 +80,32 @@ export async function upsertCustomer(
   return data as Customer;
 }
 
+export async function searchCustomers(
+  professionalId: string,
+  query: string,
+  limit = 5,
+): Promise<Customer[]> {
+  if (!query.trim()) return [];
+  const { data } = await supabase
+    .from(tables.customers)
+    .select()
+    .eq('professional_id', professionalId)
+    .ilike('name', `%${query.trim()}%`)
+    .order('last_contact_at', { ascending: false, nullsFirst: false })
+    .limit(limit);
+  return (data ?? []) as Customer[];
+}
+
 export async function createDraftDocument(
   professionalId: string,
   customerId: string,
   title: string,
+  type: DocumentType = 'report',
 ): Promise<Document> {
   const row: InsertDocument = {
     professional_id: professionalId,
     customer_id: customerId,
-    type: 'report',
+    type,
     title,
     status: 'draft',
     doc_number: null,
@@ -76,7 +126,7 @@ export async function createDraftDocument(
 
 interface ReportOpts {
   propertyType: PropertyType;
-  issueType: IssueType;
+  issueType: string;
   issueNote: string;
   photos: string[];
   voiceTranscript: string;
@@ -92,7 +142,7 @@ export async function createReport(documentId: string, opts: ReportOpts): Promis
     document_id: documentId,
     visit_date: visitDate,
     property_type: opts.propertyType,
-    issue_type: opts.issueType,
+    issue_type: opts.issueType as InsertReport['issue_type'],
     issue_note: opts.issueNote || null,
     findings_summary: opts.aiSummary || opts.voiceTranscript || null,
     voice_transcript: opts.voiceTranscript || null,
@@ -123,7 +173,7 @@ export async function upsertReport(documentId: string, opts: ReportOpts): Promis
   const reportData = {
     visit_date: visitDate,
     property_type: opts.propertyType,
-    issue_type: opts.issueType,
+    issue_type: opts.issueType as InsertReport['issue_type'],
     issue_note: opts.issueNote || null,
     findings_summary: opts.aiSummary || opts.voiceTranscript || null,
     voice_transcript: opts.voiceTranscript || null,
@@ -150,6 +200,33 @@ export async function upsertReport(documentId: string, opts: ReportOpts): Promis
 
   if (error) throw error;
   return data as Report;
+}
+
+export async function upsertQuoteItems(
+  documentId: string,
+  items: WizardQuoteItem[],
+  totalAmount: number,
+): Promise<void> {
+  // Delete existing items then re-insert
+  await supabase.from(tables.quoteItems).delete().eq('document_id', documentId);
+
+  if (items.length > 0) {
+    const rows = items.map((item, i) => ({
+      document_id: documentId,
+      title: item.title,
+      qty: item.qty,
+      unit_price: item.unitPrice,
+      sort_order: i,
+    }));
+    const { error } = await supabase.from(tables.quoteItems).insert(rows);
+    if (error) throw error;
+  }
+
+  // Store total on the document row
+  await supabase
+    .from(tables.documents)
+    .update({ amount: totalAmount })
+    .eq('id', documentId);
 }
 
 const SERVER_URL = (process.env['EXPO_PUBLIC_API_URL'] ?? 'http://localhost:3000').replace(/\/$/, '');

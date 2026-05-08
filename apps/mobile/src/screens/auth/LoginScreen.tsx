@@ -1,40 +1,40 @@
 import React, { useState } from 'react';
-import { View, Text, Pressable, StyleSheet, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, Alert, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BrandMark } from '@/components/shared';
 import { Button, Field } from '@/components/primitives';
 import { Icons } from '@/components/icons';
 import { lightColors, fonts } from '@/theme/tokens';
-import { signInWithEmail } from '@/services/auth';
+import { signInWithUsername } from '@/services/auth';
 
 interface LoginScreenProps {
   colors?: typeof lightColors;
   onLoggedIn?: () => void;
-  onRegister?: () => void;
 }
 
-export function LoginScreen({ colors = lightColors, onLoggedIn, onRegister }: LoginScreenProps) {
+export function LoginScreen({ colors = lightColors, onLoggedIn }: LoginScreenProps) {
   const insets = useSafeAreaInsets();
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
-    if (!email.trim() || !email.includes('@')) {
-      Alert.alert('אימייל לא תקין', 'הכנס כתובת אימייל תקינה');
+    if (!username.trim()) {
+      Alert.alert('שגיאה', 'הכנס שם משתמש');
       return;
     }
-    if (password.length < 6) {
-      Alert.alert('סיסמה חסרה', 'הכנס סיסמה באורך 6 תווים לפחות');
+    if (!password) {
+      Alert.alert('שגיאה', 'הכנס סיסמה');
       return;
     }
 
     setLoading(true);
-    const result = await signInWithEmail(email.trim().toLowerCase(), password);
-    setLoading(false);
+    const result = await signInWithUsername(username, password);
 
     if (!result.success) {
-      Alert.alert('שגיאה', result.error ?? 'לא ניתן להתחבר כעת, נסה שוב');
+      setLoading(false); // reset only on error; success keeps spinner until layout redirects
+      Alert.alert('כניסה נכשלה', result.error ?? 'שגיאה לא ידועה');
       return;
     }
 
@@ -58,42 +58,45 @@ export function LoginScreen({ colors = lightColors, onLoggedIn, onRegister }: Lo
         {/* Headline */}
         <View style={styles.hero}>
           <Text style={[styles.headline, { color: colors.ink1, fontFamily: fonts.serif }]}>
-            ברוך הבא חזרה
+            כניסה לדוחות
           </Text>
           <Text style={[styles.sub, { color: colors.ink3, fontFamily: fonts.sans }]}>
-            הכנס אימייל וסיסמה כדי להתחבר
+            הכנס שם משתמש וסיסמה להתחברות
           </Text>
         </View>
 
         {/* Form */}
         <View style={styles.form}>
           <Field
-            label="אימייל"
-            placeholder="you@example.com"
-            keyboardType="email-address"
+            label="שם משתמש"
+            placeholder="username"
             autoCapitalize="none"
             autoCorrect={false}
-            value={email}
-            onChangeText={setEmail}
-            icon={<Icons.mail size={20} color={colors.ink3} />}
+            icon={<Icons.user size={20} color={colors.ink3} />}
+            value={username}
+            onChangeText={setUsername}
             colors={colors}
           />
 
-          <Field
-            label="סיסמה"
-            placeholder="לפחות 6 תווים"
-            secureTextEntry
-            value={password}
-            onChangeText={setPassword}
-            icon={<Icons.shield size={20} color={colors.ink3} />}
-            colors={colors}
-          />
-
-          <View style={[styles.infoRow, { backgroundColor: colors.aiBg, borderColor: 'rgba(90,135,112,0.2)' }]}>
-            <Icons.sparkle size={16} color={colors.ai2} />
-            <Text style={[styles.infoText, { color: colors.ai2, fontFamily: fonts.sans }]}>
-              התחברות מאובטחת עם אימייל וסיסמה
-            </Text>
+          <View>
+            <Field
+              label="סיסמה"
+              placeholder="••••••••"
+              secureTextEntry={!showPassword}
+              autoCapitalize="none"
+              autoCorrect={false}
+              icon={<Icons.lock size={20} color={colors.ink3} />}
+              value={password}
+              onChangeText={setPassword}
+              colors={colors}
+            />
+            <Pressable
+              onPress={() => setShowPassword((v) => !v)}
+              style={styles.eyeBtn}
+              hitSlop={8}
+            >
+              <Icons.eye size={18} color={showPassword ? colors.accent : colors.ink3} />
+            </Pressable>
           </View>
 
           <Button
@@ -105,21 +108,8 @@ export function LoginScreen({ colors = lightColors, onLoggedIn, onRegister }: Lo
             iconRight={<Icons.back size={20} color={colors.bg} />}
             colors={colors}
           >
-            {loading ? 'מתחבר...' : 'התחבר'}
+            {loading ? 'מתחבר...' : 'כניסה'}
           </Button>
-        </View>
-
-        {/* Footer */}
-        <View style={styles.footer}>
-          <View style={[styles.divider, { backgroundColor: colors.line }]} />
-          <Pressable onPress={onRegister} style={styles.registerRow}>
-            <Text style={[styles.registerText, { color: colors.ink3, fontFamily: fonts.sans }]}>
-              חדש בדוחות?{' '}
-              <Text style={[styles.registerLink, { color: colors.accent }]}>
-                הירשם בחינם
-              </Text>
-            </Text>
-          </Pressable>
         </View>
       </View>
     </KeyboardAvoidingView>
@@ -135,11 +125,5 @@ const styles = StyleSheet.create({
   headline: { fontSize: 38, fontWeight: '500', lineHeight: 42, letterSpacing: -1.2, marginBottom: 10, textAlign: 'right' },
   sub: { fontSize: 15, lineHeight: 22, textAlign: 'right' },
   form: { gap: 14 },
-  infoRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, borderWidth: 1 },
-  infoText: { fontSize: 13, fontWeight: '500' },
-  footer: { marginTop: 'auto', alignItems: 'center', gap: 20 },
-  divider: { width: '100%', height: 1 },
-  registerRow: { alignItems: 'center' },
-  registerText: { fontSize: 15, textAlign: 'center' },
-  registerLink: { fontWeight: '700' },
+  eyeBtn: { position: 'absolute', left: 16, bottom: 16 },
 });

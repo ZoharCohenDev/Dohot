@@ -4,8 +4,8 @@ import { useAuth } from '@/context/AuthContext';
 import { ROUTES } from '@/navigation/constants';
 import { lightColors } from '@/theme/tokens';
 
-export default function OnboardingLayout() {
-  const { session, loading, hasBusinessProfile } = useAuth();
+export default function AdminLayout() {
+  const { session, loading } = useAuth();
 
   if (loading) {
     return (
@@ -16,14 +16,8 @@ export default function OnboardingLayout() {
   }
 
   if (!session) return <Redirect href={ROUTES.AUTH_LOGIN} />;
-  if (hasBusinessProfile) return <Redirect href={ROUTES.APP_HOME} />;
 
   return (
-    <Stack
-      screenOptions={{
-        headerShown: false,
-        animation: 'slide_from_left',
-      }}
-    />
+    <Stack screenOptions={{ headerShown: false, animation: 'slide_from_left' }} />
   );
 }

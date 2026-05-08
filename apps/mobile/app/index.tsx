@@ -5,7 +5,7 @@ import { ROUTES } from '@/navigation/constants';
 import { lightColors } from '@/theme/tokens';
 
 export default function Index() {
-  const { session, loading, hasBusinessProfile } = useAuth();
+  const { session, loading, isAdmin, isSubscriptionExpired, isActive } = useAuth();
 
   if (loading) {
     return (
@@ -15,8 +15,13 @@ export default function Index() {
     );
   }
 
-  if (session) {
-    return <Redirect href={hasBusinessProfile ? ROUTES.APP_HOME : ROUTES.ONBOARDING_BUSINESS} />;
-  }
-  return <Redirect href={ROUTES.AUTH_LOGIN} />;
+  if (!session) return <Redirect href={ROUTES.AUTH_LOGIN} />;
+
+  if (!isActive) return <Redirect href={ROUTES.AUTH_EXPIRED} />;
+
+  if (!isAdmin && isSubscriptionExpired) return <Redirect href={ROUTES.AUTH_EXPIRED} />;
+
+  if (isAdmin) return <Redirect href={ROUTES.ADMIN_HOME} />;
+
+  return <Redirect href={ROUTES.APP_HOME} />;
 }
