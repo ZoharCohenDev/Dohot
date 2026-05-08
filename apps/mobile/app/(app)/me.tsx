@@ -6,9 +6,9 @@ import { getColors, lightColors } from '@/theme';
 
 export default function MePage() {
   const [dark, setDark] = React.useState(false);
-  // getColors returns Colors union; cast is safe since both themes share the same shape
   const colors = getColors(dark) as typeof lightColors;
   const router = useRouter();
+
   return (
     <SettingsScreen
       dark={dark}

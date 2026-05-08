@@ -42,6 +42,7 @@ export type Plan = 'free' | 'pro';
 export interface Certification {
   name: string;
   year: string;
+  image_url?: string;   // public URL of uploaded certificate scan
 }
 
 /** One annotated photo attached to a report (PhotosStep) */
@@ -73,6 +74,7 @@ export interface BusinessProfile {
   bio: string | null;
   signature_url: string | null;
   default_disclaimer: string | null;
+  certifications_note: string | null;
   certifications: Certification[];
   plan: Plan;
   created_at: string;

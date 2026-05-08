@@ -1,7 +1,8 @@
 import React from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { View, Pressable, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icons } from '@/components/icons';
+import { ScaledText } from '@/components/primitives';
 import { lightColors, fonts } from '@/theme/tokens';
 
 interface HeaderProps {
@@ -55,9 +56,9 @@ export function Header({
 
         {step != null && ofSteps != null && (
           <View style={[styles.stepBadge, { backgroundColor: colors.bgElev, borderColor: colors.line }]}>
-            <Text style={[styles.stepText, { color: colors.ink3, fontFamily: fonts.sans }]}>
+            <ScaledText style={[styles.stepText, { color: colors.ink3, fontFamily: fonts.sans }]}>
               שלב {step} מתוך {ofSteps}
-            </Text>
+            </ScaledText>
           </View>
         )}
 
@@ -67,13 +68,13 @@ export function Header({
       {/* Large title */}
       {large && (
         <View style={styles.largeTitleBlock}>
-          <Text style={[styles.largeTitle, { color: colors.ink1, fontFamily: fonts.sans, textAlign: 'right' }]}>
+          <ScaledText style={[styles.largeTitle, { color: colors.ink1, fontFamily: fonts.sans, textAlign: 'right' }]}>
             {title}
-          </Text>
+          </ScaledText>
           {subtitle && (
-            <Text style={[styles.subtitle, { color: colors.ink3, fontFamily: fonts.sans, textAlign: 'right' }]}>
+            <ScaledText style={[styles.subtitle, { color: colors.ink3, fontFamily: fonts.sans, textAlign: 'right' }]}>
               {subtitle}
-            </Text>
+            </ScaledText>
           )}
         </View>
       )}
@@ -81,9 +82,9 @@ export function Header({
       {/* Small centered title */}
       {!large && title && (
         <View style={styles.centerTitleWrap} pointerEvents="none">
-          <Text style={[styles.centerTitle, { color: colors.ink1, fontFamily: fonts.sans }]}>
+          <ScaledText style={[styles.centerTitle, { color: colors.ink1, fontFamily: fonts.sans }]}>
             {title}
-          </Text>
+          </ScaledText>
         </View>
       )}
     </View>

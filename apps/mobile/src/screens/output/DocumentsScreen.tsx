@@ -1,7 +1,7 @@
 import React from 'react';
-import { View, Text, Pressable, FlatList, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Pressable, FlatList, ActivityIndicator, StyleSheet } from 'react-native';
 import { Header, BottomNav, type TabId } from '@/components/layout';
-import { Pill } from '@/components/primitives';
+import { Pill, ScaledText } from '@/components/primitives';
 import { Icons } from '@/components/icons';
 import { lightColors, fonts } from '@/theme/tokens';
 import { useDocuments } from '@/hooks/useDocuments';
@@ -86,7 +86,7 @@ export function DocumentsScreen({ colors = lightColors, onNavigate }: DocumentsS
                 i === activeTab && [styles.tabBtnActive, { backgroundColor: colors.bgElev }],
               ]}
             >
-              <Text
+              <ScaledText
                 style={[
                   styles.tabText,
                   {
@@ -97,7 +97,7 @@ export function DocumentsScreen({ colors = lightColors, onNavigate }: DocumentsS
                 ]}
               >
                 {tab.label}
-              </Text>
+              </ScaledText>
             </Pressable>
           ))}
         </View>
@@ -108,14 +108,14 @@ export function DocumentsScreen({ colors = lightColors, onNavigate }: DocumentsS
           </View>
         ) : error ? (
           <View style={styles.center}>
-            <Text style={[styles.emptyText, { color: colors.ink3, fontFamily: fonts.sans }]}>{error}</Text>
+            <ScaledText style={[styles.emptyText, { color: colors.ink3, fontFamily: fonts.sans }]}>{error}</ScaledText>
           </View>
         ) : documents.length === 0 ? (
           <View style={styles.center}>
             <Icons.doc size={40} color={colors.ink4} />
-            <Text style={[styles.emptyText, { color: colors.ink3, fontFamily: fonts.sans, marginTop: 12 }]}>
+            <ScaledText style={[styles.emptyText, { color: colors.ink3, fontFamily: fonts.sans, marginTop: 12 }]}>
               אין מסמכים עדיין
-            </Text>
+            </ScaledText>
           </View>
         ) : (
           <FlatList
@@ -134,20 +134,20 @@ export function DocumentsScreen({ colors = lightColors, onNavigate }: DocumentsS
                     <Icon size={22} color={iconColor} />
                   </View>
                   <View style={styles.docInfo}>
-                    <Text style={[styles.docTitle, { color: colors.ink1, fontFamily: fonts.sans }]} numberOfLines={1}>
+                    <ScaledText style={[styles.docTitle, { color: colors.ink1, fontFamily: fonts.sans }]} numberOfLines={1}>
                       {item.title}
-                    </Text>
+                    </ScaledText>
                     <View style={styles.docMeta}>
                       <Pill bg={statusBg} color={statusColor}>
                         {STATUS_LABELS[item.status]}
                       </Pill>
-                      <Text style={[styles.docDate, { color: colors.ink3, fontFamily: fonts.sans }]}>
+                      <ScaledText style={[styles.docDate, { color: colors.ink3, fontFamily: fonts.sans }]}>
                         {relativeDate(item.created_at)}
-                      </Text>
+                      </ScaledText>
                       {item.amount != null && (
-                        <Text style={[styles.docAmount, { color: colors.ink1, fontFamily: fonts.sans }]}>
+                        <ScaledText style={[styles.docAmount, { color: colors.ink1, fontFamily: fonts.sans }]}>
                           {`₪ ${item.amount.toLocaleString('he-IL')}`}
-                        </Text>
+                        </ScaledText>
                       )}
                     </View>
                   </View>

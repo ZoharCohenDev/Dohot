@@ -7,6 +7,7 @@ import * as Font from 'expo-font';
 import { Heebo_300Light, Heebo_400Regular, Heebo_500Medium, Heebo_600SemiBold, Heebo_700Bold, Heebo_800ExtraBold } from '@expo-google-fonts/heebo';
 import { FrankRuhlLibre_400Regular, FrankRuhlLibre_500Medium, FrankRuhlLibre_700Bold } from '@expo-google-fonts/frank-ruhl-libre';
 import { AuthProvider } from '@/context/AuthContext';
+import { SettingsProvider } from '@/context/SettingsContext';
 
 // Force RTL at module level so it takes effect before the first render.
 // On Android this requires an app restart; the check prevents repeat calls.
@@ -36,14 +37,16 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <AuthProvider>
-          <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="index" />
-            <Stack.Screen name="(auth)" options={{ animation: 'fade' }} />
-            <Stack.Screen name="(onboarding)" options={{ animation: 'slide_from_left' }} />
-            <Stack.Screen name="(app)" options={{ animation: 'fade' }} />
-          </Stack>
-        </AuthProvider>
+        <SettingsProvider>
+          <AuthProvider>
+            <Stack screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="index" />
+              <Stack.Screen name="(auth)" options={{ animation: 'fade' }} />
+              <Stack.Screen name="(onboarding)" options={{ animation: 'slide_from_left' }} />
+              <Stack.Screen name="(app)" options={{ animation: 'fade' }} />
+            </Stack>
+          </AuthProvider>
+        </SettingsProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

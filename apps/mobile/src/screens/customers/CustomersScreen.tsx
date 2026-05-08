@@ -1,6 +1,7 @@
 import React from 'react';
-import { View, Text, Pressable, TextInput, FlatList, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Pressable, TextInput, FlatList, ActivityIndicator, StyleSheet } from 'react-native';
 import { Header, BottomNav, type TabId } from '@/components/layout';
+import { ScaledText } from '@/components/primitives';
 import { Avatar } from '@/components/shared';
 import { Icons } from '@/components/icons';
 import { lightColors, fonts } from '@/theme/tokens';
@@ -92,14 +93,14 @@ export function CustomersScreen({ colors = lightColors, onNavigate }: CustomersS
                   : { backgroundColor: colors.bgElev, borderWidth: 1, borderColor: colors.line },
               ]}
             >
-              <Text
+              <ScaledText
                 style={[
                   styles.chipText,
                   { color: index === activeFilter ? colors.bg : colors.ink2, fontFamily: fonts.sans },
                 ]}
               >
                 {item.label}
-              </Text>
+              </ScaledText>
             </Pressable>
           )}
         />
@@ -110,14 +111,14 @@ export function CustomersScreen({ colors = lightColors, onNavigate }: CustomersS
           </View>
         ) : error ? (
           <View style={styles.center}>
-            <Text style={[styles.emptyText, { color: colors.ink3, fontFamily: fonts.sans }]}>{error}</Text>
+            <ScaledText style={[styles.emptyText, { color: colors.ink3, fontFamily: fonts.sans }]}>{error}</ScaledText>
           </View>
         ) : customers.length === 0 ? (
           <View style={styles.center}>
             <Icons.search size={40} color={colors.ink4} />
-            <Text style={[styles.emptyText, { color: colors.ink3, fontFamily: fonts.sans, marginTop: 12 }]}>
+            <ScaledText style={[styles.emptyText, { color: colors.ink3, fontFamily: fonts.sans, marginTop: 12 }]}>
               {debouncedSearch ? 'לא נמצאו לקוחות' : 'אין לקוחות עדיין'}
-            </Text>
+            </ScaledText>
           </View>
         ) : (
           <FlatList
@@ -132,16 +133,16 @@ export function CustomersScreen({ colors = lightColors, onNavigate }: CustomersS
               <Pressable style={styles.customerRow}>
                 <Avatar name={item.name} size={44} />
                 <View style={styles.customerInfo}>
-                  <Text style={[styles.customerName, { color: colors.ink1, fontFamily: fonts.sans }]}>
+                  <ScaledText style={[styles.customerName, { color: colors.ink1, fontFamily: fonts.sans }]}>
                     {item.name}
-                  </Text>
-                  <Text style={[styles.customerAddr, { color: colors.ink3, fontFamily: fonts.sans }]}>
+                  </ScaledText>
+                  <ScaledText style={[styles.customerAddr, { color: colors.ink3, fontFamily: fonts.sans }]}>
                     {item.address ?? ''}
-                  </Text>
+                  </ScaledText>
                 </View>
-                <Text style={[styles.customerLast, { color: colors.ink4, fontFamily: fonts.sans }]}>
+                <ScaledText style={[styles.customerLast, { color: colors.ink4, fontFamily: fonts.sans }]}>
                   {relativeDate(item.last_contact_at)}
-                </Text>
+                </ScaledText>
               </Pressable>
             )}
           />

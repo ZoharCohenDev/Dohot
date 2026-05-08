@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { View, Pressable, StyleSheet } from 'react-native';
+import { ScaledText } from '@/components/primitives';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icons } from '@/components/icons';
 import { lightColors, fonts, shadows, radii } from '@/theme/tokens';
@@ -57,7 +58,7 @@ export function BottomNav({ active = 'home', onTab, colors = lightColors }: Bott
               stroke={isActive ? 2.2 : 1.8}
               color={isActive ? colors.ink1 : colors.ink3}
             />
-            <Text
+            <ScaledText
               style={[
                 styles.tabLabel,
                 {
@@ -68,7 +69,7 @@ export function BottomNav({ active = 'home', onTab, colors = lightColors }: Bott
               ]}
             >
               {tab.label}
-            </Text>
+            </ScaledText>
           </Pressable>
         );
       })}

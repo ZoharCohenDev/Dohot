@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomNav, type TabId } from '@/components/layout';
+import { ScaledText } from '@/components/primitives';
 import { Avatar, WaveBar } from '@/components/shared';
 import { Icons } from '@/components/icons';
 import { lightColors, fonts, shadows } from '@/theme/tokens';
@@ -60,14 +61,14 @@ export function DashboardScreen({ colors = lightColors, onCreateReport, onNaviga
         {/* Top bar */}
         <View style={styles.topBar}>
           <View style={styles.greeting}>
-            <Avatar name={displayName} size={42} />
+            <Avatar name={displayName} size={42} logoUrl={businessProfile?.logo_url} />
             <View>
-              <Text style={[styles.greetSub, { color: colors.ink3, fontFamily: fonts.sans }]}>
+              <ScaledText style={[styles.greetSub, { color: colors.ink3, fontFamily: fonts.sans }]}>
                 בוקר טוב,
-              </Text>
-              <Text style={[styles.greetName, { color: colors.ink1, fontFamily: fonts.sans }]}>
+              </ScaledText>
+              <ScaledText style={[styles.greetName, { color: colors.ink1, fontFamily: fonts.sans }]}>
                 {firstName}
-              </Text>
+              </ScaledText>
             </View>
           </View>
           <Pressable style={[styles.notifBtn, { backgroundColor: colors.bgElev, borderColor: colors.line }]}>
@@ -79,20 +80,20 @@ export function DashboardScreen({ colors = lightColors, onCreateReport, onNaviga
         {/* Stats strip */}
         <View style={styles.statsRow}>
           <View style={[styles.statCard, { backgroundColor: colors.bgElev, borderColor: colors.line }]}>
-            <Text style={[styles.statValue, { color: colors.ink1, fontFamily: fonts.sans }]}>
+            <ScaledText style={[styles.statValue, { color: colors.ink1, fontFamily: fonts.sans }]}>
               {stats.monthlyReports}
-            </Text>
-            <Text style={[styles.statLabel, { color: colors.ink3, fontFamily: fonts.sans }]}>
+            </ScaledText>
+            <ScaledText style={[styles.statLabel, { color: colors.ink3, fontFamily: fonts.sans }]}>
               דוחות החודש
-            </Text>
+            </ScaledText>
           </View>
           <View style={[styles.statCard, { backgroundColor: colors.bgElev, borderColor: colors.line }]}>
-            <Text style={[styles.statValue, { color: colors.accent, fontFamily: fonts.sans }]}>
+            <ScaledText style={[styles.statValue, { color: colors.accent, fontFamily: fonts.sans }]}>
               {stats.activeQuotes}
-            </Text>
-            <Text style={[styles.statLabel, { color: colors.ink3, fontFamily: fonts.sans }]}>
+            </ScaledText>
+            <ScaledText style={[styles.statLabel, { color: colors.ink3, fontFamily: fonts.sans }]}>
               הצעות פעילות
-            </Text>
+            </ScaledText>
           </View>
         </View>
 
@@ -116,9 +117,9 @@ export function DashboardScreen({ colors = lightColors, onCreateReport, onNaviga
         </Pressable>
 
         {/* 4 action tiles */}
-        <Text style={[styles.sectionLabel, { color: colors.ink2, fontFamily: fonts.sans }]}>
+        <ScaledText style={[styles.sectionLabel, { color: colors.ink2, fontFamily: fonts.sans }]}>
           מה ליצור?
-        </Text>
+        </ScaledText>
         <View style={styles.actionsGrid}>
           {ACTIONS.map((a) => (
             <Pressable
@@ -130,12 +131,12 @@ export function DashboardScreen({ colors = lightColors, onCreateReport, onNaviga
                 <a.Icon size={22} color={a.colorFn(colors)} />
               </View>
               <View>
-                <Text style={[styles.actionTitle, { color: colors.ink1, fontFamily: fonts.sans }]}>
+                <ScaledText style={[styles.actionTitle, { color: colors.ink1, fontFamily: fonts.sans }]}>
                   {a.title}
-                </Text>
-                <Text style={[styles.actionDesc, { color: colors.ink3, fontFamily: fonts.sans }]}>
+                </ScaledText>
+                <ScaledText style={[styles.actionDesc, { color: colors.ink3, fontFamily: fonts.sans }]}>
                   {a.desc}
-                </Text>
+                </ScaledText>
               </View>
             </Pressable>
           ))}
@@ -145,13 +146,13 @@ export function DashboardScreen({ colors = lightColors, onCreateReport, onNaviga
         {recent.length > 0 && (
           <>
             <View style={styles.recentHeader}>
-              <Text style={[styles.sectionLabel, { color: colors.ink2, fontFamily: fonts.sans }]}>
+              <ScaledText style={[styles.sectionLabel, { color: colors.ink2, fontFamily: fonts.sans }]}>
                 פעילות אחרונה
-              </Text>
+              </ScaledText>
               <Pressable style={styles.seeAllBtn} onPress={() => onNavigate?.('docs')}>
-                <Text style={[styles.seeAll, { color: colors.ink3, fontFamily: fonts.sans }]}>
+                <ScaledText style={[styles.seeAll, { color: colors.ink3, fontFamily: fonts.sans }]}>
                   הכל
-                </Text>
+                </ScaledText>
                 <Icons.chevL size={14} color={colors.ink3} />
               </Pressable>
             </View>
@@ -171,12 +172,12 @@ export function DashboardScreen({ colors = lightColors, onCreateReport, onNaviga
                       <Icon size={20} color={colorFn} />
                     </View>
                     <View style={styles.recentInfo}>
-                      <Text style={[styles.recentTitle, { color: colors.ink1, fontFamily: fonts.sans }]} numberOfLines={1}>
+                      <ScaledText style={[styles.recentTitle, { color: colors.ink1, fontFamily: fonts.sans }]} numberOfLines={1}>
                         {doc.title}
-                      </Text>
-                      <Text style={[styles.recentSub, { color: colors.ink3, fontFamily: fonts.sans }]}>
+                      </ScaledText>
+                      <ScaledText style={[styles.recentSub, { color: colors.ink3, fontFamily: fonts.sans }]}>
                         {subtitle}
-                      </Text>
+                      </ScaledText>
                     </View>
                     <Icons.chevL size={18} color={colors.ink4} />
                   </Pressable>

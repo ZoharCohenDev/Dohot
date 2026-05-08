@@ -1,5 +1,6 @@
 import React from 'react';
-import { Pressable, Text, StyleSheet, ViewStyle } from 'react-native';
+import { Pressable, StyleSheet, ViewStyle } from 'react-native';
+import { ScaledText } from './ScaledText';
 import { lightColors, fonts, radii, shadows } from '@/theme/tokens';
 
 type ButtonKind = 'primary' | 'accent' | 'ai' | 'ghost' | 'subtle' | 'danger';
@@ -72,7 +73,7 @@ export function Button({
     >
       {icon}
       {children !== undefined && (
-        <Text
+        <ScaledText
           style={[
             styles.label,
             { fontSize: sz.fontSize, color: k.fg, fontFamily: fonts.sans },
@@ -80,7 +81,7 @@ export function Button({
           numberOfLines={1}
         >
           {children}
-        </Text>
+        </ScaledText>
       )}
       {iconRight}
     </Pressable>

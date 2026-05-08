@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, Image, StyleSheet } from 'react-native';
 import { lightColors, fonts } from '@/theme/tokens';
 
 interface AvatarProps {
@@ -7,11 +7,12 @@ interface AvatarProps {
   size?: number;
   color?: string;
   colors?: typeof lightColors;
+  logoUrl?: string | null;
 }
 
 const PALETTE = ['#C2613B', '#5A8770', '#4A7B9D', '#B8862B', '#8B5A8B'];
 
-export function Avatar({ name = '', size = 40, color, colors: _colors = lightColors }: AvatarProps) {
+export function Avatar({ name = '', size = 40, color, colors: _colors = lightColors, logoUrl }: AvatarProps) {
   const initials = name
     .split(' ')
     .map((s) => s[0])
@@ -19,6 +20,16 @@ export function Avatar({ name = '', size = 40, color, colors: _colors = lightCol
     .join('');
 
   const bg = color ?? PALETTE[name.charCodeAt(0) % PALETTE.length] ?? PALETTE[0];
+
+  if (logoUrl) {
+    return (
+      <Image
+        source={{ uri: logoUrl }}
+        style={{ width: size, height: size, borderRadius: size / 2 }}
+        resizeMode="cover"
+      />
+    );
+  }
 
   return (
     <View

@@ -2,7 +2,8 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
 import { getSession, onAuthStateChange } from '@/services/auth';
 import { supabase, tables } from '@/lib/supabase';
-import type { BusinessProfile } from '@dohot/shared';
+import { saveBusinessProfile } from '@/services/profile';
+import type { BusinessProfile, UpdateBusinessProfile } from '@dohot/shared';
 
 interface AuthContextValue {
   session: Session | null;
@@ -11,6 +12,7 @@ interface AuthContextValue {
   hasBusinessProfile: boolean;
   loading: boolean;
   refreshBusinessProfile: () => Promise<void>;
+  updateProfile: (updates: UpdateBusinessProfile) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue>({
@@ -20,6 +22,7 @@ const AuthContext = createContext<AuthContextValue>({
   hasBusinessProfile: false,
   loading: true,
   refreshBusinessProfile: async () => undefined,
+  updateProfile: async () => undefined,
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -91,6 +94,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await loadBusinessProfile(session);
   };
 
+  const updateProfile = async (updates: UpdateBusinessProfile): Promise<void> => {
+    if (!session?.user) throw new Error('לא מחובר');
+    const updated = await saveBusinessProfile(session.user.id, updates);
+    setBusinessProfile(updated);
+  };
+
   const hasBusinessProfile = Boolean(businessProfile?.business_name?.trim());
 
   return (
@@ -102,6 +111,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         hasBusinessProfile,
         loading,
         refreshBusinessProfile,
+        updateProfile,
       }}
     >
       {children}

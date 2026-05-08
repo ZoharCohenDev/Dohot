@@ -1,8 +1,9 @@
 import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system/legacy';
 import { Alert } from 'react-native';
 import { supabase } from '@/lib/supabase';
 
-export type StorageBucket = 'logos' | 'signatures' | 'report-images' | 'pdf-documents';
+export type StorageBucket = 'logos' | 'signatures' | 'report-images' | 'pdf-documents' | 'cert-images';
 
 interface PickOptions {
   /** [width, height] crop ratio passed to expo-image-picker */
@@ -21,6 +22,7 @@ export async function pickAndUploadImage(
   userId: string,
   bucket: StorageBucket,
   opts: PickOptions = {},
+  onLocalUri?: (uri: string) => void,
 ): Promise<string | null> {
   const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
   if (!perm.granted) {
@@ -39,18 +41,27 @@ export async function pickAndUploadImage(
   const asset = result.assets[0];
   if (!asset) return null;
 
+  onLocalUri?.(asset.uri);
+
   // Strip any query params from the extension (e.g. ?t=123)
   const rawExt = asset.uri.split('.').pop() ?? 'jpg';
   const ext = rawExt.split('?')[0] ?? 'jpg';
   const filename = `${Date.now()}.${ext}`;
   const storagePath = `${userId}/${filename}`;
 
-  const response = await fetch(asset.uri);
-  const blob = await response.blob();
+  // React Native's fetch().blob() uploads 0-byte files to Supabase — use FileSystem instead.
+  const base64 = await FileSystem.readAsStringAsync(asset.uri, {
+    encoding: 'base64',
+  });
+  const binaryStr = atob(base64);
+  const bytes = new Uint8Array(binaryStr.length);
+  for (let i = 0; i < binaryStr.length; i++) {
+    bytes[i] = binaryStr.charCodeAt(i);
+  }
 
   const { error } = await supabase.storage
     .from(bucket)
-    .upload(storagePath, blob, {
+    .upload(storagePath, bytes, {
       contentType: asset.mimeType ?? 'image/jpeg',
       upsert: true,
     });

@@ -2,6 +2,7 @@ import puppeteer from 'puppeteer';
 import { supabaseAdmin } from '../lib/supabase';
 import type {
   BusinessProfile,
+  Certification,
   Customer,
   Document,
   Report,
@@ -199,6 +200,26 @@ export function buildHtml(data: PdfData): string {
       <div class="findings-body" style="border-right-color:#9E9690;background:#F7F5F0;">
         ${esc(report.issue_note)}
       </div>
+    </div>
+  ` : '';
+
+  const certs = (bp.certifications ?? []) as Certification[];
+  const certsSection = (bp.certifications_note || certs.length > 0) ? `
+    <div class="dis-section">
+      <div class="dis-section-title"><span class="dis-dot"></span>הסמכות ואישורים מקצועיים</div>
+      ${bp.certifications_note ? `<div class="certs-note">${esc(bp.certifications_note)}</div>` : ''}
+      ${certs.length > 0 ? `
+      <div class="certs-list">
+        ${certs.map(c => `
+          <div class="cert-row">
+            ${c.image_url ? `<img class="cert-thumb" src="${esc(c.image_url)}" alt="${esc(c.name)}" />` : ''}
+            <div class="cert-info">
+              <div class="cert-name">${esc(c.name)}</div>
+              <div class="cert-year">${esc(c.year)}</div>
+            </div>
+          </div>
+        `).join('')}
+      </div>` : ''}
     </div>
   ` : '';
 
@@ -562,6 +583,39 @@ export function buildHtml(data: PdfData): string {
   .dis-brand { font-size: 9pt; font-weight: 600; color: #1B1916; }
   .dis-brand-sub { font-size: 7.5pt; color: #807A72; margin-top: 2px; }
   .dis-generated { font-size: 7.5pt; color: #9E9690; direction: ltr; text-align: left; }
+
+  /* ─ Certifications section (page 2) ─ */
+  .certs-note {
+    font-size: 9pt;
+    color: #4A4641;
+    line-height: 1.8;
+    margin-bottom: 14px;
+  }
+  .certs-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .cert-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: #fff;
+    border-radius: 9px;
+    padding: 10px 12px;
+    border: 1px solid #E0DDD6;
+  }
+  .cert-thumb {
+    width: 52px;
+    height: 52px;
+    object-fit: cover;
+    border-radius: 6px;
+    flex-shrink: 0;
+    border: 1px solid #E0DDD6;
+  }
+  .cert-info { flex: 1; }
+  .cert-name { font-size: 10pt; font-weight: 600; color: #1B1916; }
+  .cert-year { font-size: 8.5pt; color: #807A72; margin-top: 2px; }
 </style>
 </head>
 <body>
@@ -667,6 +721,8 @@ export function buildHtml(data: PdfData): string {
     <div class="dis-section-title"><span class="dis-dot"></span>פרטיות ועיבוד מידע</div>
     <div class="dis-body">פרטי הלקוח ומידע הנכס הכלולים בדוח זה מוגנים בהתאם לחוק הגנת הפרטיות התשמ"א-1981. המידע משמש אך ורק לצורך עריכת הדוח ולא יועבר לצד שלישי ללא הסכמת הלקוח.</div>
   </div>
+
+  ${certsSection}
 
   <div class="disclaimer-footer">
     <div>
