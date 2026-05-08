@@ -214,6 +214,7 @@ export async function upsertQuoteItems(
     const rows = items.map((item, i) => ({
       document_id: documentId,
       title: item.title,
+      description: item.description || null,
       qty: item.qty,
       unit_price: item.unitPrice,
       sort_order: i,

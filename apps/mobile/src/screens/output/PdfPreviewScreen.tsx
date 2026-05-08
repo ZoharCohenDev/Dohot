@@ -143,19 +143,20 @@ function QuoteContent({ state }: { state: ReturnType<typeof useWizard>['state'] 
         <>
           {/* Header row */}
           <View style={[styles.quoteRow, styles.quoteHeaderRow]}>
-            <Text style={[styles.quoteCell, styles.quoteCellFlex, styles.quoteCellHeader]}>תיאור</Text>
-            <Text style={[styles.quoteCell, styles.quoteCellNarrow, styles.quoteCellHeader]}>כמות</Text>
-            <Text style={[styles.quoteCell, styles.quoteCellNarrow, styles.quoteCellHeader]}>מחיר יח׳</Text>
-            <Text style={[styles.quoteCell, styles.quoteCellNarrow, styles.quoteCellHeader]}>סה״כ</Text>
+            <Text style={[styles.quoteCell, styles.quoteCellFlex, styles.quoteCellHeader]}>תיאור עבודה</Text>
+            <Text style={[styles.quoteCell, styles.quoteCellNarrow, styles.quoteCellHeader]}>מחיר</Text>
           </View>
           {state.quoteItems.map((item, i) => (
             <View key={item.key} style={[styles.quoteRow, i % 2 === 1 && styles.quoteRowAlt]}>
-              <Text style={[styles.quoteCell, styles.quoteCellFlex]}>{item.title}</Text>
-              <Text style={[styles.quoteCell, styles.quoteCellNarrow]}>{item.qty}</Text>
+              <View style={[styles.quoteCellFlex]}>
+                <Text style={styles.quoteCell}>{item.title}</Text>
+                {!!item.description && (
+                  <Text style={[styles.quoteCell, { color: '#807A72', fontSize: 7, marginTop: 1 }]}>
+                    {item.description}
+                  </Text>
+                )}
+              </View>
               <Text style={[styles.quoteCell, styles.quoteCellNarrow]}>₪{item.unitPrice.toLocaleString()}</Text>
-              <Text style={[styles.quoteCell, styles.quoteCellNarrow]}>
-                ₪{(item.qty * item.unitPrice).toLocaleString()}
-              </Text>
             </View>
           ))}
           <View style={styles.quoteTotals}>

@@ -13,6 +13,7 @@ import { DOCUMENT_TYPES } from '@/config/documentTypes';
 export interface WizardQuoteItem {
   key: string;       // local React key (not saved to DB)
   title: string;
+  description: string;
   qty: number;
   unitPrice: number;
 }

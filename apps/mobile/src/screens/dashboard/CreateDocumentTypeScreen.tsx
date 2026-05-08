@@ -96,24 +96,6 @@ export function CreateDocumentTypeScreen({
           })}
         </View>
 
-        {/* Voice shortcut — only relevant for reports */}
-        <Pressable
-          onPress={() => onSelectType?.('report')}
-          style={[styles.voiceShortcut, { backgroundColor: '#1B2A22' }]}
-        >
-          <View style={styles.voiceShortcutLeft}>
-            <Icons.micFill size={22} color="#84B097" />
-            <View>
-              <Text style={[styles.voiceTitle, { fontFamily: fonts.sans }]}>
-                צור דוח עם קול
-              </Text>
-              <Text style={[styles.voiceSub, { fontFamily: fonts.sans }]}>
-                דבר ואנחנו נכתוב — הכי מהיר
-              </Text>
-            </View>
-          </View>
-          <Icons.chevL size={18} color="rgba(132,176,151,0.6)" />
-        </Pressable>
       </ScrollView>
 
       <BottomNav active="create" onTab={onNavigate} colors={colors} />
@@ -193,27 +175,5 @@ const styles = StyleSheet.create({
   cardDetail: {
     fontSize: 12,
     marginTop: 3,
-  },
-  voiceShortcut: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 18,
-    borderRadius: 20,
-  },
-  voiceShortcutLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-  },
-  voiceTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#F5F3EE',
-  },
-  voiceSub: {
-    fontSize: 12,
-    color: '#84B097',
-    marginTop: 2,
   },
 });
