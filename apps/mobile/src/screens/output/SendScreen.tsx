@@ -1,12 +1,15 @@
 import React from 'react';
-import { View, Text, Pressable, Share, Alert, Linking, StyleSheet } from 'react-native';
-import { File, Directory, Paths } from 'expo-file-system';
-import * as Sharing from 'expo-sharing';
+import {
+  View, Text, Pressable, ActivityIndicator, Alert,
+  StyleSheet,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Header } from '@/components/layout';
 import { Icons } from '@/components/icons';
 import { lightColors, fonts } from '@/theme/tokens';
 import { useWizard } from '@/context/WizardContext';
+import { downloadPdfToCache, deleteCachedPdf } from '@/services/pdfExport';
+import { sharePdfFile } from '@/services/shareService';
 
 interface SendScreenProps {
   colors?: typeof lightColors;
@@ -14,22 +17,14 @@ interface SendScreenProps {
   onDone?: () => void;
 }
 
-function buildWhatsAppMessage(
-  customerName: string,
-  docTitle: string,
-  pdfUrl: string,
-): string {
-  const greeting = customerName ? `שלום ${customerName},` : 'שלום,';
-  return [
-    greeting,
-    `${docTitle} מוכן לעיונך.`,
-    '',
-    'תוכל לצפות בו בקישור הבא:',
-    pdfUrl,
-    '',
-    'לכל שאלה אני כאן.',
-  ].join('\n');
-}
+const DOC_TYPE_LABELS: Record<string, string> = {
+  leak: 'דוח גילוי נזילה',
+  waterproofing: 'דוח איטום',
+  pipe: 'דוח בעיית צנרת',
+  roof: 'דוח נזק גג',
+  moisture: 'דוח עובש ולחות',
+  other: 'דוח בדיקה',
+};
 
 export function SendScreen({ colors = lightColors, onBack, onDone }: SendScreenProps) {
   const insets = useSafeAreaInsets();
@@ -39,77 +34,71 @@ export function SendScreen({ colors = lightColors, onBack, onDone }: SendScreenP
   const customerName = wizard.state.customerName;
   const customerPhone = wizard.state.customerPhone;
   const issueType = wizard.state.reportIssues[0]?.issueType ?? 'other';
-  const [downloading, setDownloading] = React.useState(false);
-
-  const DOC_TYPE_LABELS: Record<string, string> = {
-    leak: 'דוח גילוי נזילה',
-    waterproofing: 'דוח איטום',
-    pipe: 'דוח בעיית צנרת',
-    roof: 'דוח נזק גג',
-    moisture: 'דוח עובש ולחות',
-    other: 'דוח בדיקה',
-  };
   const docTitle = DOC_TYPE_LABELS[issueType] ?? 'דוח מקצועי';
 
-  const requirePdf = (): boolean => {
+  // Cache the downloaded local URI so we only download once per session
+  const localUriRef = React.useRef<string | null>(null);
+  const [busy, setBusy] = React.useState(false);
+  const [activeAction, setActiveAction] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    return () => {
+      // Clean up the temp file when leaving the screen
+      if (localUriRef.current) {
+        deleteCachedPdf(localUriRef.current);
+        localUriRef.current = null;
+      }
+    };
+  }, []);
+
+  const ensureLocalFile = async (): Promise<string | null> => {
     if (!pdfUrl) {
       Alert.alert('PDF לא מוכן', 'המתן לסיום יצירת ה-PDF ונסה שוב.');
-      return false;
+      return null;
     }
-    return true;
-  };
+    if (localUriRef.current) return localUriRef.current;
 
-  const handleWhatsApp = () => {
-    if (!requirePdf()) return;
-    const message = buildWhatsAppMessage(customerName, docTitle, pdfUrl!);
-    const phone = customerPhone.replace(/\D/g, '').replace(/^0/, '');
-    const url = `whatsapp://send?phone=972${phone}&text=${encodeURIComponent(message)}`;
-    Linking.openURL(url).catch(() => {
-      // WhatsApp not installed — fall back to generic share
-      Share.share({ message: `${docTitle}\n\n${pdfUrl!}` });
-    });
-  };
-
-  const handleNativeShare = () => {
-    if (!requirePdf()) return;
-    const message = buildWhatsAppMessage(customerName, docTitle, pdfUrl!);
-    Share.share({
-      message,
-      url: pdfUrl!,   // iOS attaches the URL separately
-      title: docTitle,
-    });
-  };
-
-  const handleDownload = async () => {
-    if (!requirePdf()) return;
-    const canShare = await Sharing.isAvailableAsync();
-    if (!canShare) {
-      Linking.openURL(pdfUrl!);
-      return;
-    }
-
-    setDownloading(true);
     try {
-      const filename = `${docTitle.replace(/\s+/g, '_')}.pdf`;
-      const dest = new File(new Directory(Paths.cache), filename);
-      // downloadFileAsync is assigned dynamically outside the class body
-      const downloaded = await (File as unknown as {
-        downloadFileAsync: (url: string, dest: File, opts: object) => Promise<File>;
-      }).downloadFileAsync(pdfUrl!, dest, { idempotent: true });
-      await Sharing.shareAsync(downloaded.uri, {
-        mimeType: 'application/pdf',
-        dialogTitle: `שיתוף ${docTitle}`,
-        UTI: 'com.adobe.pdf',
-      });
+      const uri = await downloadPdfToCache(pdfUrl, docTitle);
+      localUriRef.current = uri;
+      return uri;
     } catch {
-      Alert.alert('שגיאה', 'לא ניתן להוריד את הקובץ. נסה לפתוח בדפדפן.');
-      Linking.openURL(pdfUrl!);
-    } finally {
-      setDownloading(false);
+      Alert.alert('שגיאה בהורדת הקובץ', 'לא ניתן להוריד את ה-PDF. בדוק את החיבור לאינטרנט ונסה שנית.');
+      return null;
     }
   };
+
+  const withFile = async (actionId: string, fn: (uri: string) => Promise<void>) => {
+    if (busy) return;
+    setBusy(true);
+    setActiveAction(actionId);
+    try {
+      const uri = await ensureLocalFile();
+      if (!uri) return;
+      await fn(uri);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'שגיאה לא צפויה';
+      Alert.alert('שגיאה', msg);
+    } finally {
+      setBusy(false);
+      setActiveAction(null);
+    }
+  };
+
+  const handleShareFile = () =>
+    withFile('share', (uri) => sharePdfFile(uri, docTitle));
+
+  // WhatsApp button opens the same native share sheet — user picks WhatsApp.
+  // The whatsapp:// URL scheme does not support file attachments, so the
+  // native OS share sheet is the correct way to send a PDF file to WhatsApp.
+  const handleWhatsApp = () =>
+    withFile('whatsapp', (uri) => sharePdfFile(uri, docTitle));
+
+  const handleSaveToDevice = () =>
+    withFile('save', (uri) => sharePdfFile(uri, docTitle));
 
   type Option = {
+    id: string;
     Icon: React.ComponentType<{ size: number; color: string }>;
     iconColor: string;
     bg: string;
@@ -117,39 +106,40 @@ export function SendScreen({ colors = lightColors, onBack, onDone }: SendScreenP
     subtitle: string;
     big: boolean;
     onPress: () => void;
-    loading?: boolean;
   };
 
   const options: Option[] = [
     {
+      id: 'whatsapp',
       Icon: Icons.whatsapp,
       iconColor: '#fff',
       bg: '#25D366',
       title: 'WhatsApp',
       subtitle: customerPhone
-        ? `${customerPhone} · ${customerName}`
-        : 'שלח הודעה ללקוח',
+        ? `בחר WhatsApp · ${customerPhone}`
+        : 'בחר WhatsApp מחלונית השיתוף',
       big: true,
       onPress: handleWhatsApp,
     },
     {
+      id: 'share',
       Icon: Icons.share,
       iconColor: '#fff',
       bg: colors.ink1,
-      title: 'שיתוף',
-      subtitle: 'כל אפליקציה — מייל, טלגרם ועוד',
+      title: 'שתף קובץ PDF',
+      subtitle: 'מייל, טלגרם, Drive ועוד',
       big: false,
-      onPress: handleNativeShare,
+      onPress: handleShareFile,
     },
     {
+      id: 'save',
       Icon: Icons.download,
       iconColor: '#fff',
       bg: colors.ink2,
-      title: downloading ? 'מוריד…' : 'הורדת PDF',
-      subtitle: 'שמור במכשיר או שתף קובץ',
+      title: 'שמור במכשיר',
+      subtitle: 'ייצא לספריית הקבצים',
       big: false,
-      onPress: handleDownload,
-      loading: downloading,
+      onPress: handleSaveToDevice,
     },
   ];
 
@@ -158,7 +148,7 @@ export function SendScreen({ colors = lightColors, onBack, onDone }: SendScreenP
       <Header onBack={onBack} colors={colors} />
 
       <View style={styles.body}>
-        {/* Success circle — unchanged from original */}
+        {/* Success indicator */}
         <View style={styles.successWrap}>
           <View style={[styles.successOuter, { backgroundColor: colors.aiBg }]}>
             <View style={[styles.successDash, { borderColor: 'rgba(90,135,112,0.3)' }]} />
@@ -172,49 +162,68 @@ export function SendScreen({ colors = lightColors, onBack, onDone }: SendScreenP
           הדוח מוכן.
         </Text>
         <Text style={[styles.subtitle, { color: colors.ink3, fontFamily: fonts.sans }]}>
-          איך תרצה לשלוח אותו?
+          בחר כיצד לשלוח את קובץ ה-PDF ללקוח
         </Text>
 
         <View style={styles.options}>
-          {options.map((opt, i) => (
-            <Pressable
-              key={i}
-              onPress={opt.onPress}
-              disabled={opt.loading}
-              style={[
-                styles.optionRow,
-                {
-                  backgroundColor: colors.bgElev,
-                  borderColor: colors.line,
-                  padding: opt.big ? 18 : 14,
-                  opacity: opt.loading ? 0.6 : 1,
-                },
-              ]}
-            >
-              <View
+          {options.map((opt) => {
+            const isLoading = busy && activeAction === opt.id;
+            return (
+              <Pressable
+                key={opt.id}
+                onPress={opt.onPress}
+                disabled={busy}
                 style={[
-                  styles.optionIcon,
+                  styles.optionRow,
                   {
-                    backgroundColor: opt.bg,
-                    width: opt.big ? 52 : 44,
-                    height: opt.big ? 52 : 44,
-                    borderRadius: opt.big ? 14 : 12,
+                    backgroundColor: colors.bgElev,
+                    borderColor: colors.line,
+                    padding: opt.big ? 18 : 14,
+                    opacity: busy && activeAction !== opt.id ? 0.45 : 1,
                   },
                 ]}
               >
-                <opt.Icon size={opt.big ? 26 : 22} color={opt.iconColor} />
-              </View>
-              <View style={styles.optionInfo}>
-                <Text style={[styles.optionTitle, { color: colors.ink1, fontFamily: fonts.sans, fontSize: opt.big ? 16 : 15 }]}>
-                  {opt.title}
-                </Text>
-                <Text style={[styles.optionSub, { color: colors.ink3, fontFamily: fonts.sans }]}>
-                  {opt.subtitle}
-                </Text>
-              </View>
-              <Icons.chevL size={18} color={colors.ink4} />
-            </Pressable>
-          ))}
+                <View
+                  style={[
+                    styles.optionIcon,
+                    {
+                      backgroundColor: opt.bg,
+                      width: opt.big ? 52 : 44,
+                      height: opt.big ? 52 : 44,
+                      borderRadius: opt.big ? 14 : 12,
+                    },
+                  ]}
+                >
+                  {isLoading
+                    ? <ActivityIndicator size="small" color="#fff" />
+                    : <opt.Icon size={opt.big ? 26 : 22} color={opt.iconColor} />
+                  }
+                </View>
+                <View style={styles.optionInfo}>
+                  <Text
+                    style={[styles.optionTitle, {
+                      color: colors.ink1, fontFamily: fonts.sans,
+                      fontSize: opt.big ? 16 : 15,
+                    }]}
+                  >
+                    {isLoading ? 'מכין קובץ…' : opt.title}
+                  </Text>
+                  <Text style={[styles.optionSub, { color: colors.ink3, fontFamily: fonts.sans }]}>
+                    {opt.subtitle}
+                  </Text>
+                </View>
+                <Icons.chevL size={18} color={colors.ink4} />
+              </Pressable>
+            );
+          })}
+        </View>
+
+        {/* File badge — reassures user this is an actual file */}
+        <View style={[styles.fileBadge, { backgroundColor: colors.infoBg }]}>
+          <Icons.doc size={14} color={colors.info} />
+          <Text style={[styles.fileBadgeText, { color: colors.info, fontFamily: fonts.sans }]}>
+            {`${docTitle}.pdf`}
+          </Text>
         </View>
 
         <View style={styles.footer}>
@@ -230,74 +239,53 @@ export function SendScreen({ colors = lightColors, onBack, onDone }: SendScreenP
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  body: {
-    flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 20,
-  },
+  body: { flex: 1, paddingHorizontal: 24, paddingTop: 20 },
+
   successWrap: { alignItems: 'center', marginTop: 20 },
   successOuter: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
+    width: 120, height: 120, borderRadius: 60,
+    alignItems: 'center', justifyContent: 'center', position: 'relative',
   },
   successDash: {
-    position: 'absolute',
-    inset: -8,
-    width: 136,
-    height: 136,
-    borderRadius: 68,
-    borderWidth: 1,
-    borderStyle: 'dashed',
+    position: 'absolute', inset: -8,
+    width: 136, height: 136, borderRadius: 68,
+    borderWidth: 1, borderStyle: 'dashed',
   },
   successInner: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: 76, height: 76, borderRadius: 38,
+    alignItems: 'center', justifyContent: 'center',
   },
+
   title: {
-    fontSize: 32,
-    fontWeight: '500',
-    letterSpacing: -0.7,
-    lineHeight: 36,
-    textAlign: 'center',
-    marginTop: 24,
+    fontSize: 32, fontWeight: '500', letterSpacing: -0.7,
+    lineHeight: 36, textAlign: 'center', marginTop: 24,
   },
   subtitle: {
-    fontSize: 15,
-    lineHeight: 22,
-    textAlign: 'center',
-    marginTop: 8,
-    marginBottom: 32,
+    fontSize: 15, lineHeight: 22, textAlign: 'center',
+    marginTop: 8, marginBottom: 28,
   },
+
   options: { gap: 10 },
   optionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    borderRadius: 18,
-    borderWidth: 1,
+    flexDirection: 'row', alignItems: 'center', gap: 14,
+    borderRadius: 18, borderWidth: 1,
   },
-  optionIcon: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
+  optionIcon: { alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   optionInfo: { flex: 1, minWidth: 0 },
   optionTitle: { fontWeight: '700' },
   optionSub: { fontSize: 12, marginTop: 2 },
+
+  fileBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    alignSelf: 'center', paddingHorizontal: 14, paddingVertical: 7,
+    borderRadius: 999, marginTop: 20,
+  },
+  fileBadgeText: { fontSize: 12, fontWeight: '600' },
+
   footer: {
-    marginTop: 'auto',
-    paddingTop: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
+    marginTop: 'auto', paddingTop: 20,
+    flexDirection: 'row', alignItems: 'center',
+    justifyContent: 'center', gap: 8,
   },
   footerText: { fontSize: 12 },
 });
