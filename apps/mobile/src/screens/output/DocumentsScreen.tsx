@@ -1,10 +1,11 @@
 import React from 'react';
-import { View, Pressable, FlatList, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Pressable, FlatList, ActivityIndicator, StyleSheet, Alert } from 'react-native';
 import { Header, BottomNav, type TabId } from '@/components/layout';
 import { Pill, ScaledText } from '@/components/primitives';
 import { Icons } from '@/components/icons';
 import { lightColors, fonts } from '@/theme/tokens';
 import { useDocuments } from '@/hooks/useDocuments';
+import { deleteDocument } from '@/services/documents';
 import type { DocumentType, DocumentStatus } from '@dohot/shared';
 
 interface DocumentsScreenProps {
@@ -58,7 +59,29 @@ function relativeDate(iso: string): string {
 
 export function DocumentsScreen({ colors = lightColors, onNavigate }: DocumentsScreenProps) {
   const [activeTab, setActiveTab] = React.useState(0);
-  const { documents, loading, error } = useDocuments(TABS[activeTab]?.type);
+  const { documents, loading, error, refetch } = useDocuments(TABS[activeTab]?.type);
+
+  const handleLongPressDelete = (docId: string, docTitle: string) => {
+    Alert.alert(
+      'מחיקת מסמך',
+      `למחוק את "${docTitle}"?\nלא ניתן לבטל פעולה זו.`,
+      [
+        { text: 'ביטול', style: 'cancel' },
+        {
+          text: 'מחק',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteDocument(docId);
+              await refetch();
+            } catch {
+              Alert.alert('שגיאה', 'לא ניתן למחוק את המסמך. נסה שנית.');
+            }
+          },
+        },
+      ],
+    );
+  };
 
   return (
     <View style={[styles.root, { backgroundColor: colors.bg }]}>
@@ -129,6 +152,8 @@ export function DocumentsScreen({ colors = lightColors, onNavigate }: DocumentsS
               return (
                 <Pressable
                   style={[styles.docRow, { backgroundColor: colors.bgElev, borderColor: colors.line }]}
+                  onLongPress={() => handleLongPressDelete(item.id, item.title)}
+                  delayLongPress={500}
                 >
                   <View style={[styles.docIcon, { backgroundColor: iconBg }]}>
                     <Icon size={22} color={iconColor} />

@@ -2,6 +2,7 @@ import React from 'react';
 import {
   View, Pressable, ScrollView, Modal, TextInput,
   StyleSheet, Alert, PanResponder, ActivityIndicator, Image,
+  KeyboardAvoidingView, Platform,
 } from 'react-native';
 import Svg, { Path as SvgPath } from 'react-native-svg';
 import { SvgXml } from 'react-native-svg';
@@ -38,13 +39,12 @@ interface SheetProps {
 }
 
 function BottomSheet({ visible, onClose, title, colors, children, scrollable = true }: SheetProps) {
-  const Content = scrollable ? ScrollView : View;
-  const contentProps = scrollable
-    ? { contentContainerStyle: styles.sheetContent, keyboardShouldPersistTaps: 'handled' as const }
-    : { style: styles.sheetContent };
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={styles.overlay}>
+      <KeyboardAvoidingView
+        style={styles.overlay}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
         <Pressable style={styles.backdrop} onPress={onClose} />
         <View style={[styles.sheet, { backgroundColor: colors.bg }]}>
           <View style={[styles.sheetHandle, { backgroundColor: colors.line }]} />
@@ -54,9 +54,20 @@ function BottomSheet({ visible, onClose, title, colors, children, scrollable = t
               <Icons.close size={20} color={colors.ink2} />
             </Pressable>
           </View>
-          <Content {...contentProps}>{children}</Content>
+          {scrollable ? (
+            <ScrollView
+              contentContainerStyle={styles.sheetContent}
+              keyboardShouldPersistTaps="handled"
+              automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
+              showsVerticalScrollIndicator={false}
+            >
+              {children}
+            </ScrollView>
+          ) : (
+            <View style={styles.sheetContent}>{children}</View>
+          )}
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -76,6 +87,7 @@ function BusinessModal({ visible, onClose, colors }: BizModalProps) {
   const [phone, setPhone] = React.useState('');
   const [license, setLicense] = React.useState('');
   const [bio, setBio] = React.useState('');
+  const [trainingNote, setTrainingNote] = React.useState('');
   const [logoUrl, setLogoUrl] = React.useState<string | null>(null);
   const [saving, setSaving] = React.useState(false);
   const [uploadingLogo, setUploadingLogo] = React.useState(false);
@@ -87,6 +99,7 @@ function BusinessModal({ visible, onClose, colors }: BizModalProps) {
       setPhone(businessProfile.phone ?? '');
       setLicense(businessProfile.license_number ?? '');
       setBio(businessProfile.bio ?? '');
+      setTrainingNote(businessProfile.training_note ?? '');
       setLogoUrl(businessProfile.logo_url);
     }
   }, [visible, businessProfile]);
@@ -117,6 +130,7 @@ function BusinessModal({ visible, onClose, colors }: BizModalProps) {
         phone: phone.trim() || null,
         license_number: license.trim() || null,
         bio: bio.trim() || null,
+        training_note: trainingNote.trim() || null,
         logo_url: logoUrl,
       });
       onClose();
@@ -153,7 +167,8 @@ function BusinessModal({ visible, onClose, colors }: BizModalProps) {
       <InputField label="שם העסק" value={bizName} onChangeText={setBizName} colors={colors} placeholder="גילוי נזילות בע״מ" />
       <InputField label="טלפון" value={phone} onChangeText={setPhone} colors={colors} placeholder="050-0000000" keyboardType="phone-pad" />
       <InputField label="ח.פ / עוסק" value={license} onChangeText={setLicense} colors={colors} placeholder="000000000" keyboardType="number-pad" />
-      <InputField label="תיאור קצר" value={bio} onChangeText={setBio} colors={colors} placeholder="תיאור העסק והניסיון שלך…" multiline rows={3} />
+      <InputField label="אודותינו" value={bio} onChangeText={setBio} colors={colors} placeholder="שנות ניסיון, אזור שירות, גישה מקצועית…" multiline rows={3} />
+      <InputField label="הכשרה" value={trainingNote} onChangeText={setTrainingNote} colors={colors} placeholder="הכשרות, רישיונות, תעודות מקצועיות…" multiline rows={3} />
 
       <Button kind="primary" size="lg" full onPress={handleSave} disabled={saving} colors={colors}
         iconRight={saving ? <ActivityIndicator size="small" color={colors.bg} /> : undefined}>

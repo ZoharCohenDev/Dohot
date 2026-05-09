@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Pressable, ScrollView, StyleSheet, TextInput } from 'react-native';
+import { View, Text, Pressable, ScrollView, StyleSheet, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { Header, FixedBottom, ProgressBar } from '@/components/layout';
 import { Button, Field } from '@/components/primitives';
 import { Icons } from '@/components/icons';
@@ -56,7 +56,10 @@ export function IssueStep({ colors = lightColors, onNext, onBack }: IssueStepPro
   };
 
   return (
-    <View style={[styles.root, { backgroundColor: colors.bg }]}>
+    <KeyboardAvoidingView
+      style={[styles.root, { backgroundColor: colors.bg }]}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
       <Header
         step={stepNum}
         ofSteps={stepOf}
@@ -79,6 +82,7 @@ export function IssueStep({ colors = lightColors, onNext, onBack }: IssueStepPro
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
       >
         <Text style={[styles.title, { color: colors.ink1, fontFamily: fonts.serif }]}>
           סוג התקלה
@@ -181,7 +185,7 @@ export function IssueStep({ colors = lightColors, onNext, onBack }: IssueStepPro
           המשך לתמונות
         </Button>
       </FixedBottom>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 

@@ -52,7 +52,7 @@ export async function generatePdfFromCaptureHandler(req: Request, res: Response)
 
   try {
     const pdfBuffer = images.length === 1
-      ? await renderPdfFromImage(images[0], mimeType)
+      ? await renderPdfFromImage(images[0]!, mimeType)
       : await renderPdfFromImages(images, mimeType);
     const pdfUrl = await uploadPdf(pdfBuffer, userId, documentId);
     await savePdfUrl(documentId, pdfUrl);

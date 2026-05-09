@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, TextInput, ScrollView, StyleSheet, Pressable, ActivityIndicator,
+  KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { Header, FixedBottom, ProgressBar } from '@/components/layout';
 import { Button } from '@/components/primitives';
@@ -83,7 +84,10 @@ export function TranscriptReviewScreen({
   })();
 
   return (
-    <View style={[styles.root, { backgroundColor: colors.bg }]}>
+    <KeyboardAvoidingView
+      style={[styles.root, { backgroundColor: colors.bg }]}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
       <Header
         step={4}
         ofSteps={5}
@@ -106,6 +110,7 @@ export function TranscriptReviewScreen({
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
       >
         {/* Title */}
         <View style={styles.titleBlock}>
@@ -222,7 +227,7 @@ export function TranscriptReviewScreen({
           </Button>
         </View>
       </FixedBottom>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 

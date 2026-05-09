@@ -100,7 +100,7 @@ export function WarrantyTermsStep({ colors = lightColors, onNext, onBack }: Warr
   return (
     <KeyboardAvoidingView
       style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <View style={[styles.root, { backgroundColor: colors.bg }]}>
         <Header
@@ -125,6 +125,7 @@ export function WarrantyTermsStep({ colors = lightColors, onNext, onBack }: Warr
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
         >
           <Text style={[styles.title, { color: colors.ink1, fontFamily: fonts.serif }]}>
             תנאי האחריות

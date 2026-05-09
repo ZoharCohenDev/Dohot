@@ -77,6 +77,7 @@ export interface BusinessProfile {
   license_number: string | null;     // ח.פ / עוסק
   logo_url: string | null;
   bio: string | null;
+  training_note: string | null;
   signature_url: string | null;
   default_disclaimer: string | null;
   certifications_note: string | null;

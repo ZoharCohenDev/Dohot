@@ -14,7 +14,11 @@
       "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\({**d.get\\('dependencies',{}\\), **d.get\\('devDependencies',{}\\)}, indent=2\\)\\)\")",
       "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(d.get\\('workspaces', 'no workspaces'\\)\\)\")",
       "Bash(ipconfig getifaddr *)",
-      "Bash(awk '{print $2}')"
+      "Bash(awk '{print $2}')",
+      "Bash(npx --prefix apps/mobile tsc --noEmit)",
+      "Bash(apps/mobile/node_modules/.bin/tsc --noEmit -p apps/mobile/tsconfig.json)",
+      "Bash(yarn tsc *)",
+      "Bash(npm run *)"
     ]
   }
 }

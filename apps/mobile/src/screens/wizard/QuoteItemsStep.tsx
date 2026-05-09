@@ -125,7 +125,7 @@ export function QuoteItemsStep({ colors = lightColors, onNext, onBack }: QuoteIt
   return (
     <KeyboardAvoidingView
       style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <View style={[styles.root, { backgroundColor: colors.bg }]}>
         <Header
@@ -151,6 +151,7 @@ export function QuoteItemsStep({ colors = lightColors, onNext, onBack }: QuoteIt
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
         >
           {/* Title */}
           <View style={styles.titleBlock}>

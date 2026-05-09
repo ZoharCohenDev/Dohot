@@ -133,7 +133,7 @@ function QuoteCard({
 
 export function DashboardScreen({ colors = lightColors, onNavigate, onCreateType }: DashboardScreenProps) {
   const insets = useSafeAreaInsets();
-  const { businessProfile } = useAuth();
+  const { businessProfile, daysUntilExpiration, isSubscriptionExpired, isSubscriptionWarning } = useAuth();
   const { stats } = useDashboard();
   const { items, loading, error, toggleFollowUp, deleteQuote } = useQuoteFollowUp();
 
@@ -185,11 +185,26 @@ export function DashboardScreen({ colors = lightColors, onNavigate, onCreateType
                   </ScaledText>
                 </View>
               </View>
-              <Pressable style={[styles.notifBtn, { backgroundColor: colors.bgElev, borderColor: colors.line }]}>
-                <Icons.bell size={20} color={colors.ink1} />
-                <View style={[styles.notifDot, { backgroundColor: colors.accent }]} />
-              </Pressable>
             </View>
+
+            {/* Subscription expiry banner */}
+            {(isSubscriptionExpired || isSubscriptionWarning) && (
+              <View style={[
+                styles.subBanner,
+                { backgroundColor: isSubscriptionExpired ? colors.dangerBg : colors.warnBg },
+              ]}>
+                <Icons.shieldCheck size={16} color={isSubscriptionExpired ? colors.danger : colors.warn} />
+                <Text style={[styles.subBannerText, {
+                  color: isSubscriptionExpired ? colors.danger : colors.warn,
+                  fontFamily: fonts.sans,
+                }]}>
+                  {isSubscriptionExpired
+                    ? 'המנוי הסתיים. יש לחדש את המנוי כדי להמשיך להשתמש באפליקציה'
+                    : `המנוי שלך עומד להסתיים בעוד ${daysUntilExpiration} ימים`
+                  }
+                </Text>
+              </View>
+            )}
 
             {/* Stats strip */}
             <View style={styles.statsRow}>
@@ -287,14 +302,15 @@ const styles = StyleSheet.create({
   greeting: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   greetSub: { fontSize: 12 },
   greetName: { fontSize: 16, fontWeight: '700', lineHeight: 20 },
-  notifBtn: {
-    width: 44, height: 44, borderRadius: 999,
-    borderWidth: 1, alignItems: 'center', justifyContent: 'center',
+  subBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    padding: 14,
+    borderRadius: 16,
+    marginBottom: 12,
   },
-  notifDot: {
-    position: 'absolute', top: 11, end: 11,
-    width: 8, height: 8, borderRadius: 4,
-  },
+  subBannerText: { flex: 1, fontSize: 13, lineHeight: 20, fontWeight: '600' },
 
   // Stats
   statsRow: { flexDirection: 'row', gap: 8, marginBottom: 20 },

@@ -1,5 +1,8 @@
 import React from 'react';
-import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
+import {
+  View, Text, Pressable, ScrollView, StyleSheet, Modal,
+  TextInput, Alert, KeyboardAvoidingView, Platform,
+} from 'react-native';
 import { Header, FixedBottom, ProgressBar } from '@/components/layout';
 import { Button, Card, Pill } from '@/components/primitives';
 import { Icons } from '@/components/icons';
@@ -26,6 +29,8 @@ const PRIORITY_STYLE: Record<string, { color: (c: typeof lightColors) => string;
   'עד שבועיים':  { color: (c) => c.ai2,    bg: (c) => c.aiBg     },
 };
 const DEFAULT_PRIORITY_STYLE = { color: (c: typeof lightColors) => c.ink2, bg: (c: typeof lightColors) => c.bgSunken };
+
+const PRIORITIES = ['מיידי', 'תוך 48 שעות', 'עד שבועיים'] as const;
 
 function toDisplay(rec: Recommendation): RecDisplay {
   const style = PRIORITY_STYLE[rec.priority] ?? DEFAULT_PRIORITY_STYLE;
@@ -56,30 +61,195 @@ function IssueSectionTitle({ num, label, colors }: { num: number; label: string;
   );
 }
 
+// ─── Edit Modal ───────────────────────────────────────────────────────────────
+
+interface EditState {
+  issueIdx: number;
+  recIdx: number | null; // null = new rec
+  priority: string;
+  title: string;
+  description: string;
+}
+
+interface RecEditModalProps {
+  editState: EditState;
+  colors: typeof lightColors;
+  onSave: (updated: EditState) => void;
+  onClose: () => void;
+}
+
+function RecEditModal({ editState, colors, onSave, onClose }: RecEditModalProps) {
+  const isStandard = PRIORITIES.includes(editState.priority as typeof PRIORITIES[number]);
+  const [chipPriority, setChipPriority] = React.useState(isStandard ? editState.priority : 'אחר');
+  const [customPriority, setCustomPriority] = React.useState(isStandard ? '' : editState.priority);
+  const [title, setTitle] = React.useState(editState.title);
+  const [description, setDescription] = React.useState(editState.description);
+
+  const handleSave = () => {
+    if (!title.trim()) {
+      Alert.alert('שגיאה', 'יש להזין כותרת להמלצה');
+      return;
+    }
+    const finalPriority = chipPriority === 'אחר' ? (customPriority.trim() || 'אחר') : chipPriority;
+    onSave({ ...editState, priority: finalPriority, title: title.trim(), description: description.trim() });
+  };
+
+  const ALL_CHIPS = [...PRIORITIES, 'אחר'] as const;
+
+  return (
+    <Modal visible transparent animationType="slide" onRequestClose={onClose}>
+      <KeyboardAvoidingView
+        style={styles.editOverlay}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <Pressable style={styles.editBackdrop} onPress={onClose} />
+        <View style={[styles.editSheet, { backgroundColor: colors.bg }]}>
+          <View style={[styles.editHandle, { backgroundColor: colors.line }]} />
+          <Text style={[styles.editSheetTitle, { color: colors.ink1, fontFamily: fonts.sans }]}>
+            {editState.recIdx === null ? 'הוספת המלצה' : 'עריכת המלצה'}
+          </Text>
+
+          <ScrollView
+            keyboardShouldPersistTaps="handled"
+            automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.editScrollContent}
+            bounces={false}
+          >
+            {/* Priority chips */}
+            <Text style={[styles.editLabel, { color: colors.ink2, fontFamily: fonts.sans }]}>עדיפות</Text>
+            <View style={styles.priorityRow}>
+              {ALL_CHIPS.map((p) => {
+                const style = PRIORITY_STYLE[p] ?? DEFAULT_PRIORITY_STYLE;
+                const active = chipPriority === p;
+                return (
+                  <Pressable
+                    key={p}
+                    onPress={() => setChipPriority(p)}
+                    style={[
+                      styles.priorityChip,
+                      {
+                        backgroundColor: active ? style.bg(colors) : colors.bgElev,
+                        borderColor: active ? style.color(colors) : colors.line,
+                      },
+                    ]}
+                  >
+                    <Text style={[
+                      styles.priorityChipText,
+                      { color: active ? style.color(colors) : colors.ink3, fontFamily: fonts.sans },
+                    ]}>{p}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            {/* Custom priority text input (only when "אחר" selected) */}
+            {chipPriority === 'אחר' && (
+              <>
+                <Text style={[styles.editLabel, { color: colors.ink2, fontFamily: fonts.sans }]}>מסגרת זמן מותאמת</Text>
+                <View style={[styles.editInputBox, { backgroundColor: colors.bgElev, borderColor: colors.lineStrong }]}>
+                  <TextInput
+                    value={customPriority}
+                    onChangeText={setCustomPriority}
+                    style={[styles.editInputText, { color: colors.ink1, fontFamily: fonts.sans }]}
+                    textAlign="right"
+                    placeholder="לדוגמה: תוך 3 ימים, בהזדמנות…"
+                    placeholderTextColor={colors.ink4}
+                    returnKeyType="next"
+                  />
+                </View>
+              </>
+            )}
+
+            {/* Title */}
+            <Text style={[styles.editLabel, { color: colors.ink2, fontFamily: fonts.sans }]}>כותרת</Text>
+            <View style={[styles.editInputBox, { backgroundColor: colors.bgElev, borderColor: colors.lineStrong }]}>
+              <TextInput
+                value={title}
+                onChangeText={setTitle}
+                style={[styles.editInputText, { color: colors.ink1, fontFamily: fonts.sans }]}
+                textAlign="right"
+                placeholder="כותרת ההמלצה"
+                placeholderTextColor={colors.ink4}
+                returnKeyType="next"
+              />
+            </View>
+
+            {/* Description */}
+            <Text style={[styles.editLabel, { color: colors.ink2, fontFamily: fonts.sans }]}>תיאור (אופציונלי)</Text>
+            <View style={[styles.editInputBox, { backgroundColor: colors.bgElev, borderColor: colors.lineStrong, minHeight: 80 }]}>
+              <TextInput
+                value={description}
+                onChangeText={setDescription}
+                style={[styles.editInputText, { color: colors.ink1, fontFamily: fonts.sans }]}
+                textAlign="right"
+                multiline
+                textAlignVertical="top"
+                placeholder="פרטים נוספים…"
+                placeholderTextColor={colors.ink4}
+              />
+            </View>
+          </ScrollView>
+
+          <View style={styles.editActions}>
+            <Button kind="ghost" size="md" onPress={onClose} colors={colors} style={{ flex: 1 }}>ביטול</Button>
+            <Button kind="primary" size="md" onPress={handleSave} colors={colors} style={{ flex: 1 }}>שמור</Button>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
+// ─── Main screen ──────────────────────────────────────────────────────────────
+
 export function RecommendationsStep({ colors = lightColors, onNext, onBack, isSaving }: RecommendationsStepProps) {
   const wizard = useWizard();
   const { triggerExit } = useWizardExit();
   const issues = wizard.state.reportIssues;
 
   const [issueStates, setIssueStates] = React.useState(() => issues.map(initIssueState));
+  const [editState, setEditState] = React.useState<EditState | null>(null);
 
-  const updateRec = (issueIdx: number, recIdx: number, updated: RecDisplay) => {
-    setIssueStates(prev => prev.map((is, i) =>
-      i === issueIdx ? { ...is, recs: is.recs.map((r, j) => (j === recIdx ? updated : r)) } : is
-    ));
+  const openEdit = (issueIdx: number, recIdx: number) => {
+    const rec = issueStates[issueIdx]?.recs[recIdx];
+    if (!rec) return;
+    setEditState({ issueIdx, recIdx, priority: rec.priority, title: rec.title, description: rec.description });
   };
 
-  const addRec = (issueIdx: number) => {
-    const blank: RecDisplay = {
-      priority: 'עד שבועיים',
-      priorityColor: (c) => c.ai2,
-      priorityBg: (c) => c.aiBg,
-      title: '',
-      description: '',
+  const openAdd = (issueIdx: number) => {
+    setEditState({ issueIdx, recIdx: null, priority: 'עד שבועיים', title: '', description: '' });
+  };
+
+  const handleSaveEdit = (updated: EditState) => {
+    const style = PRIORITY_STYLE[updated.priority] ?? DEFAULT_PRIORITY_STYLE;
+    const rec: RecDisplay = {
+      priority: updated.priority,
+      title: updated.title,
+      description: updated.description,
+      priorityColor: style.color,
+      priorityBg: style.bg,
     };
-    setIssueStates(prev => prev.map((is, i) =>
-      i === issueIdx ? { ...is, recs: [...is.recs, blank] } : is
-    ));
+    setIssueStates(prev => prev.map((is, i) => {
+      if (i !== updated.issueIdx) return is;
+      if (updated.recIdx === null) {
+        return { ...is, recs: [...is.recs, rec] };
+      }
+      return { ...is, recs: is.recs.map((r, j) => j === updated.recIdx ? rec : r) };
+    }));
+    setEditState(null);
+  };
+
+  const deleteRec = (issueIdx: number, recIdx: number) => {
+    Alert.alert('מחיקת המלצה', 'למחוק את ההמלצה?', [
+      { text: 'ביטול', style: 'cancel' },
+      {
+        text: 'מחק', style: 'destructive',
+        onPress: () => setIssueStates(prev => prev.map((is, i) =>
+          i === issueIdx ? { ...is, recs: is.recs.filter((_, j) => j !== recIdx) } : is
+        )),
+      },
+    ]);
   };
 
   const handleNext = () => {
@@ -92,7 +262,10 @@ export function RecommendationsStep({ colors = lightColors, onNext, onBack, isSa
   };
 
   return (
-    <View style={[styles.root, { backgroundColor: colors.bg }]}>
+    <KeyboardAvoidingView
+      style={[styles.root, { backgroundColor: colors.bg }]}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
       <Header
         step={5}
         ofSteps={5}
@@ -114,6 +287,8 @@ export function RecommendationsStep({ colors = lightColors, onNext, onBack, isSa
         style={styles.scroll}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
       >
         <View style={styles.aiLabel}>
           <Icons.sparkle size={14} color={colors.ai2} />
@@ -140,9 +315,6 @@ export function RecommendationsStep({ colors = lightColors, onNext, onBack, isSa
                     <Text style={[styles.summaryTitle, { color: colors.ink1, fontFamily: fonts.sans }]}>
                       סיכום הממצאים
                     </Text>
-                    <Pressable>
-                      <Icons.edit size={16} color={colors.ink3} />
-                    </Pressable>
                   </View>
                   <Text style={[styles.summaryText, { color: colors.ink2, fontFamily: fonts.sans }]}>
                     {is.summary}
@@ -167,13 +339,28 @@ export function RecommendationsStep({ colors = lightColors, onNext, onBack, isSa
                         <Text style={[styles.recTitle, { color: colors.ink1, fontFamily: fonts.sans }]}>
                           {rec.title}
                         </Text>
-                        <Text style={[styles.recDesc, { color: colors.ink3, fontFamily: fonts.sans }]}>
-                          {rec.description}
-                        </Text>
+                        {!!rec.description && (
+                          <Text style={[styles.recDesc, { color: colors.ink3, fontFamily: fonts.sans }]}>
+                            {rec.description}
+                          </Text>
+                        )}
                       </View>
-                      <Pressable onPress={() => updateRec(issueIdx, recIdx, rec)}>
-                        <Icons.edit size={16} color={colors.ink3} />
-                      </Pressable>
+                      <View style={styles.recActions}>
+                        <Pressable
+                          onPress={() => openEdit(issueIdx, recIdx)}
+                          hitSlop={8}
+                          style={[styles.recActionBtn, { backgroundColor: colors.bgSunken }]}
+                        >
+                          <Icons.edit size={15} color={colors.ink3} />
+                        </Pressable>
+                        <Pressable
+                          onPress={() => deleteRec(issueIdx, recIdx)}
+                          hitSlop={8}
+                          style={[styles.recActionBtn, { backgroundColor: colors.dangerBg }]}
+                        >
+                          <Icons.trash size={15} color={colors.danger} />
+                        </Pressable>
+                      </View>
                     </View>
                   </Card>
                 ))}
@@ -181,7 +368,7 @@ export function RecommendationsStep({ colors = lightColors, onNext, onBack, isSa
                 {/* Add recommendation */}
                 <Pressable
                   style={[styles.addBtn, { borderColor: colors.lineStrong }]}
-                  onPress={() => addRec(issueIdx)}
+                  onPress={() => openAdd(issueIdx)}
                 >
                   <Icons.plus size={18} color={colors.ink3} />
                   <Text style={[styles.addBtnText, { color: colors.ink3, fontFamily: fonts.sans }]}>
@@ -207,7 +394,16 @@ export function RecommendationsStep({ colors = lightColors, onNext, onBack, isSa
           {isSaving ? 'שומר…' : 'הצג תצוגה מקדימה'}
         </Button>
       </FixedBottom>
-    </View>
+
+      {editState && (
+        <RecEditModal
+          editState={editState}
+          colors={colors}
+          onSave={handleSaveEdit}
+          onClose={() => setEditState(null)}
+        />
+      )}
+    </KeyboardAvoidingView>
   );
 }
 
@@ -244,15 +440,41 @@ const styles = StyleSheet.create({
 
   recList: { gap: 10 },
   recRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
-  recNum: { width: 28, height: 28, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  recNum: { width: 28, height: 28, borderRadius: 8, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   recNumText: { fontSize: 14, fontWeight: '700' },
   recContent: { flex: 1, gap: 8 },
   recTitle: { fontSize: 15, fontWeight: '700' },
   recDesc: { fontSize: 13, lineHeight: 20 },
+  recActions: { flexDirection: 'column', gap: 6, flexShrink: 0 },
+  recActionBtn: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
 
   addBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     height: 52, borderRadius: 16, borderWidth: 1.5, borderStyle: 'dashed', gap: 8,
   },
   addBtnText: { fontSize: 14, fontWeight: '600' },
+
+  // Edit modal
+  editOverlay: { flex: 1, justifyContent: 'flex-end' },
+  editBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)' },
+  editSheet: {
+    borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    paddingTop: 12, paddingHorizontal: 20,
+  },
+  editScrollContent: { gap: 10, paddingBottom: 8 },
+  editHandle: { width: 36, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: 8 },
+  editSheetTitle: { fontSize: 18, fontWeight: '700', textAlign: 'right', marginBottom: 4 },
+  editLabel: { fontSize: 13, fontWeight: '600', textAlign: 'right' },
+  priorityRow: { flexDirection: 'row-reverse', gap: 8, flexWrap: 'wrap' },
+  priorityChip: {
+    paddingVertical: 8, paddingHorizontal: 14,
+    borderRadius: 999, borderWidth: 1.5,
+  },
+  priorityChipText: { fontSize: 13, fontWeight: '700' },
+  editInputBox: {
+    borderWidth: 1, borderRadius: 14,
+    paddingHorizontal: 14, paddingVertical: 10,
+  },
+  editInputText: { fontSize: 15 },
+  editActions: { flexDirection: 'row', gap: 10, marginTop: 8, paddingBottom: 34 },
 });

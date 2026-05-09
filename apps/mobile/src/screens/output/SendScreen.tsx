@@ -228,6 +228,23 @@ export function SendScreen({ colors = lightColors, onBack, onDone }: SendScreenP
           </Text>
         </View>
 
+        {/* Exit actions */}
+        <View style={styles.exitRow}>
+          <Pressable
+            onPress={onBack}
+            style={[styles.exitBtn, { backgroundColor: colors.bgElev, borderColor: colors.line }]}
+          >
+            <Text style={[styles.exitBtnText, { color: colors.ink2, fontFamily: fonts.sans }]}>חזרה</Text>
+          </Pressable>
+          <Pressable
+            onPress={onDone}
+            style={[styles.doneBtn, { backgroundColor: colors.ink1 }]}
+          >
+            <Text style={[styles.doneBtnText, { color: colors.bg, fontFamily: fonts.sans }]}>סיום</Text>
+            <Icons.home size={16} color={colors.bg} />
+          </Pressable>
+        </View>
+
         <View style={styles.footer}>
           <Icons.shieldCheck size={14} color={colors.ai2} />
           <Text style={[styles.footerText, { color: colors.ink3, fontFamily: fonts.sans }]}>
@@ -284,8 +301,22 @@ const styles = StyleSheet.create({
   },
   fileBadgeText: { fontSize: 12, fontWeight: '600' },
 
+  exitRow: {
+    flexDirection: 'row', gap: 10, marginTop: 20,
+  },
+  exitBtn: {
+    flex: 1, height: 52, borderRadius: 16, borderWidth: 1,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  exitBtnText: { fontSize: 15, fontWeight: '600' },
+  doneBtn: {
+    flex: 2, height: 52, borderRadius: 16,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+  },
+  doneBtnText: { fontSize: 15, fontWeight: '700' },
+
   footer: {
-    marginTop: 'auto', paddingTop: 20,
+    marginTop: 'auto', paddingTop: 16,
     flexDirection: 'row', alignItems: 'center',
     justifyContent: 'center', gap: 8,
   },

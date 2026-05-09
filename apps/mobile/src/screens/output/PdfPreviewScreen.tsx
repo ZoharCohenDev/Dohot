@@ -3,6 +3,7 @@ import {
   View, Text, ScrollView, Pressable, ActivityIndicator,
   StyleSheet, Image, Platform,
 } from 'react-native';
+import { SvgXml } from 'react-native-svg';
 import { captureRef } from 'react-native-view-shot';
 import { Header, FixedBottom } from '@/components/layout';
 import { Button } from '@/components/primitives';
@@ -96,10 +97,21 @@ function PageSig({ businessProfile }: { businessProfile: BusinessProfile }) {
     businessProfile?.license_number && `ח.פ ${businessProfile.license_number}`,
   ].filter(Boolean).join(' · ');
   if (!sigUrl && !sigName) return null;
+
+  const isSvg = !!sigUrl && sigUrl.startsWith('data:image/svg+xml;base64,');
+
   return (
     <View style={styles.pageSig}>
       {!!sigUrl && (
-        <Image source={{ uri: sigUrl }} style={styles.pageSigImage} resizeMode="contain" />
+        isSvg ? (
+          <SvgXml
+            xml={atob(sigUrl.replace('data:image/svg+xml;base64,', ''))}
+            width={90}
+            height={32}
+          />
+        ) : (
+          <Image source={{ uri: sigUrl }} style={styles.pageSigImage} resizeMode="contain" />
+        )
       )}
       {!!sigName && <Text style={styles.pageSigName}>{sigName}</Text>}
     </View>
@@ -193,19 +205,45 @@ function ReportPage1({ state, businessProfile }: { state: WizardState; businessP
             </View>
           )}
         </View>
-        <PageSig businessProfile={businessProfile} />
       </View>
     </>
   );
 }
 
-function CertificationsPage({ businessProfile }: { businessProfile: BusinessProfile }) {
+function AboutPage({
+  businessProfile, aboutSectionNum, trainingSectionNum,
+}: {
+  businessProfile: BusinessProfile;
+  aboutSectionNum: number;
+  trainingSectionNum: number;
+}) {
+  const bio = businessProfile?.bio;
+  const trainingNote = businessProfile?.training_note;
+  return (
+    <>
+      {!!bio && (
+        <View style={styles.pdfSection}>
+          <SectionTitle num={aboutSectionNum} label="אודותינו" />
+          <Text style={styles.pdfBody}>{bio}</Text>
+        </View>
+      )}
+      {!!trainingNote && (
+        <View style={[styles.pdfSection, { marginTop: 10 }]}>
+          <SectionTitle num={trainingSectionNum} label="הכשרה" />
+          <Text style={styles.pdfBody}>{trainingNote}</Text>
+        </View>
+      )}
+    </>
+  );
+}
+
+function CertificationsPage({ businessProfile, sectionNum }: { businessProfile: BusinessProfile; sectionNum: number }) {
   const certs = businessProfile?.certifications ?? [];
   const certsNote = businessProfile?.certifications_note;
   return (
     <>
       <View style={styles.pdfSection}>
-        <SectionTitle num={3} label="הסמכות ואישורים מקצועיים" />
+        <SectionTitle num={sectionNum} label="תעודות והסמכות" />
         {!!certsNote && (
           <Text style={[styles.pdfBody, { marginBottom: 8 }]}>{certsNote}</Text>
         )}
@@ -221,7 +259,6 @@ function CertificationsPage({ businessProfile }: { businessProfile: BusinessProf
           </View>
         ))}
       </View>
-      <PageSig businessProfile={businessProfile} />
     </>
   );
 }
@@ -276,7 +313,6 @@ function IssuePage({
           </View>
         )}
       </View>
-      <PageSig businessProfile={businessProfile} />
     </>
   );
 }
@@ -431,9 +467,19 @@ export function PdfPreviewScreen({ colors = lightColors, onBack, onSend }: PdfPr
   const brandInitial = (businessProfile?.business_name ?? businessProfile?.full_name ?? 'ד')[0] ?? 'ד';
 
   const certs = businessProfile?.certifications ?? [];
+  const hasAboutPage = !!businessProfile?.bio || !!businessProfile?.training_note;
   const hasCertsPage = certs.length > 0 || !!businessProfile?.certifications_note;
   const issues = state.reportIssues;
-  const issueBasePageNum = hasCertsPage ? 3 : 2;
+
+  // Dynamic section numbering (sections 1+2 are on page 1: customer + professional)
+  let _sec = 3;
+  const aboutSectionNum = _sec;
+  if (hasAboutPage && businessProfile?.bio) _sec++;
+  const trainingSectionNum = _sec;
+  if (hasAboutPage && businessProfile?.training_note) _sec++;
+  const certsSectionNum = _sec;
+  if (hasCertsPage) _sec++;
+  const issueBasePageNum = _sec;
   const legalPageNum = issueBasePageNum + issues.length;
 
   const headerProps = { docTitle, brandInitial, businessProfile };
@@ -454,7 +500,8 @@ export function PdfPreviewScreen({ colors = lightColors, onBack, onSend }: PdfPr
       if (state.docType === 'report') {
         // Build the ordered list of page keys
         const pageKeys: string[] = ['page1'];
-        if (hasCertsPage) pageKeys.push('page2');
+        if (hasAboutPage) pageKeys.push('about');
+        if (hasCertsPage) pageKeys.push('certs');
         issues.forEach((_, i) => pageKeys.push(`issue_${i}`));
         pageKeys.push('legal');
 
@@ -513,11 +560,23 @@ export function PdfPreviewScreen({ colors = lightColors, onBack, onSend }: PdfPr
               <ReportPage1 state={state} businessProfile={businessProfile} />
             </View>
 
-            {/* Page 2 (optional): Certifications & authorizations */}
-            {hasCertsPage && (
-              <View ref={setPageRef('page2')} style={styles.pdfPage}>
+            {/* Page 2 (optional): אודותינו + הכשרה */}
+            {hasAboutPage && (
+              <View ref={setPageRef('about')} style={styles.pdfPage}>
                 <PdfPageHeader {...headerProps} />
-                <CertificationsPage businessProfile={businessProfile} />
+                <AboutPage
+                  businessProfile={businessProfile}
+                  aboutSectionNum={aboutSectionNum}
+                  trainingSectionNum={trainingSectionNum}
+                />
+              </View>
+            )}
+
+            {/* Next page (optional): Certifications & authorizations */}
+            {hasCertsPage && (
+              <View ref={setPageRef('certs')} style={styles.pdfPage}>
+                <PdfPageHeader {...headerProps} />
+                <CertificationsPage businessProfile={businessProfile} sectionNum={certsSectionNum} />
               </View>
             )}
 
@@ -545,13 +604,21 @@ export function PdfPreviewScreen({ colors = lightColors, onBack, onSend }: PdfPr
             <View style={[styles.pdfSigRow, { borderTopColor: '#C7C1B6' }]}>
               <View>
                 {businessProfile?.signature_url
-                  ? (
-                    <Image
-                      source={{ uri: businessProfile.signature_url }}
-                      style={styles.pdfSigImage}
-                      resizeMode="contain"
-                    />
-                  )
+                  ? businessProfile.signature_url.startsWith('data:image/svg+xml;base64,')
+                    ? (
+                      <SvgXml
+                        xml={atob(businessProfile.signature_url.replace('data:image/svg+xml;base64,', ''))}
+                        width={80}
+                        height={28}
+                      />
+                    )
+                    : (
+                      <Image
+                        source={{ uri: businessProfile.signature_url }}
+                        style={styles.pdfSigImage}
+                        resizeMode="contain"
+                      />
+                    )
                   : <View style={styles.pdfSigLine} />
                 }
                 <Text style={styles.pdfSigName}>
@@ -732,10 +799,10 @@ const styles = StyleSheet.create({
 
   // Certifications
   certRow: {
-    flexDirection: 'row-reverse', alignItems: 'center', gap: 10,
-    paddingVertical: 6, borderBottomWidth: 0.5, borderBottomColor: '#E8E4DE',
+    flexDirection: 'row-reverse', alignItems: 'center', gap: 12,
+    paddingVertical: 8, borderBottomWidth: 0.5, borderBottomColor: '#E8E4DE',
   },
-  certImage: { width: 50, height: 50, borderRadius: 6, flexShrink: 0 },
+  certImage: { width: 96, height: 96, borderRadius: 8, flexShrink: 0 },
   certInfo: { flex: 1, alignItems: 'flex-end' },
   certName: { fontSize: 9, fontWeight: '700', color: '#1B1916', textAlign: 'right' },
   certYear: { fontSize: 8, color: '#807A72', marginTop: 2, textAlign: 'right' },
