@@ -11,7 +11,15 @@ dotenv.config();
 const app = express();
 const PORT = process.env['PORT'] ?? 3000;
 
-app.use(cors());
+const allowedOrigins = process.env['ALLOWED_ORIGINS']
+  ? process.env['ALLOWED_ORIGINS'].split(',').map((o) => o.trim())
+  : ['http://localhost:3000', 'http://localhost:8081'];
+
+app.use(cors({
+  origin: allowedOrigins,
+  methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
 app.use(express.json({ limit: '10mb' }));
 
 app.get('/health', (_req, res) => {
