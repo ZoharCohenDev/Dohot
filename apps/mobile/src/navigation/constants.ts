@@ -25,6 +25,7 @@ export const ROUTES = {
   WIZARD_PHOTOS: '/(app)/wizard/photos',
   WIZARD_ANNOTATE: '/(app)/wizard/annotate',
   WIZARD_VOICE: '/(app)/wizard/voice',
+  WIZARD_TRANSCRIPT: '/(app)/wizard/transcript',
   WIZARD_PROCESSING: '/(app)/wizard/processing',
   WIZARD_RECOMMENDATIONS: '/(app)/wizard/recommendations',
   WIZARD_QUOTE_ITEMS: '/(app)/wizard/quote-items',

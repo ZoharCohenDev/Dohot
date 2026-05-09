@@ -55,7 +55,8 @@
         {
           "photosPermission": "בחירת תמונות מהגלריה לדוחות"
         }
-      ]
+      ],
+      "expo-audio"
     ],
     "experiments": {
       "typedRoutes": true

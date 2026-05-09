@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -7,30 +7,36 @@ import {
   StyleSheet,
   StatusBar,
   Animated,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import {
+  useAudioRecorder,
+  RecordingPresets,
+  requestRecordingPermissionsAsync,
+  setAudioModeAsync,
+} from 'expo-audio';
 import { Header } from '@/components/layout';
 import { Icons } from '@/components/icons';
 import { fonts, voiceColors } from '@/theme/tokens';
 
 interface VoiceScreenProps {
-  onNext?: () => void;
+  onStop?: (audioUri: string) => void;
   onBack?: () => void;
+  transcribing?: boolean;
 }
 
-const SEGMENTS = [
-  { label: 'תיאור הממצא', time: '0:42', done: true },
-  { label: 'בדיקה תרמית', time: '0:18', done: true, current: true },
-  { label: 'ניתוח הסיבה', time: '—', done: false },
-  { label: 'המלצות', time: '—', done: false },
-];
-
-function VoiceWaveform() {
+function VoiceWaveform({ active }: { active: boolean }) {
   const anims = useRef(
     Array.from({ length: 36 }, () => new Animated.Value(0.3)),
   ).current;
 
   useEffect(() => {
+    if (!active) {
+      anims.forEach((a) => a.setValue(0.3));
+      return;
+    }
     const loops = anims.map((anim, i) =>
       Animated.loop(
         Animated.sequence([
@@ -42,7 +48,7 @@ function VoiceWaveform() {
     );
     loops.forEach((l) => l.start());
     return () => loops.forEach((l) => l.stop());
-  }, [anims]);
+  }, [anims, active]);
 
   const heights = Array.from({ length: 36 }, (_, i) => 8 + Math.abs(Math.sin(i * 0.6) * 30) + (i % 4) * 4);
 
@@ -56,6 +62,7 @@ function VoiceWaveform() {
             {
               height: h,
               transform: [{ scaleY: anims[i] ?? new Animated.Value(0.3) }],
+              opacity: active ? 0.65 : 0.25,
             },
           ]}
         />
@@ -64,20 +71,92 @@ function VoiceWaveform() {
   );
 }
 
-export function VoiceScreen({ onNext, onBack }: VoiceScreenProps) {
+function formatTime(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+export function VoiceScreen({ onStop, onBack, transcribing }: VoiceScreenProps) {
   const insets = useSafeAreaInsets();
+  const [isRecording, setIsRecording] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
+  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+
+  const startRecording = async () => {
+    try {
+      const perm = await requestRecordingPermissionsAsync();
+      if (!perm.granted) {
+        Alert.alert('אין הרשאה', 'יש לאפשר גישה למיקרופון בהגדרות הטלפון');
+        onBack?.();
+        return;
+      }
+      await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+      await recorder.prepareToRecordAsync();
+      recorder.record();
+      setIsRecording(true);
+    } catch {
+      Alert.alert('שגיאה', 'לא ניתן להתחיל הקלטה. נסה שוב.');
+      onBack?.();
+    }
+  };
+
+  const stopRecording = async (): Promise<string | null> => {
+    if (!recorder.isRecording) return null;
+    try {
+      await recorder.stop();
+      await setAudioModeAsync({ allowsRecording: false });
+    } catch {}
+    setIsRecording(false);
+    return recorder.uri ?? null;
+  };
+
+  // Auto-start on mount
+  useEffect(() => {
+    startRecording();
+    return () => {
+      if (recorder.isRecording) {
+        recorder.stop().catch(() => {});
+      }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Timer
+  useEffect(() => {
+    if (!isRecording) return;
+    const id = setInterval(() => setElapsed((e) => e + 1), 1000);
+    return () => clearInterval(id);
+  }, [isRecording]);
+
+  const handleDone = async () => {
+    const uri = await stopRecording();
+    if (uri) onStop?.(uri);
+  };
+
+  const handleCancel = async () => {
+    await stopRecording();
+    onBack?.();
+  };
+
+  const handleToggleRecording = async () => {
+    if (isRecording) {
+      await stopRecording();
+    } else {
+      setElapsed(0);
+      await startRecording();
+    }
+  };
 
   return (
     <View style={styles.root}>
       <StatusBar barStyle="light-content" />
-
-      {/* Aurora background */}
       <View style={styles.aurora} pointerEvents="none" />
 
       <Header
         step={4}
         ofSteps={5}
-        onBack={onBack}
+        onBack={handleCancel}
         transparent
         action={
           <Pressable style={styles.moreBtn}>
@@ -101,66 +180,64 @@ export function VoiceScreen({ onNext, onBack }: VoiceScreenProps) {
           <Text style={styles.titleItalic}>אנחנו נסדר את זה.</Text>
         </Text>
 
-        {/* Live transcript */}
+        {/* Transcript / status card */}
         <View style={styles.transcript}>
-          <Text style={[styles.transcriptLabel, { fontFamily: fonts.sans }]}>תמלול חי</Text>
-          <Text style={[styles.transcriptText, { fontFamily: fonts.sans }]}>
-            <Text style={styles.transcriptMuted}>נמצאה </Text>
-            <Text style={styles.transcriptHighlight}>נזילה פעילה</Text>
-            <Text style={styles.transcriptMuted}> בקיר המערבי של חדר השינה, ליד החלון, </Text>
-            <Text style={styles.transcriptHighlight}>כתם רטיבות בקוטר כ-40 ס״מ</Text>
-            <Text style={styles.transcriptMuted}>. בבדיקה תרמית זוהה </Text>
-            <Text style={styles.transcriptHighlight}>הפרש טמפרטורה של 4.2 מעלות</Text>
-            <Text style={styles.transcriptMuted}>, מה שמעיד על... </Text>
+          <Text style={[styles.transcriptLabel, { fontFamily: fonts.sans }]}>
+            {isRecording ? 'מקליט…' : 'הקלטה הסתיימה'}
           </Text>
-        </View>
-
-        {/* Segments */}
-        <View style={styles.segments}>
-          {SEGMENTS.map((seg, i) => (
-            <View
-              key={i}
-              style={[
-                styles.segment,
-                {
-                  backgroundColor: seg.current ? 'rgba(132,176,151,0.16)' : 'rgba(255,255,255,0.04)',
-                  borderWidth: 1,
-                  borderColor: seg.current ? 'rgba(132,176,151,0.4)' : 'transparent',
-                },
-              ]}
-            >
-              <View style={[styles.segDot, { backgroundColor: seg.done ? voiceColors.sageLight : 'rgba(255,255,255,0.10)' }]}>
-                {seg.done && <Icons.check size={14} color="#0F1612" stroke={3} />}
-              </View>
-              <Text style={[styles.segLabel, { color: seg.done ? voiceColors.textPrimary : voiceColors.textMuted, fontFamily: fonts.sans }]}>
-                {seg.label}
-              </Text>
-              <Text style={[styles.segTime, { fontFamily: fonts.sans }]}>{seg.time}</Text>
-            </View>
-          ))}
+          <Text style={[styles.transcriptText, { fontFamily: fonts.sans }]}>
+            {isRecording
+              ? 'דבר בחופשיות — התמלול ייוצר לאחר העיבוד'
+              : 'לחץ ✓ לעיבוד ויצירת הדוח, או על המיקרופון להקלטה חדשה'}
+          </Text>
         </View>
       </ScrollView>
 
       {/* Voice controls */}
       <View style={[styles.controls, { paddingBottom: insets.bottom + 24 }]}>
-        <VoiceWaveform />
+        {transcribing ? (
+          <View style={styles.transcribingRow}>
+            <ActivityIndicator size="small" color={voiceColors.sageLight} />
+            <Text style={[styles.transcribingText, { fontFamily: fonts.sans }]}>מתמלל…</Text>
+          </View>
+        ) : (
+          <VoiceWaveform active={isRecording} />
+        )}
 
-        <Text style={[styles.timer, { fontFamily: fonts.sans }]}>1:00 · מקליט</Text>
+        <Text style={[styles.timer, { fontFamily: fonts.sans }]}>
+          {formatTime(elapsed)} · {isRecording ? 'מקליט' : 'עצר'}
+        </Text>
 
         <View style={styles.controlRow}>
           {/* Cancel */}
-          <Pressable style={styles.controlSideBtn}>
+          <Pressable style={styles.controlSideBtn} onPress={handleCancel} disabled={!!transcribing}>
             <Icons.close size={22} color="#fff" />
           </Pressable>
 
-          {/* Main stop button */}
-          <Pressable style={styles.bigMicBtn}>
-            <View style={styles.stopSquare} />
+          {/* Stop / restart */}
+          <Pressable
+            style={styles.bigMicBtn}
+            onPress={handleToggleRecording}
+            disabled={!!transcribing}
+          >
+            {isRecording ? (
+              <View style={styles.stopSquare} />
+            ) : (
+              <Icons.micFill size={36} color={voiceColors.bg} />
+            )}
           </Pressable>
 
           {/* Done */}
-          <Pressable onPress={onNext} style={[styles.controlSideBtn, { backgroundColor: voiceColors.sageLight }]}>
-            <Icons.check size={26} color="#0F1612" stroke={3} />
+          <Pressable
+            onPress={handleDone}
+            style={[styles.controlSideBtn, { backgroundColor: voiceColors.sageLight }]}
+            disabled={!!transcribing}
+          >
+            {transcribing ? (
+              <ActivityIndicator size="small" color="#0F1612" />
+            ) : (
+              <Icons.check size={26} color="#0F1612" stroke={3} />
+            )}
           </Pressable>
         </View>
       </View>
@@ -179,11 +256,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   scroll: { flex: 1 },
-  content: {
-    paddingHorizontal: 24,
-    paddingBottom: 220,
-    gap: 16,
-  },
+  content: { paddingHorizontal: 24, paddingBottom: 220, gap: 16 },
   moreBtn: {
     width: 44,
     height: 44,
@@ -192,11 +265,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  aiLabel: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
+  aiLabel: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   aiLabelText: { color: voiceColors.sageLight, fontSize: 12, fontWeight: '700', letterSpacing: 1 },
   title: {
     fontSize: 30,
@@ -212,36 +281,20 @@ const styles = StyleSheet.create({
     backgroundColor: voiceColors.transcriptBg,
     borderWidth: 1,
     borderColor: voiceColors.transcriptBorder,
-    minHeight: 180,
+    minHeight: 120,
+    gap: 10,
   },
   transcriptLabel: {
     color: voiceColors.sageLight,
     fontSize: 11,
     fontWeight: '700',
     letterSpacing: 1,
-    marginBottom: 12,
   },
-  transcriptText: { fontSize: 15, lineHeight: 25 },
-  transcriptMuted: { color: voiceColors.textSecondary },
-  transcriptHighlight: { color: voiceColors.textPrimary },
-  segments: { gap: 8 },
-  segment: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    padding: 10,
-    paddingHorizontal: 14,
-    borderRadius: 12,
+  transcriptText: {
+    fontSize: 15,
+    lineHeight: 24,
+    color: voiceColors.textSecondary,
   },
-  segDot: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  segLabel: { flex: 1, fontSize: 14 },
-  segTime: { color: voiceColors.textMuted, fontSize: 12 },
   controls: {
     position: 'absolute',
     bottom: 0,
@@ -262,7 +315,18 @@ const styles = StyleSheet.create({
     width: 3,
     borderRadius: 2,
     backgroundColor: voiceColors.sageLight,
-    opacity: 0.65,
+  },
+  transcribingRow: {
+    height: 56,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+  },
+  transcribingText: {
+    color: voiceColors.sageLight,
+    fontSize: 14,
+    fontWeight: '600',
   },
   timer: {
     color: voiceColors.sageLight,

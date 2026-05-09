@@ -1,4 +1,4 @@
-import OpenAI from 'openai';
+import OpenAI, { toFile } from 'openai';
 
 const client = new OpenAI({ apiKey: process.env['OPENAI_API_KEY'] });
 
@@ -83,4 +83,15 @@ export async function cleanReportText(
     professionalText: parsed.professionalText,
     recommendations: parsed.recommendations as CleanReportResult['recommendations'],
   };
+}
+
+export async function transcribeAudio(base64Audio: string): Promise<string> {
+  const buffer = Buffer.from(base64Audio, 'base64');
+  const file = await toFile(buffer, 'recording.m4a', { type: 'audio/mp4' });
+  const result = await client.audio.transcriptions.create({
+    model: 'whisper-1',
+    file,
+    language: 'he',
+  });
+  return result.text;
 }

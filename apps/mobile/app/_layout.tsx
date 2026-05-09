@@ -42,8 +42,7 @@ export default function RootLayout() {
             <Stack screenOptions={{ headerShown: false }}>
               <Stack.Screen name="index" />
               <Stack.Screen name="(auth)" options={{ animation: 'fade' }} />
-              <Stack.Screen name="(onboarding)" options={{ animation: 'slide_from_left' }} />
-              <Stack.Screen name="(app)" options={{ animation: 'fade' }} />
+<Stack.Screen name="(app)" options={{ animation: 'fade' }} />
             </Stack>
           </AuthProvider>
         </SettingsProvider>

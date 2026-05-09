@@ -10,6 +10,7 @@ export type WizardStep =
   | 'photos'
   | 'voice-idle'
   | 'voice'
+  | 'transcript'
   | 'processing'
   | 'recommendations'
   | 'quote-items'
@@ -38,7 +39,7 @@ export const DOCUMENT_TYPES: Record<DocType, DocumentTypeConfig> = {
     desc: 'תיעוד ממצאים והמלצות',
     detail: 'בדיקת שטח, גילוי ליקויים, המלצות מקצועיות',
     hasAI: true,
-    steps: ['customer', 'issue', 'photos', 'voice-idle', 'voice', 'processing', 'recommendations', 'preview', 'send'],
+    steps: ['customer', 'issue', 'photos', 'voice-idle', 'voice', 'transcript', 'processing', 'recommendations', 'preview', 'send'],
     progressSteps: ['customer', 'issue', 'photos', 'recommendations', 'preview'],
     titlePrefix: 'דוח בדיקה –',
     customerNextLabel: 'המשך לסוג תקלה',
@@ -76,6 +77,7 @@ export const STEP_ROUTES: Record<WizardStep, string> = {
   'photos':          '/(app)/wizard/photos',
   'voice-idle':      '/(app)/wizard/voice-idle',
   'voice':           '/(app)/wizard/voice',
+  'transcript':      '/(app)/wizard/transcript',
   'processing':      '/(app)/wizard/processing',
   'recommendations': '/(app)/wizard/recommendations',
   'quote-items':     '/(app)/wizard/quote-items',
