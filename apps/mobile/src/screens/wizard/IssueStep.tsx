@@ -37,8 +37,8 @@ export function IssueStep({ colors = lightColors, onNext, onBack }: IssueStepPro
   const profession = (businessProfile?.profession ?? 'other') as Profession;
   const issues: IssueOption[] = PROFESSION_ISSUES[profession] ?? PROFESSION_ISSUES.other;
 
-  const [selectedId, setSelectedId] = React.useState<string>(wizard.state.issueType || issues[0]?.id || '');
-  const [issueNote, setIssueNote] = React.useState(wizard.state.issueNote);
+  const [selectedId, setSelectedId] = React.useState<string>(wizard.currentIssue.issueType || issues[0]?.id || '');
+  const [issueNote, setIssueNote] = React.useState(wizard.currentIssue.issueNote);
   const [customText, setCustomText] = React.useState('');
   const [attendees, setAttendeesLocal] = React.useState(wizard.state.attendees);
 

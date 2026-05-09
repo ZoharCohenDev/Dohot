@@ -13,6 +13,7 @@ interface TranscriptReviewScreenProps {
   colors?: typeof lightColors;
   onNext?: () => void;
   onBack?: () => void;
+  onAddIssue?: () => void;
   isTranscribing?: boolean;
   transcriptionFailed?: boolean;
 }
@@ -21,31 +22,39 @@ export function TranscriptReviewScreen({
   colors = lightColors,
   onNext,
   onBack,
+  onAddIssue,
   isTranscribing = false,
   transcriptionFailed = false,
 }: TranscriptReviewScreenProps) {
   const wizard = useWizard();
   const { triggerExit } = useWizardExit();
-  const [transcript, setTranscript] = useState(wizard.state.voiceTranscript);
+  const [transcript, setTranscript] = useState(wizard.currentIssue.description);
   const [notes, setNotes] = useState('');
 
-  // Sync local state when wizard transcript is populated (e.g. transcription finishes)
+  // Sync local state when wizard transcript is populated after async transcription
   useEffect(() => {
-    if (wizard.state.voiceTranscript && !transcript) {
-      setTranscript(wizard.state.voiceTranscript);
+    if (wizard.currentIssue.description && !transcript) {
+      setTranscript(wizard.currentIssue.description);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [wizard.state.voiceTranscript]);
+  }, [wizard.currentIssue.description]);
 
   const hasAudio = !!wizard.state.recordedAudioUri;
   const isEmpty = !transcript.trim();
 
-  const handleSend = () => {
-    const combined = notes.trim()
+  const buildCombined = () =>
+    notes.trim()
       ? `${transcript.trim()}\n\nהמלצות ראשוניות מהטכנאי:\n${notes.trim()}`
       : transcript.trim();
-    wizard.setVoiceTranscript(combined);
+
+  const handleSend = () => {
+    wizard.setVoiceTranscript(buildCombined());
     onNext?.();
+  };
+
+  const handleAddIssue = () => {
+    wizard.setVoiceTranscript(buildCombined());
+    onAddIssue?.();
   };
 
   const statusBanner = (() => {
@@ -188,17 +197,30 @@ export function TranscriptReviewScreen({
       </ScrollView>
 
       <FixedBottom colors={colors}>
-        <Button
-          kind="primary"
-          size="lg"
-          full
-          disabled={isTranscribing}
-          onPress={handleSend}
-          iconRight={<Icons.sparkle size={18} color={colors.bg} />}
-          colors={colors}
-        >
-          {isTranscribing ? 'מתמלל…' : 'שלח ל-AI'}
-        </Button>
+        <View style={styles.btnRow}>
+          {onAddIssue && (
+            <Button
+              kind="ghost"
+              size="lg"
+              disabled={isTranscribing}
+              onPress={handleAddIssue}
+              colors={colors}
+            >
+              + הוסף תקלה
+            </Button>
+          )}
+          <Button
+            kind="primary"
+            size="lg"
+            full
+            disabled={isTranscribing}
+            onPress={handleSend}
+            iconRight={<Icons.sparkle size={18} color={colors.bg} />}
+            colors={colors}
+          >
+            {isTranscribing ? 'מתמלל…' : onAddIssue ? 'סיים ושלח ל-AI' : 'שלח ל-AI'}
+          </Button>
+        </View>
       </FixedBottom>
     </View>
   );
@@ -278,4 +300,6 @@ const styles = StyleSheet.create({
     borderRadius: 14,
   },
   infoText: { flex: 1, fontSize: 13, lineHeight: 20 },
+
+  btnRow: { flexDirection: 'row', gap: 10, alignItems: 'center' },
 });

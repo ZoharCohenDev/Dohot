@@ -85,6 +85,7 @@ function ReportContent({
 }) {
   const address = buildAddress(state);
   const propType = propertyLabel(state.propertyType);
+  const issues = state.reportIssues;
 
   return (
     <>
@@ -123,13 +124,15 @@ function ReportContent({
             </View>
           )}
         </View>
-        {!!state.issueLabel && (
-          <View style={[styles.visitReasonBox]}>
-            <Text style={styles.visitReasonLabel}>סיבת הקריאה</Text>
-            <Text style={styles.visitReasonValue}>{state.issueLabel}</Text>
-            {!!state.issueNote && (
-              <Text style={styles.visitReasonNote}>{state.issueNote}</Text>
-            )}
+        {/* Summary of all issue types */}
+        {issues.length > 0 && (
+          <View style={styles.visitReasonBox}>
+            <Text style={styles.visitReasonLabel}>סוגי תקלות שנבדקו</Text>
+            {issues.map((issue, i) => (
+              <Text key={issue.id} style={[styles.visitReasonValue, i > 0 && { marginTop: 2 }]}>
+                {`${i + 1}. ${issue.issueLabel}`}
+              </Text>
+            ))}
           </View>
         )}
       </View>
@@ -164,71 +167,66 @@ function ReportContent({
         </View>
       </View>
 
-      {/* ── PAGE 3: Problem & Photos ── */}
-      <PageDivider pageNum={3} label="תיאור הבעיה" />
-      <View style={styles.pdfSection}>
-        <SectionTitle num={3} label="תיאור הבעיה והממצאים" />
-        {!!state.aiSummary ? (
-          <Text style={styles.pdfBody}>{state.aiSummary}</Text>
-        ) : state.issueNote ? (
-          <Text style={styles.pdfBody}>{state.issueNote}</Text>
-        ) : (
-          <Text style={styles.pdfBody}>לא צוין תיאור מפורט.</Text>
-        )}
-        {!!state.voiceTranscript && (
-          <View style={{ marginTop: 8 }}>
-            <Text style={styles.metaItemLabel}>הערות שטח</Text>
-            <Text style={styles.pdfBody}>{state.voiceTranscript}</Text>
-          </View>
-        )}
-      </View>
+      {/* ── PAGES 3+: One page per issue ── */}
+      {issues.map((issue, i) => (
+        <React.Fragment key={issue.id}>
+          <PageDivider pageNum={3 + i} label={issue.issueLabel} />
 
-      {state.photos.length > 0 && (
-        <View style={styles.pdfSection}>
-          <SectionTitle num={4} label="תיעוד תמונות" />
-          <View style={styles.pdfImageGrid}>
-            {state.photos.slice(0, 6).map((uri, i) => (
-              <View key={uri} style={styles.pdfImageCell}>
-                <Image source={{ uri }} style={styles.pdfImage} resizeMode="cover" />
-                <Text style={styles.pdfImageLabel}>{`תמונה ${i + 1}`}</Text>
+          {/* Issue description */}
+          <View style={styles.pdfSection}>
+            <SectionTitle num={3 + i} label={issue.issueLabel} />
+            <Text style={styles.pdfBody}>
+              {issue.aiSummary || issue.description || issue.issueNote || 'לא צוין תיאור מפורט.'}
+            </Text>
+            {!!issue.issueNote && !issue.aiSummary && (
+              <View style={{ marginTop: 6 }}>
+                <Text style={styles.metaItemLabel}>הערות</Text>
+                <Text style={styles.pdfBody}>{issue.issueNote}</Text>
               </View>
-            ))}
+            )}
           </View>
-        </View>
-      )}
 
-      {/* ── PAGE 4: Recommendations ── */}
-      <PageDivider pageNum={4} label="המלצות" />
-      {state.recommendations.length > 0 ? (
-        <View style={styles.pdfSection}>
-          <SectionTitle num={5} label="המלצות לטיפול" />
-          {state.recommendations.map((r: Recommendation, i: number) => (
-            <View
-              key={i}
-              style={[styles.pdfRecRow, i < state.recommendations.length - 1 && styles.pdfRecBorder]}
-            >
-              <Text style={styles.pdfRecNum}>{`${i + 1}`}</Text>
-              <View style={styles.pdfRecPill}>
-                <Text style={styles.pdfRecPillText}>{r.priority}</Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.pdfRecTitle}>{r.title}</Text>
-                {!!r.description && <Text style={styles.pdfRecDesc}>{r.description}</Text>}
+          {/* Issue photos */}
+          {issue.photos.length > 0 && (
+            <View style={styles.pdfSection}>
+              <View style={styles.pdfImageGrid}>
+                {issue.photos.slice(0, 4).map((uri, j) => (
+                  <View key={uri} style={styles.pdfImageCell}>
+                    <Image source={{ uri }} style={styles.pdfImage} resizeMode="cover" />
+                    <Text style={styles.pdfImageLabel}>{`תמונה ${j + 1}`}</Text>
+                  </View>
+                ))}
               </View>
             </View>
-          ))}
-        </View>
-      ) : (
-        <View style={styles.pdfSection}>
-          <SectionTitle num={5} label="המלצות לטיפול" />
-          <Text style={styles.pdfBody}>לא צוינו המלצות ספציפיות.</Text>
-        </View>
-      )}
+          )}
 
-      {/* ── PAGE 5: Legal Disclaimer ── */}
-      <PageDivider pageNum={5} label="הצהרה משפטית" />
+          {/* Issue recommendations */}
+          {issue.recommendations.length > 0 && (
+            <View style={styles.pdfSection}>
+              {issue.recommendations.map((r: Recommendation, j: number) => (
+                <View
+                  key={j}
+                  style={[styles.pdfRecRow, j < issue.recommendations.length - 1 && styles.pdfRecBorder]}
+                >
+                  <Text style={styles.pdfRecNum}>{`${j + 1}`}</Text>
+                  <View style={styles.pdfRecPill}>
+                    <Text style={styles.pdfRecPillText}>{r.priority}</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.pdfRecTitle}>{r.title}</Text>
+                    {!!r.description && <Text style={styles.pdfRecDesc}>{r.description}</Text>}
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
+        </React.Fragment>
+      ))}
+
+      {/* ── Legal Disclaimer ── */}
+      <PageDivider pageNum={3 + issues.length} label="הצהרה משפטית" />
       <View style={styles.pdfSection}>
-        <SectionTitle num={6} label="הגבלת אחריות" />
+        <SectionTitle num={3 + issues.length} label="הגבלת אחריות" />
         <Text style={[styles.pdfBody, styles.disclaimerText]}>{LEGAL_DISCLAIMER}</Text>
       </View>
     </>
@@ -325,9 +323,9 @@ function WarrantyContent({ state }: { state: ReturnType<typeof useWizard>['state
         </Text>
       </View>
 
-      {state.photos.length > 0 && (
+      {(state.reportIssues[0]?.photos ?? []).length > 0 && (
         <View style={styles.pdfImageGrid}>
-          {state.photos.slice(0, 4).map((uri, i) => (
+          {(state.reportIssues[0]?.photos ?? []).slice(0, 4).map((uri, i) => (
             <View key={uri} style={styles.pdfImageCell}>
               <Image source={{ uri }} style={styles.pdfImage} resizeMode="cover" />
               <Text style={styles.pdfImageLabel}>{`${i + 1}`}</Text>
@@ -496,7 +494,7 @@ const styles = StyleSheet.create({
 
   // Header
   pdfHeader: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     paddingBottom: 14,
@@ -504,9 +502,9 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     gap: 10,
   },
-  pdfDocTitle: { fontFamily: fonts.serif, fontSize: 16, fontWeight: '700', color: '#1B1916', letterSpacing: -0.3 },
-  pdfDocRef: { fontSize: 8, color: '#4A4641', marginTop: 4, letterSpacing: 0.5 },
-  pdfBrandSide: { alignItems: 'flex-end', minWidth: 70, maxWidth: 100 },
+  pdfDocTitle: { fontFamily: fonts.serif, fontSize: 16, fontWeight: '700', color: '#1B1916', letterSpacing: -0.3, textAlign: 'right' },
+  pdfDocRef: { fontSize: 8, color: '#4A4641', marginTop: 4, letterSpacing: 0.5, textAlign: 'right' },
+  pdfBrandSide: { alignItems: 'flex-start', minWidth: 70, maxWidth: 100 },
   pdfBrandMark: {
     width: 28, height: 28, borderRadius: 7,
     backgroundColor: '#1B1916',
@@ -514,7 +512,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   pdfBrandLetter: { color: '#F5F3EE', fontFamily: fonts.serif, fontSize: 16, fontWeight: '700' },
-  pdfBrandName: { fontSize: 8, fontWeight: '600', color: '#1B1916', textAlign: 'right' },
+  pdfBrandName: { fontSize: 8, fontWeight: '600', color: '#1B1916', textAlign: 'left' },
   pdfTaxId: { fontSize: 7, color: '#807A72' },
 
   // Page divider
@@ -533,14 +531,14 @@ const styles = StyleSheet.create({
   pdfSection: { marginBottom: 12 },
   pdfSectionTitle: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
   pdfSectionLine: { width: 12, height: 1, backgroundColor: '#1B1916' },
-  pdfSectionLabel: { fontFamily: fonts.serif, fontSize: 11, fontWeight: '700', color: '#1B1916' },
-  pdfBody: { fontSize: 9, color: '#1B1916', lineHeight: 14 },
+  pdfSectionLabel: { fontFamily: fonts.serif, fontSize: 11, fontWeight: '700', color: '#1B1916', textAlign: 'right', flex: 1 },
+  pdfBody: { fontSize: 9, color: '#1B1916', lineHeight: 14, textAlign: 'right', writingDirection: 'rtl' },
 
   // Meta grid
   metaGrid: { gap: 5, marginBottom: 8 },
-  metaItem: { flexDirection: 'row', gap: 6, alignItems: 'flex-start' },
-  metaItemLabel: { fontSize: 7, color: '#807A72', minWidth: 55, paddingTop: 1, textTransform: 'uppercase', letterSpacing: 0.3 },
-  metaItemValue: { fontSize: 9, color: '#1B1916', fontWeight: '600', flex: 1 },
+  metaItem: { flexDirection: 'row-reverse', gap: 6, alignItems: 'flex-start' },
+  metaItemLabel: { fontSize: 7, color: '#807A72', minWidth: 55, paddingTop: 1, textTransform: 'uppercase', letterSpacing: 0.3, textAlign: 'right' },
+  metaItemValue: { fontSize: 9, color: '#1B1916', fontWeight: '600', flex: 1, textAlign: 'right' },
 
   // Visit reason box
   visitReasonBox: {
@@ -548,12 +546,12 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     padding: 8,
     marginTop: 4,
-    borderLeftWidth: 2,
-    borderLeftColor: '#1B1916',
+    borderRightWidth: 2,
+    borderRightColor: '#1B1916',
   },
-  visitReasonLabel: { fontSize: 7, color: '#807A72', textTransform: 'uppercase', letterSpacing: 0.3, marginBottom: 3 },
-  visitReasonValue: { fontSize: 9, fontWeight: '700', color: '#1B1916' },
-  visitReasonNote: { fontSize: 8.5, color: '#4A4641', marginTop: 2, lineHeight: 13 },
+  visitReasonLabel: { fontSize: 7, color: '#807A72', textTransform: 'uppercase', letterSpacing: 0.3, marginBottom: 3, textAlign: 'right' },
+  visitReasonValue: { fontSize: 9, fontWeight: '700', color: '#1B1916', textAlign: 'right' },
+  visitReasonNote: { fontSize: 8.5, color: '#4A4641', marginTop: 2, lineHeight: 13, textAlign: 'right' },
 
   // Photos
   pdfImageGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 12 },
@@ -562,21 +560,21 @@ const styles = StyleSheet.create({
   pdfImageLabel: { fontSize: 7, color: '#807A72', textAlign: 'center', marginTop: 2 },
 
   // Legal disclaimer
-  disclaimerText: { fontSize: 8, color: '#807A72', lineHeight: 13, fontStyle: 'italic' },
+  disclaimerText: { fontSize: 8, color: '#807A72', lineHeight: 13, fontStyle: 'italic', textAlign: 'right', writingDirection: 'rtl' },
 
   // Recommendations
-  pdfRecRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingVertical: 5 },
+  pdfRecRow: { flexDirection: 'row-reverse', alignItems: 'flex-start', gap: 8, paddingVertical: 5 },
   pdfRecBorder: { borderBottomWidth: 0.5, borderBottomColor: '#E5E5E5' },
-  pdfRecNum: { fontSize: 8, fontWeight: '700', width: 14, paddingTop: 1 },
+  pdfRecNum: { fontSize: 8, fontWeight: '700', width: 14, paddingTop: 1, textAlign: 'right' },
   pdfRecPill: { backgroundColor: '#F8E9DF', borderRadius: 4, paddingVertical: 1, paddingHorizontal: 5, alignSelf: 'flex-start' },
   pdfRecPillText: { fontSize: 7, fontWeight: '700', color: '#A04E2D' },
-  pdfRecTitle: { fontSize: 8, fontWeight: '700', color: '#1B1916' },
-  pdfRecDesc: { fontSize: 7.5, color: '#4A4641', marginTop: 1 },
+  pdfRecTitle: { fontSize: 8, fontWeight: '700', color: '#1B1916', textAlign: 'right' },
+  pdfRecDesc: { fontSize: 7.5, color: '#4A4641', marginTop: 1, textAlign: 'right' },
 
   // Quote item list
   quoteItem: { paddingVertical: 7 },
   quoteItemBorder: { borderBottomWidth: 0.5, borderBottomColor: '#E8E4DE' },
-  quoteItemHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
+  quoteItemHeader: { flexDirection: 'row-reverse', alignItems: 'flex-start', gap: 6 },
   quoteItemNumBadge: {
     width: 14, height: 14, borderRadius: 3,
     backgroundColor: '#1B1916',
@@ -584,20 +582,20 @@ const styles = StyleSheet.create({
     flexShrink: 0, marginTop: 1,
   },
   quoteItemNum: { fontSize: 7, fontWeight: '700', color: '#F5F3EE' },
-  quoteItemTitle: { flex: 1, fontSize: 9, fontWeight: '700', color: '#1B1916' },
+  quoteItemTitle: { flex: 1, fontSize: 9, fontWeight: '700', color: '#1B1916', textAlign: 'right' },
   quoteItemPrice: { fontSize: 9, fontWeight: '800', color: '#1B1916', flexShrink: 0 },
-  quoteItemDesc: { fontSize: 8, color: '#807A72', lineHeight: 12, marginTop: 3, paddingStart: 20 },
+  quoteItemDesc: { fontSize: 8, color: '#807A72', lineHeight: 12, marginTop: 3, paddingRight: 20, textAlign: 'right' },
   quoteTotals: { marginTop: 8, borderTopWidth: 0.5, borderTopColor: '#C7C1B6', paddingTop: 6, gap: 3 },
-  quoteTotalRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  quoteTotalLabel: { fontSize: 8, color: '#4A4641' },
+  quoteTotalRow: { flexDirection: 'row-reverse', justifyContent: 'space-between' },
+  quoteTotalLabel: { fontSize: 8, color: '#4A4641', textAlign: 'right' },
   quoteTotalValue: { fontSize: 8, color: '#1B1916', fontWeight: '600' },
   quoteTotalFinalRow: { borderTopWidth: 0.5, borderTopColor: '#C7C1B6', paddingTop: 4, marginTop: 2 },
-  quoteTotalFinalLabel: { fontSize: 9, fontWeight: '700', color: '#1B1916' },
+  quoteTotalFinalLabel: { fontSize: 9, fontWeight: '700', color: '#1B1916', textAlign: 'right' },
   quoteTotalFinalValue: { fontSize: 9, fontWeight: '700', color: '#1B1916' },
 
   // Quote validity
   quoteValidityRow: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     alignItems: 'center',
     gap: 5,
     marginTop: 12,
@@ -605,22 +603,22 @@ const styles = StyleSheet.create({
     borderTopWidth: 0.5,
     borderTopColor: '#C7C1B6',
   },
-  quoteValidityText: { fontSize: 8, color: '#4A4641', fontWeight: '600' },
+  quoteValidityText: { fontSize: 8, color: '#4A4641', fontWeight: '600', textAlign: 'right' },
 
   // Warranty
-  warrantyTermRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 },
-  warrantyTermLabel: { fontSize: 8, color: '#807A72' },
+  warrantyTermRow: { flexDirection: 'row-reverse', justifyContent: 'space-between', paddingVertical: 4 },
+  warrantyTermLabel: { fontSize: 8, color: '#807A72', textAlign: 'right' },
   warrantyTermValue: { fontSize: 8, fontWeight: '700', color: '#1B1916' },
-  warrantyConditionRow: { flexDirection: 'row', gap: 5, alignItems: 'flex-start' },
-  warrantyConditionNum: { fontSize: 8, fontWeight: '700', color: '#1B1916', minWidth: 14 },
-  warrantyConditionText: { fontSize: 8, color: '#1B1916', lineHeight: 13, flex: 1 },
+  warrantyConditionRow: { flexDirection: 'row-reverse', gap: 5, alignItems: 'flex-start' },
+  warrantyConditionNum: { fontSize: 8, fontWeight: '700', color: '#1B1916', minWidth: 14, textAlign: 'right' },
+  warrantyConditionText: { fontSize: 8, color: '#1B1916', lineHeight: 13, flex: 1, textAlign: 'right' },
 
   // Signature
   pdfSigRow: {
-    flexDirection: 'row', justifyContent: 'space-between',
+    flexDirection: 'row-reverse', justifyContent: 'space-between',
     alignItems: 'flex-end', marginTop: 22, paddingTop: 14, borderTopWidth: 0.5,
   },
-  pdfSigName: { fontSize: 7, color: '#807A72', marginTop: 2 },
+  pdfSigName: { fontSize: 7, color: '#807A72', marginTop: 2, textAlign: 'right' },
   pdfQrPlaceholder: { fontSize: 7, color: '#807A72', padding: 8, borderWidth: 0.5, borderColor: '#E5E5E5', borderRadius: 4 },
 
   // Bottom

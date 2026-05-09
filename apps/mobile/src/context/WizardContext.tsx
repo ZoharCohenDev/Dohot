@@ -18,6 +18,17 @@ export interface WizardQuoteItem {
   unitPrice: number;
 }
 
+export interface ReportIssue {
+  id: string;
+  issueType: string;
+  issueLabel: string;
+  issueNote: string;
+  photos: string[];
+  description: string;    // voice transcript + manual edits (pre-AI)
+  aiSummary: string;
+  recommendations: Recommendation[];
+}
+
 const DEFAULT_WARRANTY_CONDITIONS = [
   'האחריות חלה על עבודת ההתקנה / התיקון שבוצעה.',
   'האחריות אינה חלה על נזקים הנגרמים מכוח עליון, שימוש לרעה או פגיעה מכוונת.',
@@ -28,9 +39,26 @@ function todayString(): string {
   return new Date().toLocaleDateString('he-IL', { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
+function newIssue(id: string): ReportIssue {
+  return {
+    id,
+    issueType: 'leak',
+    issueLabel: 'גילוי נזילה',
+    issueNote: '',
+    photos: [],
+    description: '',
+    aiSummary: '',
+    recommendations: [],
+  };
+}
+
+function updateIssueAt(issues: ReportIssue[], index: number, patch: Partial<ReportIssue>): ReportIssue[] {
+  return issues.map((issue, i) => (i === index ? { ...issue, ...patch } : issue));
+}
+
 interface WizardState {
   docType: DocType;
-  // Customer (shared)
+  // Customer
   customerName: string;
   customerPhone: string;
   customerEmail: string;
@@ -40,59 +68,66 @@ interface WizardState {
   customerApartment: string;
   customerFloor: string;
   customerAddress: string;
-  // Report-specific
+  // Report visit metadata
   propertyType: PropertyType;
-  issueType: string;
-  issueLabel: string;
-  issueNote: string;
-  attendees: string;         // people present during inspection
-  inspectionDate: string;    // formatted date, auto-set to today
-  photos: string[];
+  attendees: string;
+  inspectionDate: string;
+  // Multi-issue report data
+  reportIssues: ReportIssue[];
+  currentIssueIndex: number;
+  // Temp: current recording (not per-issue — cleared when adding a new issue)
   recordedAudioUri: string;
-  voiceTranscript: string;
-  aiSummary: string;
-  recommendations: Recommendation[];
-  // Quote-specific
+  // Quote
   quoteItems: WizardQuoteItem[];
   quoteNotes: string;
-  quoteValidityDate: string; // quote validity date label
-  // Warranty-specific
+  quoteValidityDate: string;
+  // Warranty
   warrantyDuration: string;
-  warrantyConditions: string[];   // was string, now a list
+  warrantyConditions: string[];
   warrantyWorkDescription: string;
-  // Shared output
+  // Output
   documentId: string | null;
   pdfUrl: string | null;
 }
 
 interface WizardContextValue {
   state: WizardState;
+  currentIssue: ReportIssue;
   saving: boolean;
   setDocType: (t: DocType) => void;
   setCustomer: (fields: CustomerFields) => void;
   setPropertyType: (t: PropertyType) => void;
-  setIssueData: (id: string, label: string) => void;
-  setIssueNote: (n: string) => void;
   setAttendees: (attendees: string) => void;
   setInspectionDate: (date: string) => void;
+  // Current issue operations
+  setIssueData: (type: string, label: string) => void;
+  setIssueNote: (note: string) => void;
   addPhoto: (uri: string) => void;
   removePhoto: (uri: string) => void;
   replacePhoto: (oldUri: string, newUri: string) => void;
   setRecordedAudioUri: (uri: string) => void;
-  setVoiceTranscript: (t: string) => void;
+  setVoiceTranscript: (text: string) => void;
   setAiResult: (summary: string, recommendations: Recommendation[]) => void;
   setRecommendations: (recs: Recommendation[]) => void;
+  // Multi-issue
+  addNewIssue: () => void;
+  setAiResultForIssue: (index: number, aiSummary: string, recs: Recommendation[]) => void;
+  setAllAiResults: (results: { index: number; aiSummary: string; recommendations: Recommendation[] }[]) => void;
+  setAllIssueRecommendations: (updates: { index: number; aiSummary: string; recs: Recommendation[] }[]) => void;
+  // Quote
   setQuoteItems: (items: WizardQuoteItem[]) => void;
   setQuoteNotes: (n: string) => void;
   setQuoteValidityDate: (date: string) => void;
+  // Warranty
   setWarrantyData: (duration: string, conditions: string[], workDescription: string) => void;
+  // Document
   initDraft: (professionalId: string, fields: CustomerFields) => Promise<void>;
   saveDocument: (professionalId: string) => Promise<void>;
   setPdfUrl: (url: string) => void;
   reset: () => void;
 }
 
-const DEFAULT: WizardState = {
+const DEFAULT_STATE: WizardState = {
   docType: 'report',
   customerName: '',
   customerPhone: '',
@@ -104,16 +139,11 @@ const DEFAULT: WizardState = {
   customerFloor: '',
   customerAddress: '',
   propertyType: 'apartment',
-  issueType: 'leak',
-  issueLabel: 'גילוי נזילה',
-  issueNote: '',
   attendees: '',
   inspectionDate: todayString(),
-  photos: [],
+  reportIssues: [newIssue('1')],
+  currentIssueIndex: 0,
   recordedAudioUri: '',
-  voiceTranscript: '',
-  aiSummary: '',
-  recommendations: [],
   quoteItems: [],
   quoteNotes: '',
   quoteValidityDate: '',
@@ -125,15 +155,16 @@ const DEFAULT: WizardState = {
 };
 
 const WizardContext = createContext<WizardContextValue>({
-  state: DEFAULT,
+  state: DEFAULT_STATE,
+  currentIssue: newIssue('1'),
   saving: false,
   setDocType: () => {},
-  setCustomer: (_f: CustomerFields) => {},
+  setCustomer: () => {},
   setPropertyType: () => {},
-  setIssueData: () => {},
-  setIssueNote: () => {},
   setAttendees: () => {},
   setInspectionDate: () => {},
+  setIssueData: () => {},
+  setIssueNote: () => {},
   addPhoto: () => {},
   removePhoto: () => {},
   replacePhoto: () => {},
@@ -141,6 +172,10 @@ const WizardContext = createContext<WizardContextValue>({
   setVoiceTranscript: () => {},
   setAiResult: () => {},
   setRecommendations: () => {},
+  addNewIssue: () => {},
+  setAiResultForIssue: () => {},
+  setAllAiResults: () => {},
+  setAllIssueRecommendations: () => {},
   setQuoteItems: () => {},
   setQuoteNotes: () => {},
   setQuoteValidityDate: () => {},
@@ -156,14 +191,15 @@ function docTitle(docType: DocType, customerName: string): string {
 }
 
 export function WizardProvider({ children }: { children: React.ReactNode }) {
-  const [state, setState] = useState<WizardState>(DEFAULT);
+  const [state, setState] = useState<WizardState>(DEFAULT_STATE);
   const [saving, setSaving] = useState(false);
 
-  const setDocType = (docType: DocType) =>
-    setState((s) => ({ ...s, docType }));
+  const currentIssue = state.reportIssues[state.currentIssueIndex] ?? newIssue('1');
+
+  const setDocType = (docType: DocType) => setState(s => ({ ...s, docType }));
 
   const setCustomer = (fields: CustomerFields) =>
-    setState((s) => ({
+    setState(s => ({
       ...s,
       customerName: fields.name,
       customerPhone: fields.phone,
@@ -179,74 +215,136 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
       ].filter(Boolean).join(', '),
     }));
 
-  const setPropertyType = (propertyType: PropertyType) =>
-    setState((s) => ({ ...s, propertyType }));
+  const setPropertyType = (propertyType: PropertyType) => setState(s => ({ ...s, propertyType }));
+
+  const setAttendees = (attendees: string) => setState(s => ({ ...s, attendees }));
+
+  const setInspectionDate = (inspectionDate: string) => setState(s => ({ ...s, inspectionDate }));
+
+  // ── Current issue operations ──────────────────────────────────────────────
 
   const setIssueData = (issueType: string, issueLabel: string) =>
-    setState((s) => ({ ...s, issueType, issueLabel }));
+    setState(s => ({
+      ...s,
+      reportIssues: updateIssueAt(s.reportIssues, s.currentIssueIndex, { issueType, issueLabel }),
+    }));
 
   const setIssueNote = (issueNote: string) =>
-    setState((s) => ({ ...s, issueNote }));
-
-  const setAttendees = (attendees: string) =>
-    setState((s) => ({ ...s, attendees }));
-
-  const setInspectionDate = (inspectionDate: string) =>
-    setState((s) => ({ ...s, inspectionDate }));
+    setState(s => ({
+      ...s,
+      reportIssues: updateIssueAt(s.reportIssues, s.currentIssueIndex, { issueNote }),
+    }));
 
   const addPhoto = (uri: string) =>
-    setState((s) => ({ ...s, photos: [...s.photos, uri] }));
+    setState(s => ({
+      ...s,
+      reportIssues: updateIssueAt(s.reportIssues, s.currentIssueIndex, {
+        photos: [...(s.reportIssues[s.currentIssueIndex]?.photos ?? []), uri],
+      }),
+    }));
 
   const removePhoto = (uri: string) =>
-    setState((s) => ({ ...s, photos: s.photos.filter((p) => p !== uri) }));
+    setState(s => ({
+      ...s,
+      reportIssues: updateIssueAt(s.reportIssues, s.currentIssueIndex, {
+        photos: (s.reportIssues[s.currentIssueIndex]?.photos ?? []).filter(p => p !== uri),
+      }),
+    }));
 
   const replacePhoto = (oldUri: string, newUri: string) =>
-    setState((s) => ({
+    setState(s => ({
       ...s,
-      photos: s.photos.map((p) => (p === oldUri ? newUri : p)),
+      reportIssues: updateIssueAt(s.reportIssues, s.currentIssueIndex, {
+        photos: (s.reportIssues[s.currentIssueIndex]?.photos ?? []).map(p => p === oldUri ? newUri : p),
+      }),
     }));
 
   const setRecordedAudioUri = (recordedAudioUri: string) =>
-    setState((s) => ({ ...s, recordedAudioUri }));
+    setState(s => ({ ...s, recordedAudioUri }));
 
-  const setVoiceTranscript = (voiceTranscript: string) =>
-    setState((s) => ({ ...s, voiceTranscript }));
+  const setVoiceTranscript = (description: string) =>
+    setState(s => ({
+      ...s,
+      reportIssues: updateIssueAt(s.reportIssues, s.currentIssueIndex, { description }),
+    }));
 
   const setAiResult = (aiSummary: string, recommendations: Recommendation[]) =>
-    setState((s) => ({ ...s, aiSummary, recommendations }));
+    setState(s => ({
+      ...s,
+      reportIssues: updateIssueAt(s.reportIssues, s.currentIssueIndex, { aiSummary, recommendations }),
+    }));
 
   const setRecommendations = (recommendations: Recommendation[]) =>
-    setState((s) => ({ ...s, recommendations }));
+    setState(s => ({
+      ...s,
+      reportIssues: updateIssueAt(s.reportIssues, s.currentIssueIndex, { recommendations }),
+    }));
 
-  const setQuoteItems = (quoteItems: WizardQuoteItem[]) =>
-    setState((s) => ({ ...s, quoteItems }));
+  // ── Multi-issue operations ────────────────────────────────────────────────
 
-  const setQuoteNotes = (quoteNotes: string) =>
-    setState((s) => ({ ...s, quoteNotes }));
+  const addNewIssue = () =>
+    setState(s => {
+      const newIndex = s.reportIssues.length;
+      return {
+        ...s,
+        reportIssues: [...s.reportIssues, newIssue(String(newIndex + 1))],
+        currentIssueIndex: newIndex,
+        recordedAudioUri: '',
+      };
+    });
 
-  const setQuoteValidityDate = (quoteValidityDate: string) =>
-    setState((s) => ({ ...s, quoteValidityDate }));
+  const setAiResultForIssue = (index: number, aiSummary: string, recommendations: Recommendation[]) =>
+    setState(s => ({
+      ...s,
+      reportIssues: updateIssueAt(s.reportIssues, index, { aiSummary, recommendations }),
+    }));
+
+  const setAllAiResults = (results: { index: number; aiSummary: string; recommendations: Recommendation[] }[]) =>
+    setState(s => {
+      let issues = s.reportIssues;
+      for (const { index, aiSummary, recommendations } of results) {
+        issues = updateIssueAt(issues, index, { aiSummary, recommendations });
+      }
+      return { ...s, reportIssues: issues };
+    });
+
+  const setAllIssueRecommendations = (updates: { index: number; aiSummary: string; recs: Recommendation[] }[]) =>
+    setState(s => {
+      let issues = s.reportIssues;
+      for (const { index, aiSummary, recs } of updates) {
+        issues = updateIssueAt(issues, index, { aiSummary, recommendations: recs });
+      }
+      return { ...s, reportIssues: issues };
+    });
+
+  // ── Quote operations ──────────────────────────────────────────────────────
+
+  const setQuoteItems = (quoteItems: WizardQuoteItem[]) => setState(s => ({ ...s, quoteItems }));
+
+  const setQuoteNotes = (quoteNotes: string) => setState(s => ({ ...s, quoteNotes }));
+
+  const setQuoteValidityDate = (quoteValidityDate: string) => setState(s => ({ ...s, quoteValidityDate }));
+
+  // ── Warranty operations ───────────────────────────────────────────────────
 
   const setWarrantyData = (warrantyDuration: string, warrantyConditions: string[], warrantyWorkDescription: string) =>
-    setState((s) => ({ ...s, warrantyDuration, warrantyConditions, warrantyWorkDescription }));
+    setState(s => ({ ...s, warrantyDuration, warrantyConditions, warrantyWorkDescription }));
 
-  const setPdfUrl = (pdfUrl: string) =>
-    setState((s) => ({ ...s, pdfUrl }));
+  // ── Document operations ───────────────────────────────────────────────────
 
-  const reset = () => setState({ ...DEFAULT, inspectionDate: todayString() });
+  const setPdfUrl = (pdfUrl: string) => setState(s => ({ ...s, pdfUrl }));
 
-  const initDraft = async (
-    professionalId: string,
-    fields: CustomerFields,
-  ): Promise<void> => {
+  const reset = () => setState({ ...DEFAULT_STATE, inspectionDate: todayString() });
+
+  const initDraft = async (professionalId: string, fields: CustomerFields): Promise<void> => {
     try {
       const customer = await upsertCustomer(professionalId, { ...fields, name: fields.name || 'לא צוין' });
       const title = docTitle(state.docType, customer.name);
       const dbType = DOCUMENT_TYPES[state.docType].dbType;
       const doc = await createDraftDocument(professionalId, customer.id, title, dbType);
-      setState((s) => ({ ...s, documentId: doc.id }));
+      setState(s => ({ ...s, documentId: doc.id }));
     } catch {
-      // Silently swallow — saveDocument will retry
+      // silently swallow — saveDocument will retry
     }
   };
 
@@ -273,31 +371,41 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (state.docType === 'report') {
+        const issues = state.reportIssues;
+        const first = issues[0] ?? newIssue('1');
         await upsertReport(docId, {
           propertyType: state.propertyType,
-          issueType: state.issueType,
-          issueNote: [state.issueNote, state.attendees ? `נוכחים: ${state.attendees}` : ''].filter(Boolean).join('\n'),
-          photos: state.photos,
-          voiceTranscript: state.voiceTranscript,
-          aiSummary: state.aiSummary,
-          recommendations: state.recommendations,
+          issueType: first.issueType,
+          issueNote: [
+            state.attendees ? `נוכחים: ${state.attendees}` : '',
+            ...issues.map(issue => `[${issue.issueLabel}]\n${issue.issueNote}`.trim()),
+          ].filter(Boolean).join('\n\n'),
+          photos: issues.flatMap(issue => issue.photos),
+          voiceTranscript: issues
+            .map(issue => `[${issue.issueLabel}]\n${issue.description}`)
+            .join('\n\n---\n\n'),
+          aiSummary: issues
+            .map(issue => `[${issue.issueLabel}]\n${issue.aiSummary || issue.description}`)
+            .join('\n\n---\n\n'),
+          recommendations: issues.flatMap(issue => issue.recommendations),
         });
       } else if (state.docType === 'quote') {
         const total = state.quoteItems.reduce((sum, i) => sum + i.qty * i.unitPrice, 0);
         await upsertQuoteItems(docId, state.quoteItems, total);
       } else if (state.docType === 'warranty') {
+        const issue = state.reportIssues[0] ?? newIssue('1');
         await upsertReport(docId, {
           propertyType: state.propertyType,
           issueType: state.warrantyDuration,
           issueNote: state.warrantyConditions.join('\n'),
-          photos: state.photos,
+          photos: issue.photos,
           voiceTranscript: '',
           aiSummary: state.warrantyWorkDescription,
           recommendations: [],
         });
       }
 
-      setState((s) => ({ ...s, documentId: docId! }));
+      setState(s => ({ ...s, documentId: docId! }));
     } finally {
       setSaving(false);
     }
@@ -306,14 +414,15 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
   return (
     <WizardContext.Provider value={{
       state,
+      currentIssue,
       saving,
       setDocType,
       setCustomer,
       setPropertyType,
-      setIssueData,
-      setIssueNote,
       setAttendees,
       setInspectionDate,
+      setIssueData,
+      setIssueNote,
       addPhoto,
       removePhoto,
       replacePhoto,
@@ -321,6 +430,10 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
       setVoiceTranscript,
       setAiResult,
       setRecommendations,
+      addNewIssue,
+      setAiResultForIssue,
+      setAllAiResults,
+      setAllIssueRecommendations,
       setQuoteItems,
       setQuoteNotes,
       setQuoteValidityDate,

@@ -21,7 +21,7 @@ export default function WizardTranscriptPage() {
     const uri = wizard.state.recordedAudioUri;
     console.log('[TranscriptPage] recordedAudioUri:', uri || '(empty)');
 
-    if (!uri || wizard.state.voiceTranscript) {
+    if (!uri || wizard.currentIssue.description) {
       console.log('[TranscriptPage] Skipping transcription —', !uri ? 'no URI' : 'transcript already exists');
       return;
     }
@@ -46,11 +46,17 @@ export default function WizardTranscriptPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const handleAddIssue = () => {
+    wizard.addNewIssue();
+    router.push(ROUTES.WIZARD_ISSUE);
+  };
+
   return (
     <TranscriptReviewScreen
       isTranscribing={isTranscribing}
       transcriptionFailed={transcriptionFailed}
       onNext={() => router.push(ROUTES.WIZARD_PROCESSING)}
+      onAddIssue={handleAddIssue}
       onBack={() => safeBack(router, ROUTES.WIZARD_VOICE_IDLE)}
     />
   );

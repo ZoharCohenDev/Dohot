@@ -5,7 +5,6 @@ import { ROUTES } from '@/navigation/constants';
 import { useWizard } from '@/context/WizardContext';
 import { cleanReportText } from '@/services/ai';
 
-// Minimum time to show the processing animation even if the API is fast
 const MIN_DISPLAY_MS = 3000;
 
 export default function WizardProcessingPage() {
@@ -16,18 +15,33 @@ export default function WizardProcessingPage() {
   useEffect(() => {
     const run = async () => {
       const start = Date.now();
+      const issues = wizard.state.reportIssues;
 
-      try {
-        const result = await cleanReportText(
-          wizard.state.voiceTranscript,
-          wizard.state.issueType,
-        );
-        wizard.setAiResult(result.professionalText, result.recommendations);
-      } catch {
-        // Graceful fallback: proceed with defaults if AI fails
+      // Process each issue sequentially to avoid rate limiting
+      const results: { index: number; aiSummary: string; recommendations: { priority: string; title: string; description: string }[] }[] = [];
+
+      for (let i = 0; i < issues.length; i++) {
+        const issue = issues[i];
+        if (!issue) continue;
+        const rawText = issue.description.trim() || issue.issueNote.trim();
+        if (!rawText) continue;
+
+        try {
+          const result = await cleanReportText(rawText, issue.issueType);
+          results.push({
+            index: i,
+            aiSummary: result.professionalText,
+            recommendations: result.recommendations,
+          });
+        } catch {
+          // Graceful fallback — keep whatever description was already set
+        }
       }
 
-      // Keep the animation visible for at least MIN_DISPLAY_MS
+      if (results.length > 0) {
+        wizard.setAllAiResults(results);
+      }
+
       const elapsed = Date.now() - start;
       const remaining = MIN_DISPLAY_MS - elapsed;
       if (remaining > 0) {

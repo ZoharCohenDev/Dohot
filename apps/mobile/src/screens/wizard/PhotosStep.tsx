@@ -35,7 +35,7 @@ export function PhotosStep({ colors = lightColors, onNext, onBack, onAnnotate }:
   const { triggerExit } = useWizardExit();
   const [uploading, setUploading] = React.useState(false);
 
-  const photos = wizard.state.photos;
+  const photos = wizard.currentIssue.photos;
 
   const handleAddPhoto = () => {
     if (!user?.id) return;

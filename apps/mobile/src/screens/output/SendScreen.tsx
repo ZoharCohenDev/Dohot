@@ -38,7 +38,7 @@ export function SendScreen({ colors = lightColors, onBack, onDone }: SendScreenP
   const pdfUrl = wizard.state.pdfUrl;
   const customerName = wizard.state.customerName;
   const customerPhone = wizard.state.customerPhone;
-  const issueType = wizard.state.issueType;
+  const issueType = wizard.state.reportIssues[0]?.issueType ?? 'other';
   const [downloading, setDownloading] = React.useState(false);
 
   const DOC_TYPE_LABELS: Record<string, string> = {

@@ -12,8 +12,8 @@ export default function WizardRecommendationsPage() {
   const wizard = useWizard();
   const { businessProfile } = useAuth();
 
-  const handleNext = async (recs: Recommendation[]) => {
-    wizard.setRecommendations(recs);
+  const handleNext = async (updates: { index: number; aiSummary: string; recs: Recommendation[] }[]) => {
+    wizard.setAllIssueRecommendations(updates);
 
     if (!businessProfile?.id) {
       Alert.alert('שגיאה', 'לא נמצא פרופיל עסקי. אנא התחבר מחדש.');
@@ -31,7 +31,7 @@ export default function WizardRecommendationsPage() {
   return (
     <CreateReportSummaryScreen
       onNext={handleNext}
-      onBack={() => safeBack(router, ROUTES.WIZARD_VOICE_IDLE)}
+      onBack={() => safeBack(router, ROUTES.WIZARD_PROCESSING)}
       isSaving={wizard.saving}
     />
   );
