@@ -943,7 +943,7 @@ export async function uploadPdf(
 
   const { data: signed, error: signErr } = await supabaseAdmin.storage
     .from('pdf-documents')
-    .createSignedUrl(path, 60 * 60 * 24 * 365 * 10); // 10-year signed URL
+    .createSignedUrl(path, 60 * 10); // 10-minute window — enough to download once for local sharing
 
   if (signErr || !signed) throw new Error('Failed to create signed URL');
   return signed.signedUrl;
