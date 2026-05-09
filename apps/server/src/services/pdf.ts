@@ -749,14 +749,67 @@ export function buildHtml(data: PdfData): string {
 
 // ── Puppeteer render ──────────────────────────────────────────────────────────
 
-export async function renderPdf(html: string): Promise<Buffer> {
-  const browser = await puppeteer.launch({
+async function launchBrowser() {
+  return puppeteer.launch({
     args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
     headless: true,
   });
+}
+
+export async function renderPdf(html: string): Promise<Buffer> {
+  const browser = await launchBrowser();
   try {
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: 'networkidle0', timeout: 30_000 });
+    const buffer = await page.pdf({
+      format: 'A4',
+      printBackground: true,
+      margin: { top: '0', bottom: '0', left: '0', right: '0' },
+    });
+    return Buffer.from(buffer);
+  } finally {
+    await browser.close();
+  }
+}
+
+/**
+ * Generates a PDF from a base64-encoded image capture of the mobile preview screen.
+ * The image is embedded in A4-width HTML so the rendered PDF is pixel-for-pixel
+ * identical to the React Native preview — no separate template involved.
+ *
+ * @param imageBase64 - raw base64 string (no data-uri prefix)
+ * @param mimeType    - 'image/jpeg' or 'image/png'
+ */
+export async function renderPdfFromImage(
+  imageBase64: string,
+  mimeType: 'image/jpeg' | 'image/png' = 'image/jpeg',
+): Promise<Buffer> {
+  const dataUri = `data:${mimeType};base64,${imageBase64}`;
+
+  // Minimal HTML: the image fills A4 width and flows naturally across A4 pages.
+  // Puppeteer paginates the content at 297mm boundaries automatically.
+  const html = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8"/>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  @page { size: A4; margin: 0; }
+  body { background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  img { width: 210mm; height: auto; display: block; }
+</style>
+</head>
+<body>
+<img src="${dataUri}" />
+</body>
+</html>`;
+
+  const browser = await launchBrowser();
+  try {
+    const page = await browser.newPage();
+    // A4 viewport: 794px wide at 96dpi
+    await page.setViewport({ width: 794, height: 1123, deviceScaleFactor: 1 });
+    await page.setContent(html, { waitUntil: 'load', timeout: 30_000 });
     const buffer = await page.pdf({
       format: 'A4',
       printBackground: true,

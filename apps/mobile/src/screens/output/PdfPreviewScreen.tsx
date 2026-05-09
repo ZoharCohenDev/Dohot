@@ -1,16 +1,16 @@
 import React from 'react';
 import {
   View, Text, ScrollView, Pressable, ActivityIndicator,
-  StyleSheet, Image,
+  StyleSheet, Image, Platform,
 } from 'react-native';
-import Svg, { Path } from 'react-native-svg';
+import { captureRef } from 'react-native-view-shot';
 import { Header, FixedBottom } from '@/components/layout';
 import { Button } from '@/components/primitives';
 import { Icons } from '@/components/icons';
 import { lightColors, fonts } from '@/theme/tokens';
 import { useWizard } from '@/context/WizardContext';
 import { useAuth } from '@/context/AuthContext';
-import { generateDocumentPdf } from '@/services/documents';
+import { generatePdfFromCapture } from '@/services/documents';
 import { DOCUMENT_TYPES } from '@/config/documentTypes';
 import type { Recommendation } from '@dohot/shared';
 
@@ -364,23 +364,56 @@ export function PdfPreviewScreen({ colors = lightColors, onBack, onSend }: PdfPr
   const { businessProfile } = useAuth();
   const [generatingPdf, setGeneratingPdf] = React.useState(false);
   const [pdfError, setPdfError] = React.useState('');
-  const generated = React.useRef(false);
+
+  // Ref on the INNER content View (not the ScrollView).
+  // captureRef on a plain View captures its full layout height regardless of what
+  // is visible on screen — no snapshotContentContainer needed (and that option
+  // only works on the old-arch RCTScrollView, not the new-arch fabric equivalent).
+  const contentViewRef = React.useRef<View>(null);
 
   const state = wizard.state;
   const docConfig = DOCUMENT_TYPES[state.docType];
   const docTitle = `${docConfig.titlePrefix} ${state.customerName || 'לא צוין'}`;
   const brandInitial = (businessProfile?.business_name ?? businessProfile?.full_name ?? 'ד')[0];
 
-  React.useEffect(() => {
-    const documentId = state.documentId;
-    if (!documentId || generated.current) return;
-    generated.current = true;
+  const handleSend = async () => {
+    if (!state.documentId) return;
+
+    // If PDF was already generated this session (e.g. user went back), skip regenerating
+    if (state.pdfUrl) {
+      onSend?.();
+      return;
+    }
+
     setGeneratingPdf(true);
-    generateDocumentPdf(documentId)
-      .then((url) => wizard.setPdfUrl(url))
-      .catch(() => setPdfError('לא ניתן היה ליצור PDF. ניתן לנסות שוב.'))
-      .finally(() => setGeneratingPdf(false));
-  }, []);
+    setPdfError('');
+
+    try {
+      // Give the renderer a frame to settle (font/image load) before capturing
+      await new Promise<void>((r) => setTimeout(r, Platform.OS === 'ios' ? 200 : 400));
+
+      // Capture the content View at its full natural height.
+      // Because the ref points to a plain View (not a ScrollView), captureRef
+      // grabs the entire laid-out bounds — including content below the fold.
+      const imageBase64 = await captureRef(contentViewRef, {
+        format: 'jpg',
+        quality: 0.92,
+        result: 'base64',
+      });
+
+      // Send the captured image to the server — it wraps it in A4 HTML and
+      // renders to PDF with Puppeteer, guaranteeing pixel-perfect match
+      const url = await generatePdfFromCapture(state.documentId, imageBase64, 'image/jpeg');
+      wizard.setPdfUrl(url);
+
+      onSend?.();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'שגיאה לא צפויה';
+      setPdfError(`לא ניתן היה ליצור PDF: ${msg}`);
+    } finally {
+      setGeneratingPdf(false);
+    }
+  };
 
   return (
     <View style={[styles.root, { backgroundColor: colors.bgSunken }]}>
@@ -400,7 +433,7 @@ export function PdfPreviewScreen({ colors = lightColors, onBack, onSend }: PdfPr
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.pdfPage}>
+        <View ref={contentViewRef} style={styles.pdfPage}>
           {/* ── Header band ── */}
           <View style={[styles.pdfHeader, { borderBottomColor: '#1B1916' }]}>
             <View style={{ flex: 1 }}>
@@ -427,12 +460,19 @@ export function PdfPreviewScreen({ colors = lightColors, onBack, onSend }: PdfPr
           {state.docType === 'quote' && <QuoteContent state={state} />}
           {state.docType === 'warranty' && <WarrantyContent state={state} />}
 
-          {/* ── Signature row ── */}
+          {/* ── Signature row — uses the professional's real signature_url ── */}
           <View style={[styles.pdfSigRow, { borderTopColor: '#C7C1B6' }]}>
             <View>
-              <Svg viewBox="0 0 100 30" width={80} height={24}>
-                <Path d="M5 22 Q15 12 25 18 T50 16 Q70 8 90 22" fill="none" stroke="#1B1916" strokeWidth="1" />
-              </Svg>
+              {businessProfile?.signature_url
+                ? (
+                  <Image
+                    source={{ uri: businessProfile.signature_url }}
+                    style={styles.pdfSigImage}
+                    resizeMode="contain"
+                  />
+                )
+                : <View style={styles.pdfSigLine} />
+              }
               <Text style={styles.pdfSigName}>
                 {[businessProfile?.full_name, businessProfile?.license_number && `ח.פ ${businessProfile.license_number}`]
                   .filter(Boolean)
@@ -459,7 +499,7 @@ export function PdfPreviewScreen({ colors = lightColors, onBack, onSend }: PdfPr
             size="lg"
             full
             disabled={generatingPdf}
-            onPress={onSend}
+            onPress={handleSend}
             iconRight={generatingPdf ? <ActivityIndicator size="small" color={colors.bg} /> : undefined}
             colors={colors}
           >
@@ -618,6 +658,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row-reverse', justifyContent: 'space-between',
     alignItems: 'flex-end', marginTop: 22, paddingTop: 14, borderTopWidth: 0.5,
   },
+  pdfSigImage: { width: 80, height: 28, marginBottom: 2 },
+  pdfSigLine: { width: 80, height: 1, backgroundColor: '#C7C1B6', marginBottom: 6 },
   pdfSigName: { fontSize: 7, color: '#807A72', marginTop: 2, textAlign: 'right' },
   pdfQrPlaceholder: { fontSize: 7, color: '#807A72', padding: 8, borderWidth: 0.5, borderColor: '#E5E5E5', borderRadius: 4 },
 

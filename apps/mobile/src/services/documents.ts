@@ -265,6 +265,38 @@ export async function deleteDocument(documentId: string): Promise<void> {
   if (error) throw error;
 }
 
+/**
+ * Generates a PDF by sending a base64 capture of the rendered preview to the server.
+ * The server wraps the image in A4 HTML and renders it with Puppeteer, so the output
+ * is pixel-for-pixel identical to what the user sees in the preview screen.
+ */
+export async function generatePdfFromCapture(
+  documentId: string,
+  imageBase64: string,
+  mimeType: 'image/jpeg' | 'image/png' = 'image/jpeg',
+): Promise<string> {
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token;
+  if (!token) throw new Error('לא מחובר — יש להתחבר מחדש');
+
+  const response = await fetch(`${SERVER_URL}/api/documents/${documentId}/generate-pdf-from-capture`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ imageBase64, mimeType }),
+  });
+
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({})) as { error?: string };
+    throw new Error(payload.error ?? `Server error ${response.status}`);
+  }
+
+  const result = await response.json() as { url: string };
+  return result.url;
+}
+
 const SERVER_URL = (process.env['EXPO_PUBLIC_API_URL'] ?? 'http://localhost:3000').replace(/\/$/, '');
 
 export async function generateDocumentPdf(documentId: string): Promise<string> {
