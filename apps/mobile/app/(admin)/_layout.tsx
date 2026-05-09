@@ -5,7 +5,7 @@ import { ROUTES } from '@/navigation/constants';
 import { lightColors } from '@/theme/tokens';
 
 export default function AdminLayout() {
-  const { session, loading } = useAuth();
+  const { session, loading, isAdmin } = useAuth();
 
   if (loading) {
     return (
@@ -16,6 +16,7 @@ export default function AdminLayout() {
   }
 
   if (!session) return <Redirect href={ROUTES.AUTH_LOGIN} />;
+  if (!isAdmin) return <Redirect href={ROUTES.APP_HOME} />;
 
   return (
     <Stack screenOptions={{ headerShown: false, animation: 'slide_from_left' }} />
