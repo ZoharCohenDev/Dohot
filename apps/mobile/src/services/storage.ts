@@ -11,6 +11,63 @@ interface PickOptions {
   quality?: number;
 }
 
+async function uploadAsset(
+  userId: string,
+  bucket: StorageBucket,
+  asset: ImagePicker.ImagePickerAsset,
+  onLocalUri?: (uri: string) => void,
+): Promise<string> {
+  onLocalUri?.(asset.uri);
+
+  const rawExt = asset.uri.split('.').pop() ?? 'jpg';
+  const ext = rawExt.split('?')[0] ?? 'jpg';
+  const storagePath = `${userId}/${Date.now()}.${ext}`;
+
+  const base64 = await FileSystem.readAsStringAsync(asset.uri, { encoding: 'base64' });
+  const binaryStr = atob(base64);
+  const bytes = new Uint8Array(binaryStr.length);
+  for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
+
+  const { error } = await supabase.storage
+    .from(bucket)
+    .upload(storagePath, bytes, { contentType: asset.mimeType ?? 'image/jpeg', upsert: true });
+
+  if (error) throw error;
+
+  const { data } = supabase.storage.from(bucket).getPublicUrl(storagePath);
+  return data.publicUrl;
+}
+
+/**
+ * Request camera permission, take a photo, upload it, and return the public URL.
+ * Returns null when the user cancels or denies permission.
+ */
+export async function captureAndUploadImage(
+  userId: string,
+  bucket: StorageBucket,
+  opts: PickOptions = {},
+  onLocalUri?: (uri: string) => void,
+): Promise<string | null> {
+  const perm = await ImagePicker.requestCameraPermissionsAsync();
+  if (!perm.granted) {
+    Alert.alert('אין הרשאה', 'יש לאפשר גישה למצלמה בהגדרות הטלפון');
+    return null;
+  }
+
+  const result = await ImagePicker.launchCameraAsync({
+    mediaTypes: ['images'],
+    allowsEditing: true,
+    aspect: opts.aspect ?? [4, 3],
+    quality: opts.quality ?? 0.85,
+  });
+
+  if (result.canceled) return null;
+  const asset = result.assets[0];
+  if (!asset) return null;
+
+  return uploadAsset(userId, bucket, asset, onLocalUri);
+}
+
 /**
  * Request photo library permission, launch the picker, upload the selected
  * image to Supabase Storage, and return the public URL.
@@ -41,35 +98,7 @@ export async function pickAndUploadImage(
   const asset = result.assets[0];
   if (!asset) return null;
 
-  onLocalUri?.(asset.uri);
-
-  // Strip any query params from the extension (e.g. ?t=123)
-  const rawExt = asset.uri.split('.').pop() ?? 'jpg';
-  const ext = rawExt.split('?')[0] ?? 'jpg';
-  const filename = `${Date.now()}.${ext}`;
-  const storagePath = `${userId}/${filename}`;
-
-  // React Native's fetch().blob() uploads 0-byte files to Supabase — use FileSystem instead.
-  const base64 = await FileSystem.readAsStringAsync(asset.uri, {
-    encoding: 'base64',
-  });
-  const binaryStr = atob(base64);
-  const bytes = new Uint8Array(binaryStr.length);
-  for (let i = 0; i < binaryStr.length; i++) {
-    bytes[i] = binaryStr.charCodeAt(i);
-  }
-
-  const { error } = await supabase.storage
-    .from(bucket)
-    .upload(storagePath, bytes, {
-      contentType: asset.mimeType ?? 'image/jpeg',
-      upsert: true,
-    });
-
-  if (error) throw error;
-
-  const { data } = supabase.storage.from(bucket).getPublicUrl(storagePath);
-  return data.publicUrl;
+  return uploadAsset(userId, bucket, asset, onLocalUri);
 }
 
 /**

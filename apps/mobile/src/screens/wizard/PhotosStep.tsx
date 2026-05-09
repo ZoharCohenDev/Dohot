@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   View, Text, Pressable, ScrollView, StyleSheet,
-  Alert, ActivityIndicator, Image,
+  Alert, ActivityIndicator, Image, ActionSheetIOS, Platform,
 } from 'react-native';
 import { Header, FixedBottom, ProgressBar } from '@/components/layout';
 import { Button } from '@/components/primitives';
@@ -10,7 +10,7 @@ import { lightColors, fonts } from '@/theme/tokens';
 import { useWizard } from '@/context/WizardContext';
 import { useAuth } from '@/context/AuthContext';
 import { useWizardStep } from '@/hooks/useWizardStep';
-import { pickAndUploadImage } from '@/services/storage';
+import { pickAndUploadImage, captureAndUploadImage } from '@/services/storage';
 
 interface PhotosStepProps {
   colors?: typeof lightColors;
@@ -35,16 +35,36 @@ export function PhotosStep({ colors = lightColors, onNext, onBack, onAnnotate }:
 
   const photos = wizard.state.photos;
 
-  const handleAddPhoto = async () => {
+  const handleAddPhoto = () => {
     if (!user?.id) return;
-    setUploading(true);
-    try {
-      const url = await pickAndUploadImage(user.id, 'report-images', { aspect: [4, 3] });
-      if (url) wizard.addPhoto(url);
-    } catch {
-      Alert.alert('שגיאה', 'לא ניתן היה להעלות את התמונה. נסה שוב.');
-    } finally {
-      setUploading(false);
+
+    const doUpload = async (source: 'camera' | 'library') => {
+      setUploading(true);
+      try {
+        const fn = source === 'camera' ? captureAndUploadImage : pickAndUploadImage;
+        const url = await fn(user.id!, 'report-images', { aspect: [4, 3] });
+        if (url) wizard.addPhoto(url);
+      } catch {
+        Alert.alert('שגיאה', 'לא ניתן היה להעלות את התמונה. נסה שוב.');
+      } finally {
+        setUploading(false);
+      }
+    };
+
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        { options: ['ביטול', 'צלם תמונה', 'בחר מהגלריה'], cancelButtonIndex: 0 },
+        (idx) => {
+          if (idx === 1) doUpload('camera');
+          else if (idx === 2) doUpload('library');
+        },
+      );
+    } else {
+      Alert.alert('הוסף תמונה', '', [
+        { text: 'צלם תמונה', onPress: () => doUpload('camera') },
+        { text: 'בחר מהגלריה', onPress: () => doUpload('library') },
+        { text: 'ביטול', style: 'cancel' },
+      ]);
     }
   };
 
