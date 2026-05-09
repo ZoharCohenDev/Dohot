@@ -4,19 +4,19 @@ import { generatePdfHandler, generatePdfFromCaptureHandler } from '../controller
 
 export const documentsRouter = Router();
 
-documentsRouter.get('/', (_req, res) => {
+documentsRouter.get('/', requireAuth, (_req, res) => {
   res.json({ documents: [] });
 });
 
-documentsRouter.post('/', (_req, res) => {
+documentsRouter.post('/', requireAuth, (_req, res) => {
   res.status(201).json({ success: true });
 });
 
-documentsRouter.get('/:id', (req, res) => {
+documentsRouter.get('/:id', requireAuth, (req, res) => {
   res.json({ id: req.params['id'] });
 });
 
-documentsRouter.delete('/:id', (req, res) => {
+documentsRouter.delete('/:id', requireAuth, (req, res) => {
   res.json({ deleted: req.params['id'] });
 });
 

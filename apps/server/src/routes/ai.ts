@@ -17,4 +17,4 @@ const upload = multer({
 
 aiRouter.post('/clean-report-text', requireAuth, cleanReportTextHandler);
 aiRouter.post('/transcribe', requireAuth, transcribeHandler);
-aiRouter.post('/transcribe-audio', requireAuth, upload.single('audio'), transcribeAudioFileHandler);
+aiRouter.post('/transcribe-audio', requireAuth, upload.single('audio'), transcribeAudioFileHandler); // requireAuth must stay before multer
