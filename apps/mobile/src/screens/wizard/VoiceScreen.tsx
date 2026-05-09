@@ -407,7 +407,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  aiLabel: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  aiLabel: { flexDirection: 'row-reverse', alignItems: 'center', gap: 8 },
   aiLabelText: { color: voiceColors.sageLight, fontSize: 12, fontWeight: '700', letterSpacing: 1 },
   title: {
     fontSize: 30,
@@ -460,7 +460,7 @@ const styles = StyleSheet.create({
   },
   transcribingRow: {
     height: 56,
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,

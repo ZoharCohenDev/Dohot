@@ -10,20 +10,11 @@ import { Icons } from '@/components/icons';
 import { lightColors, fonts } from '@/theme/tokens';
 import { useCustomers, type CustomerWithStats } from '@/hooks/useCustomers';
 import { deleteCustomer } from '@/services/documents';
-import type { CustomerType } from '@dohot/shared';
 
 interface CustomersScreenProps {
   colors?: typeof lightColors;
   onNavigate?: (tab: TabId) => void;
 }
-
-const FILTER_CHIPS: { label: string; type?: CustomerType }[] = [
-  { label: 'הכל' },
-  { label: 'פרטיים', type: 'private' },
-  { label: 'ועדי בית', type: 'building_committee' },
-  { label: 'חברות ביטוח', type: 'insurance_company' },
-  { label: 'בעלי מקצוע', type: 'contractor' },
-];
 
 function relativeDate(iso: string | null): string {
   if (!iso) return '';
@@ -131,7 +122,6 @@ function CustomerCard({
 }
 
 export function CustomersScreen({ colors = lightColors, onNavigate }: CustomersScreenProps) {
-  const [activeFilter, setActiveFilter] = React.useState(0);
   const [searchQuery, setSearchQuery] = React.useState('');
   const [debouncedSearch, setDebouncedSearch] = React.useState('');
 
@@ -140,10 +130,7 @@ export function CustomersScreen({ colors = lightColors, onNavigate }: CustomersS
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  const { customers, total, loading, error, refetch } = useCustomers(
-    debouncedSearch,
-    FILTER_CHIPS[activeFilter]?.type,
-  );
+  const { customers, total, loading, error, refetch } = useCustomers(debouncedSearch);
 
   const handleLongPress = (customer: CustomerWithStats) => {
     const hasDocuments = customer.documentCount > 0;
@@ -206,33 +193,6 @@ export function CustomersScreen({ colors = lightColors, onNavigate }: CustomersS
           )}
         </View>
 
-        {/* Filter chips */}
-        <FlatList
-          horizontal
-          data={FILTER_CHIPS}
-          keyExtractor={(item) => item.label}
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.chipsRow}
-          renderItem={({ item, index }) => (
-            <Pressable
-              onPress={() => setActiveFilter(index)}
-              style={[
-                styles.chip,
-                index === activeFilter
-                  ? { backgroundColor: colors.ink1 }
-                  : { backgroundColor: colors.bgElev, borderWidth: 1, borderColor: colors.line },
-              ]}
-            >
-              <ScaledText style={[
-                styles.chipText,
-                { color: index === activeFilter ? colors.bg : colors.ink2, fontFamily: fonts.sans },
-              ]}>
-                {item.label}
-              </ScaledText>
-            </Pressable>
-          )}
-        />
-
         {loading ? (
           <View style={styles.center}>
             <ActivityIndicator color={colors.ink3} />
@@ -286,14 +246,11 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   searchBar: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
+    flexDirection: 'row-reverse', alignItems: 'center', gap: 10,
     height: 48, paddingHorizontal: 14,
     borderRadius: 16, borderWidth: 1, marginBottom: 14,
   },
   searchInput: { flex: 1, fontSize: 15, padding: 0 },
-  chipsRow: { gap: 8, marginBottom: 16 },
-  chip: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 999 },
-  chipText: { fontSize: 13, fontWeight: '600' },
   listContent: { paddingBottom: 120 },
 
   // Card
@@ -306,24 +263,24 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 2,
   },
-  cardTop: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, padding: 14 },
+  cardTop: { flexDirection: 'row-reverse', alignItems: 'flex-start', gap: 12, padding: 14 },
   cardMain: { flex: 1, minWidth: 0 },
-  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
+  nameRow: { flexDirection: 'row-reverse', alignItems: 'center', gap: 8, marginBottom: 4 },
   customerName: { fontSize: 15, fontWeight: '700', flex: 1 },
   docBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 3,
+    flexDirection: 'row-reverse', alignItems: 'center', gap: 3,
     paddingHorizontal: 7, paddingVertical: 3, borderRadius: 999,
   },
   docBadgeText: { fontSize: 11, fontWeight: '700' },
-  infoRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  infoRow: { flexDirection: 'row-reverse', alignItems: 'center', gap: 4 },
   infoText: { fontSize: 12, flex: 1 },
   lastActivity: { fontSize: 11, marginTop: 2, flexShrink: 0 },
   cardBottom: {
-    flexDirection: 'row', flexWrap: 'wrap',
+    flexDirection: 'row-reverse', flexWrap: 'wrap',
     gap: 12, paddingHorizontal: 14, paddingVertical: 10,
     borderTopWidth: 1,
   },
-  contactChip: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  contactChip: { flexDirection: 'row-reverse', alignItems: 'center', gap: 5 },
   contactText: { fontSize: 12 },
 
   // Empty state

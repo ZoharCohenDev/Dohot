@@ -286,7 +286,7 @@ const styles = StyleSheet.create({
 
   options: { gap: 10 },
   optionRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 14,
+    flexDirection: 'row-reverse', alignItems: 'center', gap: 14,
     borderRadius: 18, borderWidth: 1,
   },
   optionIcon: { alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
@@ -295,7 +295,7 @@ const styles = StyleSheet.create({
   optionSub: { fontSize: 12, marginTop: 2 },
 
   fileBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
+    flexDirection: 'row-reverse', alignItems: 'center', gap: 8,
     alignSelf: 'center', paddingHorizontal: 14, paddingVertical: 7,
     borderRadius: 999, marginTop: 20,
   },
@@ -311,13 +311,13 @@ const styles = StyleSheet.create({
   exitBtnText: { fontSize: 15, fontWeight: '600' },
   doneBtn: {
     flex: 2, height: 52, borderRadius: 16,
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'center', gap: 8,
   },
   doneBtnText: { fontSize: 15, fontWeight: '700' },
 
   footer: {
     marginTop: 'auto', paddingTop: 16,
-    flexDirection: 'row', alignItems: 'center',
+    flexDirection: 'row-reverse', alignItems: 'center',
     justifyContent: 'center', gap: 8,
   },
   footerText: { fontSize: 12 },

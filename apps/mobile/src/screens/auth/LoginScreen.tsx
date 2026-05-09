@@ -119,11 +119,11 @@ export function LoginScreen({ colors = lightColors, onLoggedIn }: LoginScreenPro
 const styles = StyleSheet.create({
   root: { flex: 1 },
   inner: { flex: 1, paddingHorizontal: 28 },
-  brand: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  brand: { flexDirection: 'row-reverse', alignItems: 'center', gap: 10 },
   brandName: { fontSize: 22, fontWeight: '700', letterSpacing: -0.5 },
   hero: { marginTop: 52, marginBottom: 36 },
   headline: { fontSize: 38, fontWeight: '500', lineHeight: 42, letterSpacing: -1.2, marginBottom: 10, textAlign: 'right' },
   sub: { fontSize: 15, lineHeight: 22, textAlign: 'right' },
   form: { gap: 14 },
-  eyeBtn: { position: 'absolute', left: 16, bottom: 16 },
+  eyeBtn: { position: 'absolute', right: 16, bottom: 16 },
 });

@@ -76,12 +76,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   inputRow: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     paddingHorizontal: 16,
     borderWidth: 1,
+    gap: 10,
   },
   iconWrap: {
-    marginEnd: 10,
     opacity: 0.6,
   },
   input: {

@@ -199,7 +199,7 @@ const styles = StyleSheet.create({
     width: 44, height: 44, borderRadius: 999, borderWidth: 1,
     alignItems: 'center', justifyContent: 'center',
   },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  grid: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 10 },
   tile: {
     width: '47.5%',
     height: 130,
@@ -222,7 +222,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   customInputWrap: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     alignItems: 'center',
     gap: 10,
     paddingHorizontal: 16,
@@ -231,7 +231,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   customInput: { flex: 1, fontSize: 15 },
-  tip: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, borderRadius: 14 },
+  tip: { flexDirection: 'row-reverse', alignItems: 'center', gap: 10, padding: 14, borderRadius: 14 },
   tipText: { fontSize: 13, flex: 1 },
   tipBold: { fontWeight: '700' },
 });

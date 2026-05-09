@@ -397,7 +397,7 @@ const styles = StyleSheet.create({
   titleBlock: { gap: 6, marginBottom: 8 },
   title: { fontSize: 30, fontWeight: '500', lineHeight: 33, letterSpacing: -0.6 },
   subtitle: { fontSize: 14 },
-  twoCol: { flexDirection: 'row', gap: 10 },
+  twoCol: { flexDirection: 'row-reverse', gap: 10 },
   streetField: { flex: 2 },
   numField: { flex: 1 },
   halfField: { flex: 1 },
@@ -411,7 +411,7 @@ const styles = StyleSheet.create({
   },
   suggestLoader: { height: 52, alignItems: 'center', justifyContent: 'center' },
   suggestRow: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     alignItems: 'center',
     gap: 12,
     paddingHorizontal: 14,
@@ -420,7 +420,7 @@ const styles = StyleSheet.create({
   suggestInfo: { flex: 1, minWidth: 0 },
   suggestName: { fontSize: 14, fontWeight: '600' },
   suggestAddr: { fontSize: 12, marginTop: 1 },
-  propertyGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  propertyGrid: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 8 },
   propertyTile: {
     width: '30%',
     height: 70,

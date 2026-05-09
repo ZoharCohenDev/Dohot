@@ -177,7 +177,7 @@ const styles = StyleSheet.create({
   scroll: { flex: 1 },
   content: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 140, gap: 16 },
 
-  aiLabel: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  aiLabel: { flexDirection: 'row-reverse', alignItems: 'center', gap: 8 },
   aiLabelText: { fontSize: 12, fontWeight: '700', letterSpacing: 0.5 },
 
   title: { fontSize: 30, fontWeight: '500', lineHeight: 33, letterSpacing: -0.6 },
@@ -185,7 +185,7 @@ const styles = StyleSheet.create({
 
   issueList: { gap: 10 },
   issueCard: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     alignItems: 'center',
     gap: 12,
     padding: 14,
@@ -200,15 +200,15 @@ const styles = StyleSheet.create({
   issueNumText: { fontSize: 15, fontWeight: '700' },
   issueCardContent: { flex: 1, gap: 6 },
   issueLabel: { fontSize: 15, fontWeight: '700' },
-  issueMeta: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
+  issueMeta: { flexDirection: 'row-reverse', gap: 6, flexWrap: 'wrap' },
   metaChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
+    flexDirection: 'row-reverse', alignItems: 'center', gap: 4,
     paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999,
   },
   metaChipText: { fontSize: 11, fontWeight: '600' },
 
   addBtn: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     alignItems: 'center',
     gap: 12,
     padding: 16,
@@ -226,7 +226,7 @@ const styles = StyleSheet.create({
   addBtnSub: { fontSize: 12, marginTop: 2 },
 
   infoBanner: {
-    flexDirection: 'row', alignItems: 'flex-start', gap: 8,
+    flexDirection: 'row-reverse', alignItems: 'flex-start', gap: 8,
     padding: 14, borderRadius: 14,
   },
   infoText: { flex: 1, fontSize: 13, lineHeight: 20 },

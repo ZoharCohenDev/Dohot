@@ -116,7 +116,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   aiPill: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     alignItems: 'center',
     gap: 6,
     alignSelf: 'flex-end',
@@ -146,7 +146,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   card: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     alignItems: 'center',
     padding: 18,
     borderRadius: 22,

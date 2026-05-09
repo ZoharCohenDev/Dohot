@@ -299,11 +299,11 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     paddingBottom: 8,
   },
-  greeting: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  greeting: { flexDirection: 'row-reverse', alignItems: 'center', gap: 12 },
   greetSub: { fontSize: 12 },
   greetName: { fontSize: 16, fontWeight: '700', lineHeight: 20 },
   subBanner: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     alignItems: 'flex-start',
     gap: 10,
     padding: 14,
@@ -313,7 +313,7 @@ const styles = StyleSheet.create({
   subBannerText: { flex: 1, fontSize: 13, lineHeight: 20, fontWeight: '600' },
 
   // Stats
-  statsRow: { flexDirection: 'row', gap: 8, marginBottom: 20 },
+  statsRow: { flexDirection: 'row-reverse', gap: 8, marginBottom: 20 },
   statCard: { flex: 1, borderRadius: 18, padding: 14, borderWidth: 1 },
   statValue: { fontSize: 22, fontWeight: '800', letterSpacing: -0.6 },
   statLabel: { fontSize: 11, marginTop: 2 },
@@ -334,7 +334,7 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 2,
   },
-  cardMain: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  cardMain: { flexDirection: 'row-reverse', alignItems: 'flex-start', gap: 12 },
   checkbox: {
     width: 24, height: 24, borderRadius: 7,
     borderWidth: 1.5, alignItems: 'center', justifyContent: 'center',
@@ -342,18 +342,18 @@ const styles = StyleSheet.create({
   },
   cardContent: { flex: 1, minWidth: 0 },
   cardTopRow: {
-    flexDirection: 'row', alignItems: 'flex-start',
+    flexDirection: 'row-reverse', alignItems: 'flex-start',
     justifyContent: 'space-between', gap: 8, marginBottom: 4,
   },
   customerName: { fontSize: 15, fontWeight: '700', flex: 1 },
   dateText: { fontSize: 11, flexShrink: 0, marginTop: 2 },
-  infoRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 6 },
+  infoRow: { flexDirection: 'row-reverse', alignItems: 'center', gap: 4, marginBottom: 6 },
   infoText: { fontSize: 12, flex: 1 },
   cardBottomRow: {
-    flexDirection: 'row', alignItems: 'center',
+    flexDirection: 'row-reverse', alignItems: 'center',
     justifyContent: 'space-between', gap: 8,
   },
-  phoneChip: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  phoneChip: { flexDirection: 'row-reverse', alignItems: 'center', gap: 5 },
   phoneText: { fontSize: 12, textDecorationLine: 'underline' },
   amountBadge: {
     paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999,
@@ -369,7 +369,7 @@ const styles = StyleSheet.create({
   },
   emptyTitle: { fontSize: 16, fontWeight: '700', textAlign: 'center' },
   emptyBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
+    flexDirection: 'row-reverse', alignItems: 'center', gap: 8,
     paddingHorizontal: 20, paddingVertical: 12, borderRadius: 999,
     marginTop: 4,
   },

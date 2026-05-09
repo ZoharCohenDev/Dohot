@@ -168,7 +168,7 @@ const styles = StyleSheet.create({
     maxWidth: 280,
   },
   stepRow: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     alignItems: 'center',
     gap: 10,
   },

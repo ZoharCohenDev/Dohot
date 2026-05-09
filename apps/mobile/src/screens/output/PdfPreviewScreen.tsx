@@ -705,7 +705,7 @@ const styles = StyleSheet.create({
 
   // Sections
   pdfSection: { marginBottom: 12 },
-  pdfSectionTitle: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
+  pdfSectionTitle: { flexDirection: 'row-reverse', alignItems: 'center', gap: 6, marginBottom: 8 },
   pdfSectionLine: { width: 12, height: 1, backgroundColor: '#1B1916' },
   pdfSectionLabel: { fontFamily: fonts.serif, fontSize: 11, fontWeight: '700', color: '#1B1916', textAlign: 'right', flex: 1 },
   pdfBody: { fontSize: 9, color: '#1B1916', lineHeight: 14, textAlign: 'right', writingDirection: 'rtl' },
@@ -730,7 +730,7 @@ const styles = StyleSheet.create({
   visitReasonNote: { fontSize: 8.5, color: '#4A4641', marginTop: 2, lineHeight: 13, textAlign: 'right' },
 
   // Photos
-  pdfImageGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 12 },
+  pdfImageGrid: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 6, marginBottom: 12 },
   pdfImageCell: { width: '47%' },
   pdfImage: { width: '100%', height: 80, borderRadius: 6 },
   pdfImageLabel: { fontSize: 7, color: '#807A72', textAlign: 'center', marginTop: 2 },

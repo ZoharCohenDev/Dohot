@@ -333,7 +333,7 @@ const styles = StyleSheet.create({
   },
 
   // Duration
-  durationGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  durationGrid: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 8 },
   durationPill: {
     paddingHorizontal: 18,
     paddingVertical: 10,
@@ -360,7 +360,7 @@ const styles = StyleSheet.create({
   textInput: { fontSize: 14, lineHeight: 22 },
 
   // Conditions
-  conditionsHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  conditionsHeader: { flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
   resetBtn: { fontSize: 12, fontWeight: '600' },
   conditionsList: {
     borderWidth: 1,
@@ -372,7 +372,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   conditionDisplayRow: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     alignItems: 'flex-start',
     gap: 10,
   },
@@ -388,13 +388,13 @@ const styles = StyleSheet.create({
   conditionNum: { fontSize: 11, fontWeight: '700' },
   conditionText: { flex: 1, fontSize: 13, lineHeight: 18 },
   conditionActions: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     gap: 14,
     flexShrink: 0,
     paddingTop: 2,
   },
   conditionEditRow: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     gap: 8,
     alignItems: 'flex-start',
   },
@@ -418,7 +418,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   addConditionRow: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     alignItems: 'center',
     paddingHorizontal: 14,
     paddingVertical: 10,
@@ -439,7 +439,7 @@ const styles = StyleSheet.create({
   },
 
   // Preview
-  previewRow: { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
+  previewRow: { flexDirection: 'row-reverse', gap: 12, alignItems: 'flex-start' },
   previewTitle: { fontSize: 13, fontWeight: '700', marginBottom: 4 },
   previewText: { fontSize: 12, lineHeight: 18 },
 });

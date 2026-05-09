@@ -242,10 +242,10 @@ const styles = StyleSheet.create({
 
   titleBlock: { gap: 8 },
   aiTag: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     alignItems: 'center',
     gap: 4,
-    alignSelf: 'flex-start',
+    alignSelf: 'flex-end',
     paddingVertical: 4,
     paddingHorizontal: 10,
     borderRadius: 999,
@@ -255,7 +255,7 @@ const styles = StyleSheet.create({
   subtitle: { fontSize: 14 },
 
   banner: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     alignItems: 'flex-start',
     gap: 8,
     padding: 14,
@@ -270,7 +270,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   cardHeader: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     alignItems: 'center',
     gap: 8,
   },
@@ -278,7 +278,7 @@ const styles = StyleSheet.create({
   optionalTag: { fontSize: 11 },
 
   transcribingState: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
@@ -298,7 +298,7 @@ const styles = StyleSheet.create({
   },
 
   infoRow: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     alignItems: 'flex-start',
     gap: 8,
     padding: 14,

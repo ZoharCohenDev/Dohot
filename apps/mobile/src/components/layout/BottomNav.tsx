@@ -84,7 +84,7 @@ const styles = StyleSheet.create({
     right: 12,
     height: 72,
     borderRadius: radii.xl,
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     alignItems: 'center',
     justifyContent: 'space-around',
     paddingHorizontal: 8,

@@ -33,7 +33,7 @@ export function Pill({ children, color, bg, icon, colors = lightColors }: PillPr
 
 const styles = StyleSheet.create({
   pill: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     alignItems: 'center',
     paddingVertical: 5,
     paddingHorizontal: 11,

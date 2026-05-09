@@ -97,7 +97,7 @@ const styles = StyleSheet.create({
     zIndex: 5,
   },
   topRow: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     alignItems: 'center',
     justifyContent: 'space-between',
     height: 44,

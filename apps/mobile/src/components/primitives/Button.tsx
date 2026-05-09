@@ -90,7 +90,7 @@ export function Button({
 
 const styles = StyleSheet.create({
   base: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -241,18 +241,18 @@ const styles = StyleSheet.create({
   scroll: { flex: 1 },
   content: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 140, gap: 14 },
   titleRow: {
-    flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 4,
+    flexDirection: 'row-reverse', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 4,
   },
   title: { fontSize: 30, fontWeight: '500', letterSpacing: -0.6, lineHeight: 33 },
   subtitle: { fontSize: 14, marginTop: 6 },
   aiTag: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
+    flexDirection: 'row-reverse', alignItems: 'center', gap: 4,
     paddingVertical: 4, paddingHorizontal: 10, borderRadius: 999,
   },
   aiTagText: { fontSize: 12, fontWeight: '700' },
   cameraBtn: {
     height: 160, borderRadius: 18, backgroundColor: '#C2613B',
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 14,
+    flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'center', gap: 14,
     shadowColor: '#C2613B', shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.25, shadowRadius: 12, elevation: 6,
   },
@@ -272,7 +272,7 @@ const styles = StyleSheet.create({
   emptyText: { fontSize: 13 },
 
   // Photo grid
-  photoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  photoGrid: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 10 },
   photoTile: {
     width: '47.5%', height: 160, borderRadius: 18,
     overflow: 'hidden', position: 'relative',
@@ -284,7 +284,7 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   editBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
+    flexDirection: 'row-reverse', alignItems: 'center', gap: 4,
     paddingHorizontal: 8, paddingVertical: 4,
     borderRadius: 999, backgroundColor: 'rgba(0,0,0,0.5)',
   },
@@ -304,9 +304,9 @@ const styles = StyleSheet.create({
   // Toolbar
   toolbarCard: { padding: 16, borderRadius: 18, borderWidth: 1 },
   toolbarTitle: { fontSize: 13, fontWeight: '700', marginBottom: 10 },
-  toolbarRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  toolbarRow: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 8 },
   toolChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
+    flexDirection: 'row-reverse', alignItems: 'center', gap: 6,
     paddingVertical: 8, paddingHorizontal: 12, borderRadius: 999,
   },
   toolChipLabel: { fontSize: 12, fontWeight: '600' },

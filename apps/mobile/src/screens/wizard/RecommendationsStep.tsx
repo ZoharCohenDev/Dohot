@@ -415,13 +415,13 @@ const styles = StyleSheet.create({
   },
   scroll: { flex: 1 },
   content: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 140, gap: 14 },
-  aiLabel: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  aiLabel: { flexDirection: 'row-reverse', alignItems: 'center', gap: 8 },
   aiLabelText: { fontSize: 11, fontWeight: '700', letterSpacing: 1 },
   title: { fontSize: 30, fontWeight: '500', lineHeight: 33, letterSpacing: -0.6 },
 
   issueBlock: { gap: 10 },
   issueDivider: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
+    flexDirection: 'row-reverse', alignItems: 'center', gap: 10,
     paddingVertical: 12, borderTopWidth: 1, marginTop: 4,
   },
   issueNumBadge: {
@@ -432,14 +432,14 @@ const styles = StyleSheet.create({
   issueDividerLabel: { fontSize: 15, fontWeight: '700' },
 
   summaryHeader: {
-    flexDirection: 'row', alignItems: 'center',
+    flexDirection: 'row-reverse', alignItems: 'center',
     justifyContent: 'space-between', marginBottom: 10,
   },
   summaryTitle: { fontSize: 13, fontWeight: '700' },
   summaryText: { fontSize: 14, lineHeight: 23 },
 
   recList: { gap: 10 },
-  recRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  recRow: { flexDirection: 'row-reverse', alignItems: 'flex-start', gap: 12 },
   recNum: { width: 28, height: 28, borderRadius: 8, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   recNumText: { fontSize: 14, fontWeight: '700' },
   recContent: { flex: 1, gap: 8 },
@@ -449,7 +449,7 @@ const styles = StyleSheet.create({
   recActionBtn: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
 
   addBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'center',
     height: 52, borderRadius: 16, borderWidth: 1.5, borderStyle: 'dashed', gap: 8,
   },
   addBtnText: { fontSize: 14, fontWeight: '600' },

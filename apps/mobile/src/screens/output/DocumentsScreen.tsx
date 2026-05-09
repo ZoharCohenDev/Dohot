@@ -200,7 +200,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   tabStrip: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     padding: 4,
     borderRadius: 14,
     marginBottom: 16,
@@ -230,7 +230,7 @@ const styles = StyleSheet.create({
   emptyText: { fontSize: 14, textAlign: 'center' },
   listContent: { gap: 8, paddingBottom: 120 },
   docRow: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     alignItems: 'center',
     gap: 12,
     padding: 14,
@@ -248,11 +248,11 @@ const styles = StyleSheet.create({
   docInfo: { flex: 1, minWidth: 0 },
   docTitle: { fontSize: 14, fontWeight: '600' },
   docMeta: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     alignItems: 'center',
     gap: 8,
     marginTop: 4,
   },
   docDate: { fontSize: 11 },
-  docAmount: { fontSize: 11, fontWeight: '700', marginStart: 'auto' },
+  docAmount: { fontSize: 11, fontWeight: '700' },
 });

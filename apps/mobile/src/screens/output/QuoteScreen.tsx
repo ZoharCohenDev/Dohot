@@ -134,7 +134,7 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   cardHeaderRow: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: 16,
@@ -142,7 +142,7 @@ const styles = StyleSheet.create({
   },
   cardHeaderText: { fontSize: 13, fontWeight: '700' },
   itemRow: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     alignItems: 'center',
     gap: 12,
     padding: 16,
@@ -152,7 +152,7 @@ const styles = StyleSheet.create({
   itemSub: { fontSize: 12, marginTop: 2 },
   itemTotal: { fontSize: 15, fontWeight: '700' },
   totalRow: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingVertical: 6,
@@ -163,7 +163,7 @@ const styles = StyleSheet.create({
   grandTotal: { fontSize: 24, fontWeight: '700' },
   divider: { height: 1, marginVertical: 12 },
   validity: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     alignItems: 'center',
     gap: 10,
     padding: 14,

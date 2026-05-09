@@ -1115,23 +1115,23 @@ const styles = StyleSheet.create({
   scroll: { flex: 1 },
   content: { paddingHorizontal: 20, paddingBottom: 120 },
 
-  profileRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  profileRow: { flexDirection: 'row-reverse', alignItems: 'center', gap: 14 },
   profileInfo: { flex: 1 },
   profileName: { fontWeight: '700', fontSize: 17 },
   profileBiz: { fontSize: 13, marginTop: 2 },
-  proBadge: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: 3, paddingHorizontal: 8, borderRadius: 999, marginTop: 6, alignSelf: 'flex-start' },
+  proBadge: { flexDirection: 'row-reverse', alignItems: 'center', gap: 5, paddingVertical: 3, paddingHorizontal: 8, borderRadius: 999, marginTop: 6, alignSelf: 'flex-end' },
   proBadgeText: { fontSize: 11, fontWeight: '600' },
 
   group: { marginBottom: 18 },
   groupTitle: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 8, paddingHorizontal: 4 },
   groupCard: { borderRadius: 18, overflow: 'hidden', borderWidth: 1 },
-  settingRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 14, paddingHorizontal: 16 },
+  settingRow: { flexDirection: 'row-reverse', alignItems: 'center', gap: 14, paddingVertical: 14, paddingHorizontal: 16 },
   settingIcon: { flexShrink: 0 },
   settingLabel: { flex: 1, fontSize: 15, fontWeight: '500' },
-  settingRight: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  settingRight: { flexDirection: 'row-reverse', alignItems: 'center', gap: 6 },
   settingValue: { fontSize: 13 },
 
-  logoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', height: 56, borderRadius: 16, marginTop: 18, gap: 8 },
+  logoutBtn: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'center', height: 56, borderRadius: 16, marginTop: 18, gap: 8 },
   logoutText: { fontWeight: '600', fontSize: 15 },
   version: { textAlign: 'center', marginTop: 16, fontSize: 11 },
   subStatusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
@@ -1142,12 +1142,12 @@ const styles = StyleSheet.create({
   backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)' },
   sheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingBottom: 34 },
   sheetHandle: { width: 36, height: 4, borderRadius: 2, alignSelf: 'center', marginTop: 10, marginBottom: 4 },
-  sheetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 14 },
+  sheetHeader: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 14 },
   sheetTitle: { fontSize: 18, fontWeight: '700' },
   sheetContent: { paddingHorizontal: 20, paddingBottom: 8, gap: 14 },
 
   // Business modal
-  logoRow: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 6 },
+  logoRow: { flexDirection: 'row-reverse', alignItems: 'center', gap: 14, marginBottom: 6 },
   logoBox: { width: 72, height: 72, borderRadius: 18, borderWidth: 1, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   logoImg: { width: 72, height: 72, borderRadius: 18 },
   logoLabel: { fontWeight: '700', fontSize: 15 },
@@ -1165,7 +1165,7 @@ const styles = StyleSheet.create({
   currentSigBox: { borderRadius: 14, borderWidth: 1, padding: 12 },
   currentSigLabel: { fontSize: 12, fontWeight: '600', marginBottom: 8 },
   currentSigImg: { width: '100%' },
-  tabRow: { flexDirection: 'row', padding: 4, borderRadius: 12, gap: 4 },
+  tabRow: { flexDirection: 'row-reverse', padding: 4, borderRadius: 12, gap: 4 },
   tabPill: { flex: 1, height: 36, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   tabPillText: { fontSize: 14, fontWeight: '600' },
   sigCanvas: { borderWidth: 1, borderRadius: 14, overflow: 'hidden', height: 150 },
@@ -1174,12 +1174,12 @@ const styles = StyleSheet.create({
   uploadHint: { fontSize: 14, textAlign: 'center', paddingVertical: 8 },
 
   // Certifications
-  certNoteBox: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 14, borderWidth: 1, padding: 14 },
+  certNoteBox: { flexDirection: 'row-reverse', alignItems: 'center', gap: 10, borderRadius: 14, borderWidth: 1, padding: 14 },
   certNoteLabel: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 },
   certNoteText: { fontSize: 13, lineHeight: 19 },
   certNoteEmpty: { fontSize: 13, fontStyle: 'italic' },
   certList: { gap: 8 },
-  certRow: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: 14 },
+  certRow: { flexDirection: 'row-reverse', alignItems: 'center', gap: 12, padding: 12, borderRadius: 14 },
   certIconBox: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   certThumb: { width: 56, height: 56, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', position: 'relative' },
   certImgUpload: { aspectRatio: 1, borderRadius: 14, borderWidth: 1, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', position: 'relative' },
@@ -1196,7 +1196,7 @@ const styles = StyleSheet.create({
   textArea: { fontSize: 15, minHeight: 100 },
 
   // Font size
-  optionRow: { flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: 14, borderWidth: 1 },
+  optionRow: { flexDirection: 'row-reverse', alignItems: 'center', padding: 16, borderRadius: 14, borderWidth: 1 },
   optionLabel: { fontSize: 15, fontWeight: '600' },
   optionDesc: { fontSize: 12, marginTop: 2 },
 
@@ -1207,12 +1207,12 @@ const styles = StyleSheet.create({
 
   // Plan cards
   planCard: { borderRadius: 18, borderWidth: 1, padding: 18, marginBottom: 6 },
-  planCardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
+  planCardHeader: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
   planCardTitle: { fontSize: 17, fontWeight: '700' },
   planCardSub: { fontSize: 13 },
   priceTag: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
   priceText: { fontSize: 13, fontWeight: '700' },
   featureList: { marginTop: 10, gap: 8 },
-  featureRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  featureRow: { flexDirection: 'row-reverse', alignItems: 'center', gap: 8 },
   featureText: { fontSize: 14 },
 });
