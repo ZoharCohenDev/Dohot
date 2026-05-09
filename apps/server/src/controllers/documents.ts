@@ -8,6 +8,7 @@ import {
   uploadPdf,
   savePdfUrl,
 } from '../services/pdf';
+import { supabaseAdmin } from '../lib/supabase';
 
 export async function generatePdfHandler(req: Request, res: Response): Promise<void> {
   const { documentId } = req.params as { documentId: string };
@@ -18,7 +19,7 @@ export async function generatePdfHandler(req: Request, res: Response): Promise<v
     const html = buildHtml(data);
     const pdfBuffer = await renderPdf(html);
     const pdfUrl = await uploadPdf(pdfBuffer, userId, documentId);
-    await savePdfUrl(documentId, pdfUrl);
+    await savePdfUrl(documentId, userId, pdfUrl);
 
     res.json({ url: pdfUrl });
   } catch (err: unknown) {
@@ -51,11 +52,24 @@ export async function generatePdfFromCaptureHandler(req: Request, res: Response)
   }
 
   try {
+    // Verify the document belongs to the authenticated user before writing anything.
+    const { data: doc } = await supabaseAdmin
+      .from('documents')
+      .select('id')
+      .eq('id', documentId)
+      .eq('professional_id', userId)
+      .maybeSingle();
+
+    if (!doc) {
+      res.status(404).json({ error: 'Document not found' });
+      return;
+    }
+
     const pdfBuffer = images.length === 1
       ? await renderPdfFromImage(images[0]!, mimeType)
       : await renderPdfFromImages(images, mimeType);
     const pdfUrl = await uploadPdf(pdfBuffer, userId, documentId);
-    await savePdfUrl(documentId, pdfUrl);
+    await savePdfUrl(documentId, userId, pdfUrl);
 
     res.json({ url: pdfUrl });
   } catch (err: unknown) {

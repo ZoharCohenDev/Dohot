@@ -898,9 +898,10 @@ export async function uploadPdf(
 
 // ── Persist URL in DB ─────────────────────────────────────────────────────────
 
-export async function savePdfUrl(documentId: string, url: string): Promise<void> {
+export async function savePdfUrl(documentId: string, userId: string, url: string): Promise<void> {
   await supabaseAdmin
     .from('documents')
     .update({ pdf_url: url })
-    .eq('id', documentId);
+    .eq('id', documentId)
+    .eq('professional_id', userId);
 }
