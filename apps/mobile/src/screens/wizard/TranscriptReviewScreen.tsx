@@ -1,27 +1,44 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-  View, Text, TextInput, ScrollView, StyleSheet, Pressable,
+  View, Text, TextInput, ScrollView, StyleSheet, Pressable, ActivityIndicator,
 } from 'react-native';
 import { Header, FixedBottom, ProgressBar } from '@/components/layout';
 import { Button } from '@/components/primitives';
 import { Icons } from '@/components/icons';
 import { lightColors, fonts } from '@/theme/tokens';
 import { useWizard } from '@/context/WizardContext';
+import { useWizardExit } from '@/hooks/useWizardExit';
 
 interface TranscriptReviewScreenProps {
   colors?: typeof lightColors;
   onNext?: () => void;
   onBack?: () => void;
+  isTranscribing?: boolean;
+  transcriptionFailed?: boolean;
 }
 
 export function TranscriptReviewScreen({
   colors = lightColors,
   onNext,
   onBack,
+  isTranscribing = false,
+  transcriptionFailed = false,
 }: TranscriptReviewScreenProps) {
   const wizard = useWizard();
+  const { triggerExit } = useWizardExit();
   const [transcript, setTranscript] = useState(wizard.state.voiceTranscript);
   const [notes, setNotes] = useState('');
+
+  // Sync local state when wizard transcript is populated (e.g. transcription finishes)
+  useEffect(() => {
+    if (wizard.state.voiceTranscript && !transcript) {
+      setTranscript(wizard.state.voiceTranscript);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wizard.state.voiceTranscript]);
+
+  const hasAudio = !!wizard.state.recordedAudioUri;
+  const isEmpty = !transcript.trim();
 
   const handleSend = () => {
     const combined = notes.trim()
@@ -31,9 +48,48 @@ export function TranscriptReviewScreen({
     onNext?.();
   };
 
+  const statusBanner = (() => {
+    if (isTranscribing) return null;
+    if (transcriptionFailed && isEmpty) {
+      return (
+        <View style={[styles.banner, { backgroundColor: colors.warnBg }]}>
+          <Icons.mic size={14} color={colors.warn} />
+          <Text style={[styles.bannerText, { color: colors.warn, fontFamily: fonts.sans }]}>
+            התמלול לא הצליח. ניתן להקליד את תוכן הדוח ידנית.
+          </Text>
+        </View>
+      );
+    }
+    if (!hasAudio && isEmpty) {
+      return (
+        <View style={[styles.banner, { backgroundColor: colors.aiBg }]}>
+          <Icons.mic size={14} color={colors.ai2} />
+          <Text style={[styles.bannerText, { color: colors.ai2, fontFamily: fonts.sans }]}>
+            התמלול עדיין לא הופעל. ניתן להקליד את תוכן הדוח ידנית.
+          </Text>
+        </View>
+      );
+    }
+    return null;
+  })();
+
   return (
     <View style={[styles.root, { backgroundColor: colors.bg }]}>
-      <Header step={4} ofSteps={5} onBack={onBack} colors={colors} />
+      <Header
+        step={4}
+        ofSteps={5}
+        onBack={onBack}
+        colors={colors}
+        action={
+          <Pressable
+            onPress={triggerExit}
+            style={[styles.exitBtn, { backgroundColor: colors.bgElev, borderColor: colors.line }]}
+            hitSlop={6}
+          >
+            <Icons.home size={20} color={colors.ink2} />
+          </Pressable>
+        }
+      />
       <ProgressBar value={4 / 5} colors={colors} />
 
       <ScrollView
@@ -58,6 +114,9 @@ export function TranscriptReviewScreen({
           </Text>
         </View>
 
+        {/* Status banner (failed / no-audio) */}
+        {statusBanner}
+
         {/* Transcript card */}
         <View style={[styles.card, { backgroundColor: colors.bgElev, borderColor: colors.line }]}>
           <View style={styles.cardHeader}>
@@ -66,48 +125,66 @@ export function TranscriptReviewScreen({
               מה דיברת
             </Text>
           </View>
-          <TextInput
-            value={transcript}
-            onChangeText={setTranscript}
-            multiline
-            style={[styles.transcriptInput, { color: colors.ink1, fontFamily: fonts.sans }]}
-            textAlignVertical="top"
-            textAlign="right"
-            placeholder="לא זוהה טקסט — ניתן להקליד ידנית"
-            placeholderTextColor={colors.ink4}
-          />
+
+          {isTranscribing ? (
+            <View style={styles.transcribingState}>
+              <ActivityIndicator color={colors.ai2} />
+              <Text style={[styles.transcribingText, { color: colors.ink3, fontFamily: fonts.sans }]}>
+                מתמלל את ההקלטה…
+              </Text>
+            </View>
+          ) : (
+            <TextInput
+              value={transcript}
+              onChangeText={setTranscript}
+              multiline
+              style={[styles.transcriptInput, { color: colors.ink1, fontFamily: fonts.sans }]}
+              textAlignVertical="top"
+              textAlign="right"
+              placeholder={
+                transcriptionFailed
+                  ? 'הקלד את תוכן ההקלטה ידנית…'
+                  : 'לא זוהה טקסט — ניתן להקליד ידנית'
+              }
+              placeholderTextColor={colors.ink4}
+            />
+          )}
         </View>
 
         {/* Notes / manual recommendations card */}
-        <View style={[styles.card, { backgroundColor: colors.bgElev, borderColor: colors.line }]}>
-          <View style={styles.cardHeader}>
-            <Icons.edit size={16} color={colors.ink3} />
-            <Text style={[styles.cardLabel, { color: colors.ink2, fontFamily: fonts.sans }]}>
-              המלצות ראשוניות
-            </Text>
-            <Text style={[styles.optionalTag, { color: colors.ink4, fontFamily: fonts.sans }]}>
-              אופציונלי
-            </Text>
+        {!isTranscribing && (
+          <View style={[styles.card, { backgroundColor: colors.bgElev, borderColor: colors.line }]}>
+            <View style={styles.cardHeader}>
+              <Icons.edit size={16} color={colors.ink3} />
+              <Text style={[styles.cardLabel, { color: colors.ink2, fontFamily: fonts.sans }]}>
+                המלצות ראשוניות
+              </Text>
+              <Text style={[styles.optionalTag, { color: colors.ink4, fontFamily: fonts.sans }]}>
+                אופציונלי
+              </Text>
+            </View>
+            <TextInput
+              value={notes}
+              onChangeText={setNotes}
+              multiline
+              style={[styles.notesInput, { color: colors.ink1, fontFamily: fonts.sans }]}
+              textAlignVertical="top"
+              textAlign="right"
+              placeholder="הוסף המלצות, הערות או פרטים שברצונך שה-AI יכלול בדוח…"
+              placeholderTextColor={colors.ink4}
+            />
           </View>
-          <TextInput
-            value={notes}
-            onChangeText={setNotes}
-            multiline
-            style={[styles.notesInput, { color: colors.ink1, fontFamily: fonts.sans }]}
-            textAlignVertical="top"
-            textAlign="right"
-            placeholder="הוסף המלצות, הערות או פרטים שברצונך שה-AI יכלול בדוח…"
-            placeholderTextColor={colors.ink4}
-          />
-        </View>
+        )}
 
         {/* Info row */}
-        <View style={[styles.infoRow, { backgroundColor: colors.aiBg }]}>
-          <Icons.sparkle size={14} color={colors.ai2} />
-          <Text style={[styles.infoText, { color: colors.ai2, fontFamily: fonts.sans }]}>
-            ה-AI יקרא את הכל ויבנה דוח מקצועי ורשימת המלצות
-          </Text>
-        </View>
+        {!isTranscribing && (
+          <View style={[styles.infoRow, { backgroundColor: colors.aiBg }]}>
+            <Icons.sparkle size={14} color={colors.ai2} />
+            <Text style={[styles.infoText, { color: colors.ai2, fontFamily: fonts.sans }]}>
+              ה-AI יקרא את הכל ויבנה דוח מקצועי ורשימת המלצות
+            </Text>
+          </View>
+        )}
       </ScrollView>
 
       <FixedBottom colors={colors}>
@@ -115,11 +192,12 @@ export function TranscriptReviewScreen({
           kind="primary"
           size="lg"
           full
+          disabled={isTranscribing}
           onPress={handleSend}
           iconRight={<Icons.sparkle size={18} color={colors.bg} />}
           colors={colors}
         >
-          שלח ל-AI
+          {isTranscribing ? 'מתמלל…' : 'שלח ל-AI'}
         </Button>
       </FixedBottom>
     </View>
@@ -128,6 +206,10 @@ export function TranscriptReviewScreen({
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  exitBtn: {
+    width: 44, height: 44, borderRadius: 999, borderWidth: 1,
+    alignItems: 'center', justifyContent: 'center',
+  },
   scroll: { flex: 1 },
   content: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 140, gap: 16 },
 
@@ -145,6 +227,15 @@ const styles = StyleSheet.create({
   title: { fontSize: 30, fontWeight: '500', lineHeight: 33, letterSpacing: -0.6 },
   subtitle: { fontSize: 14 },
 
+  banner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    padding: 14,
+    borderRadius: 14,
+  },
+  bannerText: { flex: 1, fontSize: 13, lineHeight: 20 },
+
   card: {
     borderRadius: 18,
     borderWidth: 1,
@@ -158,6 +249,15 @@ const styles = StyleSheet.create({
   },
   cardLabel: { fontSize: 13, fontWeight: '700', flex: 1 },
   optionalTag: { fontSize: 11 },
+
+  transcribingState: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    paddingVertical: 36,
+  },
+  transcribingText: { fontSize: 14 },
 
   transcriptInput: {
     fontSize: 15,

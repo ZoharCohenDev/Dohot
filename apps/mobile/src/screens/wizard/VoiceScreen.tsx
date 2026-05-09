@@ -107,7 +107,7 @@ export function VoiceScreen({ onStop, onBack, transcribing }: VoiceScreenProps) 
   }, []);
 
   // ── Safe set-state helpers ─────────────────────────────────────────────────
-  const safeSet = <T,>(setter: React.Dispatch<React.SetStateAction<T>>, value: T) => {
+  const safeSet = <T,>(setter: React.Dispatch<React.SetStateAction<T>>, value: NoInfer<T>) => {
     if (isMountedRef.current) setter(value);
   };
 

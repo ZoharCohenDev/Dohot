@@ -48,6 +48,7 @@ interface WizardState {
   attendees: string;         // people present during inspection
   inspectionDate: string;    // formatted date, auto-set to today
   photos: string[];
+  recordedAudioUri: string;
   voiceTranscript: string;
   aiSummary: string;
   recommendations: Recommendation[];
@@ -77,6 +78,7 @@ interface WizardContextValue {
   addPhoto: (uri: string) => void;
   removePhoto: (uri: string) => void;
   replacePhoto: (oldUri: string, newUri: string) => void;
+  setRecordedAudioUri: (uri: string) => void;
   setVoiceTranscript: (t: string) => void;
   setAiResult: (summary: string, recommendations: Recommendation[]) => void;
   setRecommendations: (recs: Recommendation[]) => void;
@@ -108,6 +110,7 @@ const DEFAULT: WizardState = {
   attendees: '',
   inspectionDate: todayString(),
   photos: [],
+  recordedAudioUri: '',
   voiceTranscript: '',
   aiSummary: '',
   recommendations: [],
@@ -134,6 +137,7 @@ const WizardContext = createContext<WizardContextValue>({
   addPhoto: () => {},
   removePhoto: () => {},
   replacePhoto: () => {},
+  setRecordedAudioUri: () => {},
   setVoiceTranscript: () => {},
   setAiResult: () => {},
   setRecommendations: () => {},
@@ -201,6 +205,9 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
       ...s,
       photos: s.photos.map((p) => (p === oldUri ? newUri : p)),
     }));
+
+  const setRecordedAudioUri = (recordedAudioUri: string) =>
+    setState((s) => ({ ...s, recordedAudioUri }));
 
   const setVoiceTranscript = (voiceTranscript: string) =>
     setState((s) => ({ ...s, voiceTranscript }));
@@ -310,6 +317,7 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
       addPhoto,
       removePhoto,
       replacePhoto,
+      setRecordedAudioUri,
       setVoiceTranscript,
       setAiResult,
       setRecommendations,

@@ -11,9 +11,11 @@
   "dependencies": {
     "@dohot/shared": "*",
     "@supabase/supabase-js": "^2.43.0",
+    "@types/multer": "^2.1.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
+    "multer": "^2.1.1",
     "openai": "^6.36.0",
     "puppeteer": "^24.43.0"
   },

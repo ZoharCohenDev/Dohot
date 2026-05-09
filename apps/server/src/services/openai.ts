@@ -95,3 +95,19 @@ export async function transcribeAudio(base64Audio: string): Promise<string> {
   });
   return result.text;
 }
+
+export async function transcribeAudioBuffer(
+  buffer: Buffer,
+  originalName: string = 'recording.m4a',
+): Promise<string> {
+  console.log('[OpenAI] Transcription started, buffer size:', buffer.length, 'bytes');
+  const mimeType = originalName.endsWith('.m4a') ? 'audio/mp4' : 'audio/mpeg';
+  const file = await toFile(buffer, originalName, { type: mimeType });
+  const result = await client.audio.transcriptions.create({
+    model: 'whisper-1',
+    file,
+    language: 'he',
+  });
+  console.log('[OpenAI] Transcription complete, text length:', result.text.length);
+  return result.text;
+}
