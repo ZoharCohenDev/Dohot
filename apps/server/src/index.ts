@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import { rateLimit } from 'express-rate-limit';
 import dotenv from 'dotenv';
 import { documentsRouter } from './routes/documents';
 import { pdfRouter } from './routes/pdf';
@@ -26,9 +27,27 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'ok' });
 });
 
-app.use('/api/documents', documentsRouter);
-app.use('/api/pdf', pdfRouter);
-app.use('/api/ai', aiRouter);
+// AI endpoints hit paid third-party APIs — rate limit tightly per IP.
+const aiLimiter = rateLimit({
+  windowMs: 60 * 1000,  // 1 minute
+  max: 15,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please slow down' },
+});
+
+// PDF generation launches Puppeteer — limit to avoid resource exhaustion.
+const pdfLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please slow down' },
+});
+
+app.use('/api/documents', pdfLimiter, documentsRouter);
+app.use('/api/pdf', pdfLimiter, pdfRouter);
+app.use('/api/ai', aiLimiter, aiRouter);
 app.use('/api/admin', adminRouter);
 
 app.listen(PORT, () => {
