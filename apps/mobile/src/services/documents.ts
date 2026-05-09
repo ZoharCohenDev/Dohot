@@ -272,7 +272,7 @@ export async function deleteDocument(documentId: string): Promise<void> {
  */
 export async function generatePdfFromCapture(
   documentId: string,
-  imageBase64: string,
+  images: string[],
   mimeType: 'image/jpeg' | 'image/png' = 'image/jpeg',
 ): Promise<string> {
   const { data: { session } } = await supabase.auth.getSession();
@@ -285,7 +285,7 @@ export async function generatePdfFromCapture(
       Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ imageBase64, mimeType }),
+    body: JSON.stringify({ images, mimeType }),
   });
 
   if (!response.ok) {

@@ -821,6 +821,55 @@ export async function renderPdfFromImage(
   }
 }
 
+/**
+ * Generates a multi-page PDF from an array of base64 images.
+ * Each image becomes exactly one A4 page — no mid-image slicing.
+ */
+export async function renderPdfFromImages(
+  images: string[],
+  mimeType: 'image/jpeg' | 'image/png' = 'image/jpeg',
+): Promise<Buffer> {
+  const pages = images
+    .map((img) => `<div class="page"><img src="data:${mimeType};base64,${img}" /></div>`)
+    .join('');
+
+  const html = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8"/>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  @page { size: A4; margin: 0; }
+  body { background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .page {
+    width: 210mm;
+    page-break-after: always;
+    display: block;
+    overflow: hidden;
+  }
+  .page:last-child { page-break-after: auto; }
+  img { width: 210mm; height: auto; display: block; }
+</style>
+</head>
+<body>${pages}</body>
+</html>`;
+
+  const browser = await launchBrowser();
+  try {
+    const page = await browser.newPage();
+    await page.setViewport({ width: 794, height: 1123, deviceScaleFactor: 1 });
+    await page.setContent(html, { waitUntil: 'load', timeout: 30_000 });
+    const buffer = await page.pdf({
+      format: 'A4',
+      printBackground: true,
+      margin: { top: '0', bottom: '0', left: '0', right: '0' },
+    });
+    return Buffer.from(buffer);
+  } finally {
+    await browser.close();
+  }
+}
+
 // ── Storage upload ────────────────────────────────────────────────────────────
 
 export async function uploadPdf(

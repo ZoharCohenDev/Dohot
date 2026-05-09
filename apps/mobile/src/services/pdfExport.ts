@@ -2,7 +2,6 @@ import { File, Directory, Paths } from 'expo-file-system';
 
 const CACHE_PREFIX = 'dohot_pdf_';
 
-// Sanitizes a title into a valid filename (Hebrew + ASCII safe)
 function sanitizeFilename(title: string): string {
   return title
     .replace(/[/\\:*?"<>|]/g, '_')
@@ -11,20 +10,17 @@ function sanitizeFilename(title: string): string {
     .replace(/^_+|_+$/g, '');
 }
 
-// Returns the expected cache file for a given title
-function cacheFile(title: string): File {
-  const name = `${CACHE_PREFIX}${sanitizeFilename(title)}.pdf`;
-  return new File(new Directory(Paths.cache), name);
-}
-
 /**
  * Downloads a PDF from a server URL into the local cache directory.
  * Overwrites any previous file with the same name (idempotent).
  * Returns the local file URI for use with expo-sharing.
  */
 export async function downloadPdfToCache(pdfUrl: string, docTitle: string): Promise<string> {
-  const dest = cacheFile(docTitle);
-  const downloaded = await File.downloadFileAsync(pdfUrl, dest, { idempotent: true });
+  const name = `${CACHE_PREFIX}${sanitizeFilename(docTitle)}.pdf`;
+  const dest = new File(Paths.cache, name);
+  // The native module throws if the destination already exists — delete it first.
+  if (dest.exists) dest.delete();
+  const downloaded = await File.downloadFileAsync(pdfUrl, dest);
   return downloaded.uri;
 }
 

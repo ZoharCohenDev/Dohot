@@ -4,6 +4,7 @@ import {
   buildHtml,
   renderPdf,
   renderPdfFromImage,
+  renderPdfFromImages,
   uploadPdf,
   savePdfUrl,
 } from '../services/pdf';
@@ -39,18 +40,20 @@ export async function generatePdfFromCaptureHandler(req: Request, res: Response)
   const { documentId } = req.params as { documentId: string };
   const userId = req.userId!;
 
-  const { imageBase64, mimeType = 'image/jpeg' } = req.body as {
-    imageBase64?: string;
+  const { images, mimeType = 'image/jpeg' } = req.body as {
+    images?: string[];
     mimeType?: 'image/jpeg' | 'image/png';
   };
 
-  if (!imageBase64 || typeof imageBase64 !== 'string') {
-    res.status(400).json({ error: 'imageBase64 is required' });
+  if (!Array.isArray(images) || images.length === 0) {
+    res.status(400).json({ error: 'images array is required' });
     return;
   }
 
   try {
-    const pdfBuffer = await renderPdfFromImage(imageBase64, mimeType);
+    const pdfBuffer = images.length === 1
+      ? await renderPdfFromImage(images[0], mimeType)
+      : await renderPdfFromImages(images, mimeType);
     const pdfUrl = await uploadPdf(pdfBuffer, userId, documentId);
     await savePdfUrl(documentId, pdfUrl);
 

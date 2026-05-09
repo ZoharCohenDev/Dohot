@@ -20,6 +20,10 @@ interface PdfPreviewScreenProps {
   onSend?: () => void;
 }
 
+type BusinessProfile = ReturnType<typeof useAuth>['businessProfile'];
+type WizardState = ReturnType<typeof useWizard>['state'];
+type ReportIssue = WizardState['reportIssues'][number];
+
 function formatDate(): string {
   return new Date().toLocaleDateString('he-IL', { day: 'numeric', month: 'long', year: 'numeric' });
 }
@@ -55,20 +59,54 @@ function SectionTitle({ num, label }: { num: number; label: string }) {
   );
 }
 
-function PageDivider({ pageNum, label }: { pageNum: number; label: string }) {
+// Full page header — reproduced on every page card
+function PdfPageHeader({
+  docTitle, brandInitial, businessProfile,
+}: {
+  docTitle: string;
+  brandInitial: string;
+  businessProfile: BusinessProfile;
+}) {
   return (
-    <View style={styles.pageDivider}>
-      <View style={styles.pageDividerLine} />
-      <View style={styles.pageDividerBadge}>
-        <Text style={styles.pageDividerNum}>עמוד {pageNum}</Text>
-        <Text style={styles.pageDividerLabel}>{label}</Text>
+    <View style={[styles.pdfHeader, { borderBottomColor: '#1B1916' }]}>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.pdfDocTitle}>{docTitle}</Text>
+        <Text style={styles.pdfDocRef}>{formatDate()}</Text>
       </View>
-      <View style={styles.pageDividerLine} />
+      <View style={styles.pdfBrandSide}>
+        <View style={styles.pdfBrandMark}>
+          <Text style={styles.pdfBrandLetter}>{brandInitial}</Text>
+        </View>
+        <Text style={styles.pdfBrandName} numberOfLines={1}>
+          {businessProfile?.business_name || businessProfile?.full_name || ''}
+        </Text>
+        {!!businessProfile?.license_number && (
+          <Text style={styles.pdfTaxId}>{`ח.פ ${businessProfile.license_number}`}</Text>
+        )}
+      </View>
     </View>
   );
 }
 
-// ─── Report (5-page structure) ────────────────────────────────────────────────
+// Signature block at the bottom-right of every page
+function PageSig({ businessProfile }: { businessProfile: BusinessProfile }) {
+  const sigUrl = businessProfile?.signature_url;
+  const sigName = [
+    businessProfile?.full_name,
+    businessProfile?.license_number && `ח.פ ${businessProfile.license_number}`,
+  ].filter(Boolean).join(' · ');
+  if (!sigUrl && !sigName) return null;
+  return (
+    <View style={styles.pageSig}>
+      {!!sigUrl && (
+        <Image source={{ uri: sigUrl }} style={styles.pageSigImage} resizeMode="contain" />
+      )}
+      {!!sigName && <Text style={styles.pageSigName}>{sigName}</Text>}
+    </View>
+  );
+}
+
+// ─── Report page components (one per PDF page) ────────────────────────────────
 
 const LEGAL_DISCLAIMER =
   'דוח זה הוכן על בסיס בדיקה ויזואלית ואינו מהווה חוות דעת הנדסית. ' +
@@ -76,22 +114,15 @@ const LEGAL_DISCLAIMER =
   'הכותב אינו אחראי לנזקים שנגרמו לאחר מועד הביקור או לנזקים סמויים שלא ניתן היה לאתרם בבדיקה חיצונית. ' +
   'כל עבודת תיקון תבוצע לפי שיקול הבעלים ועל אחריותו.';
 
-function ReportContent({
-  state,
-  businessProfile,
-}: {
-  state: ReturnType<typeof useWizard>['state'];
-  businessProfile: ReturnType<typeof useAuth>['businessProfile'];
-}) {
+function ReportPage1({ state, businessProfile }: { state: WizardState; businessProfile: BusinessProfile }) {
   const address = buildAddress(state);
   const propType = propertyLabel(state.propertyType);
   const issues = state.reportIssues;
 
   return (
     <>
-      {/* ── PAGE 1: Visit & Customer Details ── */}
       <View style={styles.pdfSection}>
-        <SectionTitle num={1} label="פרטי הביקור והלקוח" />
+        <SectionTitle num={1} label="פרטי הלקוח" />
         <View style={styles.metaGrid}>
           <View style={styles.metaItem}>
             <Text style={styles.metaItemLabel}>לקוח</Text>
@@ -124,7 +155,6 @@ function ReportContent({
             </View>
           )}
         </View>
-        {/* Summary of all issue types */}
         {issues.length > 0 && (
           <View style={styles.visitReasonBox}>
             <Text style={styles.visitReasonLabel}>סוגי תקלות שנבדקו</Text>
@@ -137,9 +167,7 @@ function ReportContent({
         )}
       </View>
 
-      {/* ── PAGE 2: About the Professional ── */}
-      <PageDivider pageNum={2} label="על הבודק" />
-      <View style={styles.pdfSection}>
+      <View style={[styles.pdfSection, { marginTop: 10 }]}>
         <SectionTitle num={2} label="פרטי הבודק המקצועי" />
         <View style={styles.metaGrid}>
           <View style={styles.metaItem}>
@@ -165,70 +193,102 @@ function ReportContent({
             </View>
           )}
         </View>
+        <PageSig businessProfile={businessProfile} />
       </View>
+    </>
+  );
+}
 
-      {/* ── PAGES 3+: One page per issue ── */}
-      {issues.map((issue, i) => (
-        <React.Fragment key={issue.id}>
-          <PageDivider pageNum={3 + i} label={issue.issueLabel} />
-
-          {/* Issue description */}
-          <View style={styles.pdfSection}>
-            <SectionTitle num={3 + i} label={issue.issueLabel} />
-            <Text style={styles.pdfBody}>
-              {issue.aiSummary || issue.description || issue.issueNote || 'לא צוין תיאור מפורט.'}
-            </Text>
-            {!!issue.issueNote && !issue.aiSummary && (
-              <View style={{ marginTop: 6 }}>
-                <Text style={styles.metaItemLabel}>הערות</Text>
-                <Text style={styles.pdfBody}>{issue.issueNote}</Text>
-              </View>
-            )}
-          </View>
-
-          {/* Issue photos */}
-          {issue.photos.length > 0 && (
-            <View style={styles.pdfSection}>
-              <View style={styles.pdfImageGrid}>
-                {issue.photos.slice(0, 4).map((uri, j) => (
-                  <View key={uri} style={styles.pdfImageCell}>
-                    <Image source={{ uri }} style={styles.pdfImage} resizeMode="cover" />
-                    <Text style={styles.pdfImageLabel}>{`תמונה ${j + 1}`}</Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-          )}
-
-          {/* Issue recommendations */}
-          {issue.recommendations.length > 0 && (
-            <View style={styles.pdfSection}>
-              {issue.recommendations.map((r: Recommendation, j: number) => (
-                <View
-                  key={j}
-                  style={[styles.pdfRecRow, j < issue.recommendations.length - 1 && styles.pdfRecBorder]}
-                >
-                  <Text style={styles.pdfRecNum}>{`${j + 1}`}</Text>
-                  <View style={styles.pdfRecPill}>
-                    <Text style={styles.pdfRecPillText}>{r.priority}</Text>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.pdfRecTitle}>{r.title}</Text>
-                    {!!r.description && <Text style={styles.pdfRecDesc}>{r.description}</Text>}
-                  </View>
-                </View>
-              ))}
-            </View>
-          )}
-        </React.Fragment>
-      ))}
-
-      {/* ── Legal Disclaimer ── */}
-      <PageDivider pageNum={3 + issues.length} label="הצהרה משפטית" />
+function CertificationsPage({ businessProfile }: { businessProfile: BusinessProfile }) {
+  const certs = businessProfile?.certifications ?? [];
+  const certsNote = businessProfile?.certifications_note;
+  return (
+    <>
       <View style={styles.pdfSection}>
-        <SectionTitle num={3 + issues.length} label="הגבלת אחריות" />
+        <SectionTitle num={3} label="הסמכות ואישורים מקצועיים" />
+        {!!certsNote && (
+          <Text style={[styles.pdfBody, { marginBottom: 8 }]}>{certsNote}</Text>
+        )}
+        {certs.map((cert, i) => (
+          <View key={i} style={styles.certRow}>
+            {!!cert.image_url && (
+              <Image source={{ uri: cert.image_url }} style={styles.certImage} resizeMode="cover" />
+            )}
+            <View style={styles.certInfo}>
+              <Text style={styles.certName}>{cert.name}</Text>
+              <Text style={styles.certYear}>{cert.year}</Text>
+            </View>
+          </View>
+        ))}
+      </View>
+      <PageSig businessProfile={businessProfile} />
+    </>
+  );
+}
+
+function IssuePage({
+  issue, pageNum, businessProfile,
+}: {
+  issue: ReportIssue;
+  pageNum: number;
+  businessProfile: BusinessProfile;
+}) {
+  return (
+    <>
+      <View style={styles.pdfSection}>
+        <SectionTitle num={pageNum} label={issue.issueLabel} />
+        <Text style={styles.pdfBody}>
+          {issue.aiSummary || issue.description || issue.issueNote || 'לא צוין תיאור מפורט.'}
+        </Text>
+        {!!issue.issueNote && !issue.aiSummary && (
+          <View style={{ marginTop: 6 }}>
+            <Text style={styles.metaItemLabel}>הערות</Text>
+            <Text style={styles.pdfBody}>{issue.issueNote}</Text>
+          </View>
+        )}
+        {issue.photos.length > 0 && (
+          <View style={[styles.pdfImageGrid, { marginTop: 10 }]}>
+            {issue.photos.slice(0, 4).map((uri, j) => (
+              <View key={uri} style={styles.pdfImageCell}>
+                <Image source={{ uri }} style={styles.pdfImage} resizeMode="cover" />
+                <Text style={styles.pdfImageLabel}>{`תמונה ${j + 1}`}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+        {issue.recommendations.length > 0 && (
+          <View style={{ marginTop: 10 }}>
+            {issue.recommendations.map((r: Recommendation, j: number) => (
+              <View
+                key={j}
+                style={[styles.pdfRecRow, j < issue.recommendations.length - 1 && styles.pdfRecBorder]}
+              >
+                <Text style={styles.pdfRecNum}>{`${j + 1}`}</Text>
+                <View style={styles.pdfRecPill}>
+                  <Text style={styles.pdfRecPillText}>{r.priority}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.pdfRecTitle}>{r.title}</Text>
+                  {!!r.description && <Text style={styles.pdfRecDesc}>{r.description}</Text>}
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
+      </View>
+      <PageSig businessProfile={businessProfile} />
+    </>
+  );
+}
+
+function LegalPage({ pageNum, businessProfile }: { pageNum: number; businessProfile: BusinessProfile }) {
+  return (
+    <>
+      <View style={styles.pdfSection}>
+        <SectionTitle num={pageNum} label="הגבלת אחריות" />
         <Text style={[styles.pdfBody, styles.disclaimerText]}>{LEGAL_DISCLAIMER}</Text>
       </View>
+      <PageSig businessProfile={businessProfile} />
     </>
   );
 }
@@ -237,7 +297,7 @@ function ReportContent({
 
 const VAT_RATE = 0.18;
 
-function QuoteContent({ state }: { state: ReturnType<typeof useWizard>['state'] }) {
+function QuoteContent({ state }: { state: WizardState }) {
   const subtotal = state.quoteItems.reduce((s, i) => s + i.qty * i.unitPrice, 0);
   const vat = Math.round(subtotal * VAT_RATE);
   const total = subtotal + vat;
@@ -272,8 +332,6 @@ function QuoteContent({ state }: { state: ReturnType<typeof useWizard>['state'] 
                 )}
               </View>
             ))}
-
-            {/* Totals */}
             <View style={styles.quoteTotals}>
               <View style={styles.quoteTotalRow}>
                 <Text style={styles.quoteTotalLabel}>סכום לפני מע״מ</Text>
@@ -297,8 +355,6 @@ function QuoteContent({ state }: { state: ReturnType<typeof useWizard>['state'] 
           </View>
         )}
       </View>
-
-      {/* Validity footer */}
       {!!state.quoteValidityDate && (
         <View style={styles.quoteValidityRow}>
           <Icons.calendar size={11} color="#807A72" />
@@ -313,7 +369,7 @@ function QuoteContent({ state }: { state: ReturnType<typeof useWizard>['state'] 
 
 // ─── Warranty sections ────────────────────────────────────────────────────────
 
-function WarrantyContent({ state }: { state: ReturnType<typeof useWizard>['state'] }) {
+function WarrantyContent({ state }: { state: WizardState }) {
   return (
     <>
       <View style={styles.pdfSection}>
@@ -322,7 +378,6 @@ function WarrantyContent({ state }: { state: ReturnType<typeof useWizard>['state
           {state.warrantyWorkDescription || 'לא צוין תיאור עבודה.'}
         </Text>
       </View>
-
       {(state.reportIssues[0]?.photos ?? []).length > 0 && (
         <View style={styles.pdfImageGrid}>
           {(state.reportIssues[0]?.photos ?? []).slice(0, 4).map((uri, i) => (
@@ -333,15 +388,12 @@ function WarrantyContent({ state }: { state: ReturnType<typeof useWizard>['state
           ))}
         </View>
       )}
-
       <View style={styles.pdfSection}>
         <SectionTitle num={2} label="תנאי האחריות" />
         <View style={styles.warrantyTermRow}>
           <Text style={styles.warrantyTermLabel}>תקופת אחריות</Text>
           <Text style={styles.warrantyTermValue}>{state.warrantyDuration || 'לא צוין'}</Text>
         </View>
-
-        {/* Numbered conditions list */}
         {state.warrantyConditions.length > 0 && (
           <View style={{ marginTop: 8, gap: 4 }}>
             {state.warrantyConditions.map((cond, i) => (
@@ -365,47 +417,67 @@ export function PdfPreviewScreen({ colors = lightColors, onBack, onSend }: PdfPr
   const [generatingPdf, setGeneratingPdf] = React.useState(false);
   const [pdfError, setPdfError] = React.useState('');
 
-  // Ref on the INNER content View (not the ScrollView).
-  // captureRef on a plain View captures its full layout height regardless of what
-  // is visible on screen — no snapshotContentContainer needed (and that option
-  // only works on the old-arch RCTScrollView, not the new-arch fabric equivalent).
-  const contentViewRef = React.useRef<View>(null);
+  // Each PDF page gets its own View ref. Keyed by page ID string.
+  // captureRef on each View captures that page at its full natural height —
+  // no scrolling needed, no A4 mid-image slicing.
+  const pageRefs = React.useRef<Map<string, View | null>>(new Map());
+  function setPageRef(key: string) {
+    return (ref: View | null) => { pageRefs.current.set(key, ref); };
+  }
 
   const state = wizard.state;
   const docConfig = DOCUMENT_TYPES[state.docType];
   const docTitle = `${docConfig.titlePrefix} ${state.customerName || 'לא צוין'}`;
-  const brandInitial = (businessProfile?.business_name ?? businessProfile?.full_name ?? 'ד')[0];
+  const brandInitial = (businessProfile?.business_name ?? businessProfile?.full_name ?? 'ד')[0] ?? 'ד';
+
+  const certs = businessProfile?.certifications ?? [];
+  const hasCertsPage = certs.length > 0 || !!businessProfile?.certifications_note;
+  const issues = state.reportIssues;
+  const issueBasePageNum = hasCertsPage ? 3 : 2;
+  const legalPageNum = issueBasePageNum + issues.length;
+
+  const headerProps = { docTitle, brandInitial, businessProfile };
 
   const handleSend = async () => {
     if (!state.documentId) return;
-
-    // If PDF was already generated this session (e.g. user went back), skip regenerating
-    if (state.pdfUrl) {
-      onSend?.();
-      return;
-    }
+    if (state.pdfUrl) { onSend?.(); return; }
 
     setGeneratingPdf(true);
     setPdfError('');
 
     try {
-      // Give the renderer a frame to settle (font/image load) before capturing
+      // Give layout a frame to fully render before capturing
       await new Promise<void>((r) => setTimeout(r, Platform.OS === 'ios' ? 200 : 400));
 
-      // Capture the content View at its full natural height.
-      // Because the ref points to a plain View (not a ScrollView), captureRef
-      // grabs the entire laid-out bounds — including content below the fold.
-      const imageBase64 = await captureRef(contentViewRef, {
-        format: 'jpg',
-        quality: 0.92,
-        result: 'base64',
-      });
+      let capturedImages: string[];
 
-      // Send the captured image to the server — it wraps it in A4 HTML and
-      // renders to PDF with Puppeteer, guaranteeing pixel-perfect match
-      const url = await generatePdfFromCapture(state.documentId, imageBase64, 'image/jpeg');
+      if (state.docType === 'report') {
+        // Build the ordered list of page keys
+        const pageKeys: string[] = ['page1'];
+        if (hasCertsPage) pageKeys.push('page2');
+        issues.forEach((_, i) => pageKeys.push(`issue_${i}`));
+        pageKeys.push('legal');
+
+        // Capture each page View separately — sequential to avoid memory spikes
+        capturedImages = [];
+        for (const key of pageKeys) {
+          const view = pageRefs.current.get(key);
+          if (!view) continue;
+          const base64 = await captureRef(view, { format: 'jpg', quality: 0.92, result: 'base64' });
+          capturedImages.push(base64 as string);
+        }
+      } else {
+        // Quote / Warranty: single page
+        const view = pageRefs.current.get('single');
+        if (!view) throw new Error('לא נמצא תוכן לייצוא');
+        const base64 = await captureRef(view, { format: 'jpg', quality: 0.92, result: 'base64' });
+        capturedImages = [base64 as string];
+      }
+
+      if (capturedImages.length === 0) throw new Error('לא נוצרו עמודים לייצוא');
+
+      const url = await generatePdfFromCapture(state.documentId, capturedImages, 'image/jpeg');
       wizard.setPdfUrl(url);
-
       onSend?.();
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'שגיאה לא צפויה';
@@ -433,55 +505,64 @@ export function PdfPreviewScreen({ colors = lightColors, onBack, onSend }: PdfPr
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <View ref={contentViewRef} style={styles.pdfPage}>
-          {/* ── Header band ── */}
-          <View style={[styles.pdfHeader, { borderBottomColor: '#1B1916' }]}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.pdfDocTitle}>{docTitle}</Text>
-              <Text style={styles.pdfDocRef}>{formatDate()}</Text>
+        {state.docType === 'report' && (
+          <>
+            {/* Page 1: Client + Professional details */}
+            <View ref={setPageRef('page1')} style={styles.pdfPage}>
+              <PdfPageHeader {...headerProps} />
+              <ReportPage1 state={state} businessProfile={businessProfile} />
             </View>
-            <View style={styles.pdfBrandSide}>
-              <View style={styles.pdfBrandMark}>
-                <Text style={styles.pdfBrandLetter}>{brandInitial}</Text>
+
+            {/* Page 2 (optional): Certifications & authorizations */}
+            {hasCertsPage && (
+              <View ref={setPageRef('page2')} style={styles.pdfPage}>
+                <PdfPageHeader {...headerProps} />
+                <CertificationsPage businessProfile={businessProfile} />
               </View>
-              <Text style={styles.pdfBrandName} numberOfLines={1}>
-                {businessProfile?.business_name || businessProfile?.full_name || ''}
-              </Text>
-              {!!businessProfile?.license_number && (
-                <Text style={styles.pdfTaxId}>{`ח.פ ${businessProfile.license_number}`}</Text>
-              )}
+            )}
+
+            {/* One page per issue: description + photos + recommendations */}
+            {issues.map((issue, i) => (
+              <View key={issue.id} ref={setPageRef(`issue_${i}`)} style={styles.pdfPage}>
+                <PdfPageHeader {...headerProps} />
+                <IssuePage issue={issue} pageNum={issueBasePageNum + i} businessProfile={businessProfile} />
+              </View>
+            ))}
+
+            {/* Last page: Limitation of liability */}
+            <View ref={setPageRef('legal')} style={styles.pdfPage}>
+              <PdfPageHeader {...headerProps} />
+              <LegalPage pageNum={legalPageNum} businessProfile={businessProfile} />
+            </View>
+          </>
+        )}
+
+        {(state.docType === 'quote' || state.docType === 'warranty') && (
+          <View ref={setPageRef('single')} style={styles.pdfPage}>
+            <PdfPageHeader {...headerProps} />
+            {state.docType === 'quote' && <QuoteContent state={state} />}
+            {state.docType === 'warranty' && <WarrantyContent state={state} />}
+            <View style={[styles.pdfSigRow, { borderTopColor: '#C7C1B6' }]}>
+              <View>
+                {businessProfile?.signature_url
+                  ? (
+                    <Image
+                      source={{ uri: businessProfile.signature_url }}
+                      style={styles.pdfSigImage}
+                      resizeMode="contain"
+                    />
+                  )
+                  : <View style={styles.pdfSigLine} />
+                }
+                <Text style={styles.pdfSigName}>
+                  {[businessProfile?.full_name, businessProfile?.license_number && `ח.פ ${businessProfile.license_number}`]
+                    .filter(Boolean).join(' · ') || 'חתימה'}
+                </Text>
+              </View>
+              <Text style={styles.pdfQrPlaceholder}>QR</Text>
             </View>
           </View>
-
-          {/* ── Doc-type specific content ── */}
-          {state.docType === 'report' && (
-            <ReportContent state={state} businessProfile={businessProfile} />
-          )}
-          {state.docType === 'quote' && <QuoteContent state={state} />}
-          {state.docType === 'warranty' && <WarrantyContent state={state} />}
-
-          {/* ── Signature row — uses the professional's real signature_url ── */}
-          <View style={[styles.pdfSigRow, { borderTopColor: '#C7C1B6' }]}>
-            <View>
-              {businessProfile?.signature_url
-                ? (
-                  <Image
-                    source={{ uri: businessProfile.signature_url }}
-                    style={styles.pdfSigImage}
-                    resizeMode="contain"
-                  />
-                )
-                : <View style={styles.pdfSigLine} />
-              }
-              <Text style={styles.pdfSigName}>
-                {[businessProfile?.full_name, businessProfile?.license_number && `ח.פ ${businessProfile.license_number}`]
-                  .filter(Boolean)
-                  .join(' · ') || 'חתימה'}
-              </Text>
-            </View>
-            <Text style={styles.pdfQrPlaceholder}>QR</Text>
-          </View>
-        </View>
+        )}
       </ScrollView>
 
       <FixedBottom colors={colors}>
@@ -520,7 +601,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
 
-  // PDF page container
+  // PDF page card — each is one physical PDF page
   pdfPage: {
     backgroundColor: '#fff',
     borderRadius: 12,
@@ -532,7 +613,7 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
 
-  // Header
+  // Header (repeated on every page)
   pdfHeader: {
     flexDirection: 'row-reverse',
     justifyContent: 'space-between',
@@ -554,18 +635,6 @@ const styles = StyleSheet.create({
   pdfBrandLetter: { color: '#F5F3EE', fontFamily: fonts.serif, fontSize: 16, fontWeight: '700' },
   pdfBrandName: { fontSize: 8, fontWeight: '600', color: '#1B1916', textAlign: 'left' },
   pdfTaxId: { fontSize: 7, color: '#807A72' },
-
-  // Page divider
-  pageDivider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginVertical: 14,
-  },
-  pageDividerLine: { flex: 1, height: 0.5, backgroundColor: '#C7C1B6' },
-  pageDividerBadge: { alignItems: 'center', gap: 1 },
-  pageDividerNum: { fontSize: 7, fontWeight: '600', color: '#807A72', letterSpacing: 0.5 },
-  pageDividerLabel: { fontSize: 9, fontWeight: '700', color: '#4A4641' },
 
   // Sections
   pdfSection: { marginBottom: 12 },
@@ -611,7 +680,7 @@ const styles = StyleSheet.create({
   pdfRecTitle: { fontSize: 8, fontWeight: '700', color: '#1B1916', textAlign: 'right' },
   pdfRecDesc: { fontSize: 7.5, color: '#4A4641', marginTop: 1, textAlign: 'right' },
 
-  // Quote item list
+  // Quote
   quoteItem: { paddingVertical: 7 },
   quoteItemBorder: { borderBottomWidth: 0.5, borderBottomColor: '#E8E4DE' },
   quoteItemHeader: { flexDirection: 'row-reverse', alignItems: 'flex-start', gap: 6 },
@@ -632,16 +701,9 @@ const styles = StyleSheet.create({
   quoteTotalFinalRow: { borderTopWidth: 0.5, borderTopColor: '#C7C1B6', paddingTop: 4, marginTop: 2 },
   quoteTotalFinalLabel: { fontSize: 9, fontWeight: '700', color: '#1B1916', textAlign: 'right' },
   quoteTotalFinalValue: { fontSize: 9, fontWeight: '700', color: '#1B1916' },
-
-  // Quote validity
   quoteValidityRow: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    gap: 5,
-    marginTop: 12,
-    paddingTop: 8,
-    borderTopWidth: 0.5,
-    borderTopColor: '#C7C1B6',
+    flexDirection: 'row-reverse', alignItems: 'center', gap: 5,
+    marginTop: 12, paddingTop: 8, borderTopWidth: 0.5, borderTopColor: '#C7C1B6',
   },
   quoteValidityText: { fontSize: 8, color: '#4A4641', fontWeight: '600', textAlign: 'right' },
 
@@ -653,7 +715,7 @@ const styles = StyleSheet.create({
   warrantyConditionNum: { fontSize: 8, fontWeight: '700', color: '#1B1916', minWidth: 14, textAlign: 'right' },
   warrantyConditionText: { fontSize: 8, color: '#1B1916', lineHeight: 13, flex: 1, textAlign: 'right' },
 
-  // Signature
+  // Signature (quote/warranty bottom row)
   pdfSigRow: {
     flexDirection: 'row-reverse', justifyContent: 'space-between',
     alignItems: 'flex-end', marginTop: 22, paddingTop: 14, borderTopWidth: 0.5,
@@ -662,6 +724,23 @@ const styles = StyleSheet.create({
   pdfSigLine: { width: 80, height: 1, backgroundColor: '#C7C1B6', marginBottom: 6 },
   pdfSigName: { fontSize: 7, color: '#807A72', marginTop: 2, textAlign: 'right' },
   pdfQrPlaceholder: { fontSize: 7, color: '#807A72', padding: 8, borderWidth: 0.5, borderColor: '#E5E5E5', borderRadius: 4 },
+
+  // Per-page signature (bottom-right of every report page)
+  pageSig: { alignItems: 'flex-end', marginTop: 16, paddingTop: 10, borderTopWidth: 0.5, borderTopColor: '#C7C1B6' },
+  pageSigImage: { width: 90, height: 32 },
+  pageSigName: { fontSize: 7, color: '#807A72', marginTop: 2, textAlign: 'right' },
+
+  // Certifications
+  certRow: {
+    flexDirection: 'row-reverse', alignItems: 'center', gap: 10,
+    paddingVertical: 6, borderBottomWidth: 0.5, borderBottomColor: '#E8E4DE',
+  },
+  certImage: { width: 50, height: 50, borderRadius: 6, flexShrink: 0 },
+  certInfo: { flex: 1, alignItems: 'flex-end' },
+  certName: { fontSize: 9, fontWeight: '700', color: '#1B1916', textAlign: 'right' },
+  certYear: { fontSize: 8, color: '#807A72', marginTop: 2, textAlign: 'right' },
+
+
 
   // Bottom
   bottomRow: { flexDirection: 'row', gap: 10 },

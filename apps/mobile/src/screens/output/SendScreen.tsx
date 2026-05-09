@@ -62,8 +62,10 @@ export function SendScreen({ colors = lightColors, onBack, onDone }: SendScreenP
       const uri = await downloadPdfToCache(pdfUrl, docTitle);
       localUriRef.current = uri;
       return uri;
-    } catch {
-      Alert.alert('שגיאה בהורדת הקובץ', 'לא ניתן להוריד את ה-PDF. בדוק את החיבור לאינטרנט ונסה שנית.');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error('[SendScreen] PDF download failed:', msg);
+      Alert.alert('שגיאה בהורדת הקובץ', msg || 'לא ניתן להוריד את ה-PDF. בדוק את החיבור לאינטרנט ונסה שנית.');
       return null;
     }
   };
