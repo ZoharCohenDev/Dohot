@@ -134,6 +134,25 @@ interface ReportOpts {
   recommendations: Recommendation[];
 }
 
+const ISSUE_TYPE_MAP: Record<string, InsertReport['issue_type']> = {
+  // leak-related
+  leak: 'leak', floor_leak: 'leak', sewage: 'leak', ac_leak: 'leak',
+  // pipe-related
+  pipe: 'pipe', pipe_leak: 'pipe', pipe_burst: 'pipe', tap_drip: 'pipe',
+  toilet: 'pipe', boiler: 'pipe', drainage: 'pipe', plumbing: 'pipe',
+  // roof-related
+  roof: 'roof', roof_leak: 'roof', roof_leak2: 'roof', crack: 'roof', tiles: 'roof',
+  // moisture-related
+  moisture: 'moisture', wall_moisture: 'moisture',
+  // waterproofing-related
+  waterproofing: 'waterproofing', basement: 'waterproofing', bathroom: 'waterproofing',
+  balcony: 'waterproofing', pool: 'waterproofing', flat_roof: 'waterproofing', membrane: 'waterproofing',
+};
+
+function toDbIssueType(issueType: string): InsertReport['issue_type'] {
+  return ISSUE_TYPE_MAP[issueType] ?? 'other';
+}
+
 export async function createReport(documentId: string, opts: ReportOpts): Promise<Report> {
   const photoUrls: ReportPhoto[] = opts.photos.map((uri) => ({ uri }));
   const visitDate = new Date().toISOString().substring(0, 10);
@@ -142,7 +161,7 @@ export async function createReport(documentId: string, opts: ReportOpts): Promis
     document_id: documentId,
     visit_date: visitDate,
     property_type: opts.propertyType,
-    issue_type: opts.issueType as InsertReport['issue_type'],
+    issue_type: toDbIssueType(opts.issueType),
     issue_note: opts.issueNote || null,
     findings_summary: opts.aiSummary || opts.voiceTranscript || null,
     voice_transcript: opts.voiceTranscript || null,
@@ -173,7 +192,7 @@ export async function upsertReport(documentId: string, opts: ReportOpts): Promis
   const reportData = {
     visit_date: visitDate,
     property_type: opts.propertyType,
-    issue_type: opts.issueType as InsertReport['issue_type'],
+    issue_type: toDbIssueType(opts.issueType),
     issue_note: opts.issueNote || null,
     findings_summary: opts.aiSummary || opts.voiceTranscript || null,
     voice_transcript: opts.voiceTranscript || null,
