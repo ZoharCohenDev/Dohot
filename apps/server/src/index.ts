@@ -45,10 +45,20 @@ const pdfLimiter = rateLimit({
   message: { error: 'Too many requests, please slow down' },
 });
 
+// Admin endpoints are low-volume by nature; this primarily blocks brute-force
+// attempts against user creation and password-reset routes.
+const adminLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please slow down' },
+});
+
 app.use('/api/documents', pdfLimiter, documentsRouter);
 app.use('/api/pdf', pdfLimiter, pdfRouter);
 app.use('/api/ai', aiLimiter, aiRouter);
-app.use('/api/admin', adminRouter);
+app.use('/api/admin', adminLimiter, adminRouter);
 
 app.listen(PORT, () => {
   console.log(`Dohot server running on port ${PORT}`);

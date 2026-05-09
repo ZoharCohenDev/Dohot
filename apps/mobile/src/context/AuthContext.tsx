@@ -94,6 +94,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       if (event === 'TOKEN_REFRESHED') {
         setSession(session);
+        // Reload profile so admin changes (deactivation, subscription expiry)
+        // take effect without requiring a full re-login.
+        if (session) loadBusinessProfile(session).catch(() => {});
         return;
       }
       setSession(session);
@@ -121,7 +124,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const hasBusinessProfile = Boolean(businessProfile?.business_name?.trim());
   const role: UserRole | null = (businessProfile?.role as UserRole) ?? null;
   const isAdmin = role === 'admin';
-  const isActive = businessProfile?.is_active ?? true;
+  // Fail-closed: if the profile couldn't be loaded, treat the account as
+  // inactive rather than letting an unverified user into the app.
+  const isActive = businessProfile?.is_active ?? false;
   const days = daysUntil(businessProfile?.subscription_expiration_date ?? null);
   const isSubscriptionExpired = days !== null && days < 0;
   const isSubscriptionWarning = days !== null && days >= 0 && days <= 7;
