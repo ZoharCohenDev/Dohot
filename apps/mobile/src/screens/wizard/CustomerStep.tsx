@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  View, Text, Pressable, ScrollView, StyleSheet, ActivityIndicator,
+  View, Text, Pressable, ScrollView, StyleSheet, ActivityIndicator, Keyboard,
 } from 'react-native';
 import { Header, FixedBottom, ProgressBar } from '@/components/layout';
 import { Button, Field } from '@/components/primitives';
@@ -75,8 +75,15 @@ export function CustomerStep({
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const skipSearchRef = useRef(false);
 
   useEffect(() => {
+    if (skipSearchRef.current) {
+      skipSearchRef.current = false;
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
     if (!name.trim() || name.length < 2 || !profId) {
       setSuggestions([]);
       setShowSuggestions(false);
@@ -99,6 +106,8 @@ export function CustomerStep({
   }, [name, profId]);
 
   const selectCustomer = (c: Customer) => {
+    Keyboard.dismiss();
+    skipSearchRef.current = true;
     setName(c.name);
     setPhone(c.phone ?? '');
     setEmail(c.email ?? '');
@@ -153,7 +162,7 @@ export function CustomerStep({
         style={styles.scroll}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
+        keyboardShouldPersistTaps="always"
       >
         <View style={styles.titleBlock}>
           <Text style={[styles.title, { color: colors.ink1, fontFamily: fonts.serif }]}>
