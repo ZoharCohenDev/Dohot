@@ -5,6 +5,14 @@ import { supabase } from '@/lib/supabase';
 
 export type StorageBucket = 'logos' | 'signatures' | 'report-images' | 'pdf-documents' | 'cert-images';
 
+// Buckets that are private — must use signed URLs, not public URLs.
+const PRIVATE_BUCKETS = new Set<StorageBucket>([
+  'signatures',
+  'report-images',
+  'pdf-documents',
+  'cert-images',
+]);
+
 interface PickOptions {
   /** [width, height] crop ratio passed to expo-image-picker */
   aspect?: [number, number];
@@ -33,6 +41,15 @@ async function uploadAsset(
     .upload(storagePath, bytes, { contentType: asset.mimeType ?? 'image/jpeg', upsert: true });
 
   if (error) throw error;
+
+  if (PRIVATE_BUCKETS.has(bucket)) {
+    // Private bucket — public URL won't work; create a long-lived signed URL instead.
+    const { data: signed, error: signErr } = await supabase.storage
+      .from(bucket)
+      .createSignedUrl(storagePath, 60 * 60 * 24 * 365); // 1 year
+    if (signErr || !signed) throw signErr ?? new Error('Failed to create signed URL');
+    return signed.signedUrl;
+  }
 
   const { data } = supabase.storage.from(bucket).getPublicUrl(storagePath);
   return data.publicUrl;
@@ -114,9 +131,17 @@ export async function deleteStorageFile(bucket: StorageBucket, path: string): Pr
  * Extract the storage path (without bucket prefix) from a full public URL.
  * Used when replacing an existing upload.
  */
+export function pathFromStorageUrl(url: string, bucket: StorageBucket): string {
+  // Public URL:  .../object/public/<bucket>/<path>
+  // Signed URL:  .../object/sign/<bucket>/<path>?token=...
+  for (const variant of [`/object/public/${bucket}/`, `/object/sign/${bucket}/`]) {
+    const idx = url.indexOf(variant);
+    if (idx !== -1) return url.slice(idx + variant.length).split('?')[0] ?? '';
+  }
+  return '';
+}
+
+/** @deprecated Use pathFromStorageUrl — handles both public and signed URLs. */
 export function pathFromPublicUrl(publicUrl: string, bucket: StorageBucket): string {
-  // Public URLs look like: https://<project>.supabase.co/storage/v1/object/public/<bucket>/<path>
-  const marker = `/object/public/${bucket}/`;
-  const idx = publicUrl.indexOf(marker);
-  return idx !== -1 ? publicUrl.slice(idx + marker.length) : '';
+  return pathFromStorageUrl(publicUrl, bucket);
 }

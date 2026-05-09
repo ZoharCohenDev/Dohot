@@ -18,6 +18,40 @@ export interface PdfData {
   businessProfile: BusinessProfile;
 }
 
+// ── Private-bucket helpers ────────────────────────────────────────────────────
+
+/**
+ * Extracts the storage path from either a public or signed Supabase storage URL.
+ * Public:  .../object/public/<bucket>/<path>
+ * Signed:  .../object/sign/<bucket>/<path>?token=...
+ */
+function pathFromStorageUrl(url: string, bucket: string): string {
+  for (const variant of [`/object/public/${bucket}/`, `/object/sign/${bucket}/`]) {
+    const idx = url.indexOf(variant);
+    if (idx !== -1) return decodeURIComponent(url.slice(idx + variant.length).split('?')[0] ?? '');
+  }
+  return '';
+}
+
+/**
+ * Downloads a file from a private Supabase bucket via the admin client and
+ * returns it as a base64 data URI. Used to embed private assets (signatures,
+ * cert images) directly in Puppeteer HTML so no unauthenticated fetch is needed.
+ */
+async function privateUrlToDataUri(url: string, bucket: string): Promise<string | null> {
+  const path = pathFromStorageUrl(url, bucket);
+  if (!path) return null;
+  try {
+    const { data, error } = await supabaseAdmin.storage.from(bucket).download(path);
+    if (error || !data) return null;
+    const buffer = Buffer.from(await data.arrayBuffer());
+    const mimeType = data.type || 'image/jpeg';
+    return `data:${mimeType};base64,${buffer.toString('base64')}`;
+  } catch {
+    return null;
+  }
+}
+
 // ── Data fetching ─────────────────────────────────────────────────────────────
 
 export async function fetchDocumentData(
@@ -62,6 +96,25 @@ export async function fetchDocumentData(
     throw err;
   }
 
+  // Convert private-bucket URLs to data URIs so Puppeteer can embed them
+  // without making unauthenticated requests to the now-private buckets.
+  const bp = profile as BusinessProfile;
+
+  if (bp.signature_url) {
+    const dataUri = await privateUrlToDataUri(bp.signature_url, 'signatures');
+    if (dataUri) bp.signature_url = dataUri;
+  }
+
+  if (Array.isArray(bp.certifications)) {
+    bp.certifications = await Promise.all(
+      bp.certifications.map(async (cert) => {
+        if (!cert.image_url) return cert;
+        const dataUri = await privateUrlToDataUri(cert.image_url, 'cert-images');
+        return dataUri ? { ...cert, image_url: dataUri } : cert;
+      }),
+    );
+  }
+
   return {
     document: doc as Document,
     report: report as Report,
@@ -72,7 +125,7 @@ export async function fetchDocumentData(
       address: null,
       type: 'private',
     }) as Customer,
-    businessProfile: profile as BusinessProfile,
+    businessProfile: bp,
   };
 }
 
