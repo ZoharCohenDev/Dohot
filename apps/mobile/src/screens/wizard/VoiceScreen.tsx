@@ -27,6 +27,8 @@ interface VoiceScreenProps {
   transcribing?: boolean;
 }
 
+// ─── Waveform ─────────────────────────────────────────────────────────────────
+
 function VoiceWaveform({ active }: { active: boolean }) {
   const anims = useRef(
     Array.from({ length: 36 }, () => new Animated.Value(0.3)),
@@ -77,76 +79,206 @@ function formatTime(seconds: number): string {
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
+// ─── Screen ───────────────────────────────────────────────────────────────────
+
 export function VoiceScreen({ onStop, onBack, transcribing }: VoiceScreenProps) {
   const insets = useSafeAreaInsets();
-  const [isRecording, setIsRecording] = useState(false);
-  const [elapsed, setElapsed] = useState(0);
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+
+  // ── Lifecycle / safety refs ────────────────────────────────────────────────
+  // Never access recorder.isRecording directly — it reads the native object
+  // which throws NativeSharedObjectNotFoundException when the recorder is released.
+  // We track our own recording state instead.
+
+  const isMountedRef       = useRef(true);    // false after unmount → block setState
+  const isActivelyRecRef   = useRef(false);   // true only while recorder.record() is live
+  const isStoppingRef      = useRef(false);   // mutex: prevents double-stop
+  const hasConfirmedRef    = useRef(false);   // prevents double-confirm (checkmark)
+  const savedUriRef        = useRef<string | null>(null); // URI cached after first stop
+
+  // ── UI state ───────────────────────────────────────────────────────────────
+  const [isRecording, setIsRecording] = useState(false);
+  const [elapsed, setElapsed]         = useState(0);
+  const [confirming, setConfirming]   = useState(false); // local loading for checkmark
+
+  // Mark unmounted
+  useEffect(() => {
+    return () => { isMountedRef.current = false; };
+  }, []);
+
+  // ── Safe set-state helpers ─────────────────────────────────────────────────
+  const safeSet = <T,>(setter: React.Dispatch<React.SetStateAction<T>>, value: T) => {
+    if (isMountedRef.current) setter(value);
+  };
+
+  // ── Core recording lifecycle ───────────────────────────────────────────────
 
   const startRecording = async () => {
     try {
       const perm = await requestRecordingPermissionsAsync();
       if (!perm.granted) {
-        Alert.alert('אין הרשאה', 'יש לאפשר גישה למיקרופון בהגדרות הטלפון');
+        if (isMountedRef.current) Alert.alert('אין הרשאה', 'יש לאפשר גישה למיקרופון בהגדרות הטלפון');
         onBack?.();
         return;
       }
       await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
       await recorder.prepareToRecordAsync();
       recorder.record();
-      setIsRecording(true);
-    } catch {
-      Alert.alert('שגיאה', 'לא ניתן להתחיל הקלטה. נסה שוב.');
+      isActivelyRecRef.current = true;
+      savedUriRef.current = null;
+      safeSet(setIsRecording, true);
+      safeSet(setElapsed, 0);
+    } catch (e) {
+      isActivelyRecRef.current = false;
+      if (isMountedRef.current) Alert.alert('שגיאה', 'לא ניתן להתחיל הקלטה. נסה שוב.');
       onBack?.();
     }
   };
 
-  const stopRecording = async (): Promise<string | null> => {
-    if (!recorder.isRecording) return null;
+  /**
+   * Stop the active recording and cache the URI.
+   * Safe to call multiple times — subsequent calls return the cached URI.
+   * NEVER reads recorder.isRecording; uses our own ref instead.
+   */
+  const safeStopRecording = async (): Promise<string | null> => {
+    // Already stopped — return cached URI
+    if (!isActivelyRecRef.current) {
+      return savedUriRef.current;
+    }
+
+    // Mutex: if a stop is already in progress, wait and return cached
+    if (isStoppingRef.current) {
+      // Spin-wait up to 1 s for the in-flight stop to finish
+      await new Promise<void>((res) => {
+        const t = setInterval(() => {
+          if (!isStoppingRef.current) { clearInterval(t); res(); }
+        }, 50);
+        setTimeout(() => { clearInterval(t); res(); }, 1000);
+      });
+      return savedUriRef.current;
+    }
+
+    isStoppingRef.current = true;
+    isActivelyRecRef.current = false;
+
+    let uri: string | null = null;
     try {
       await recorder.stop();
-      await setAudioModeAsync({ allowsRecording: false });
-    } catch {}
-    setIsRecording(false);
-    return recorder.uri ?? null;
+      // Access .uri only immediately after stop(), before any other op
+      uri = recorder.uri ?? null;
+      savedUriRef.current = uri;
+    } catch {
+      // recorder may already be stopped by native side — use whatever we have
+      uri = savedUriRef.current;
+    }
+
+    // Release mic (best-effort, don't crash if this fails)
+    try { await setAudioModeAsync({ allowsRecording: false }); } catch {}
+
+    isStoppingRef.current = false;
+    safeSet(setIsRecording, false);
+    return uri;
   };
 
-  // Auto-start on mount
+  /**
+   * Stop + discard: used by X / cancel.
+   */
+  const safeDiscardRecording = async () => {
+    isActivelyRecRef.current = false;
+    if (!isStoppingRef.current) {
+      isStoppingRef.current = true;
+      try { await recorder.stop(); } catch {}
+      isStoppingRef.current = false;
+    }
+    savedUriRef.current = null;
+    try { await setAudioModeAsync({ allowsRecording: false }); } catch {}
+  };
+
+  // ── Auto-start + unmount cleanup ───────────────────────────────────────────
+
   useEffect(() => {
     startRecording();
     return () => {
-      if (recorder.isRecording) {
-        recorder.stop().catch(() => {});
+      // On unmount: stop native recording without touching React state
+      isMountedRef.current = false;
+      if (isActivelyRecRef.current && !isStoppingRef.current) {
+        isActivelyRecRef.current = false;
+        isStoppingRef.current = true;
+        recorder.stop().catch(() => {}).finally(() => {
+          isStoppingRef.current = false;
+          setAudioModeAsync({ allowsRecording: false }).catch(() => {});
+        });
       }
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Timer
+  // ── Timer ──────────────────────────────────────────────────────────────────
+
   useEffect(() => {
     if (!isRecording) return;
-    const id = setInterval(() => setElapsed((e) => e + 1), 1000);
+    const id = setInterval(() => {
+      if (isMountedRef.current) setElapsed((e) => e + 1);
+    }, 1000);
     return () => clearInterval(id);
   }, [isRecording]);
 
-  const handleDone = async () => {
-    const uri = await stopRecording();
-    if (uri) onStop?.(uri);
-  };
+  // ── Action handlers ────────────────────────────────────────────────────────
 
+  /**
+   * X button: discard recording and exit safely.
+   */
   const handleCancel = async () => {
-    await stopRecording();
+    await safeDiscardRecording();
     onBack?.();
   };
 
+  /**
+   * Checkmark: stop + confirm recording, pass URI to parent.
+   * Guards against double-tap and missing recording.
+   */
+  const handleConfirm = async () => {
+    if (hasConfirmedRef.current || confirming) return;
+    hasConfirmedRef.current = true;
+    safeSet(setConfirming, true);
+
+    const uri = await safeStopRecording();
+
+    if (!uri) {
+      safeSet(setConfirming, false);
+      hasConfirmedRef.current = false;
+      if (isMountedRef.current) {
+        Alert.alert('שגיאה', 'לא נמצאה הקלטה. נסה שוב.');
+      }
+      return;
+    }
+
+    // Hand off to the route handler (transcription etc.)
+    // Don't reset confirming here — we want the spinner to stay while the
+    // parent processes the audio (transcribing prop will take over).
+    onStop?.(uri);
+  };
+
+  /**
+   * Big mic button: stop if recording, restart if stopped.
+   */
   const handleToggleRecording = async () => {
-    if (isRecording) {
-      await stopRecording();
+    if (isActivelyRecRef.current) {
+      await safeStopRecording();
     } else {
-      setElapsed(0);
+      // Reset confirm gate so user can confirm again after re-recording
+      hasConfirmedRef.current = false;
+      safeSet(setConfirming, false);
       await startRecording();
     }
   };
+
+  // ── Derived UI state ───────────────────────────────────────────────────────
+  const hasStopped       = !isRecording && savedUriRef.current !== null;
+  const checkmarkLoading = confirming || !!transcribing;
+  const checkmarkDisabled = checkmarkLoading || (isRecording && !hasStopped);
+
+  // ── Render ────────────────────────────────────────────────────────────────
 
   return (
     <View style={styles.root}>
@@ -159,8 +291,8 @@ export function VoiceScreen({ onStop, onBack, transcribing }: VoiceScreenProps) 
         onBack={handleCancel}
         transparent
         action={
-          <Pressable style={styles.moreBtn}>
-            <Icons.more size={22} color="#fff" />
+          <Pressable style={styles.moreBtn} onPress={handleCancel}>
+            <Icons.close size={20} color="rgba(255,255,255,0.7)" />
           </Pressable>
         }
       />
@@ -183,19 +315,21 @@ export function VoiceScreen({ onStop, onBack, transcribing }: VoiceScreenProps) 
         {/* Transcript / status card */}
         <View style={styles.transcript}>
           <Text style={[styles.transcriptLabel, { fontFamily: fonts.sans }]}>
-            {isRecording ? 'מקליט…' : 'הקלטה הסתיימה'}
+            {isRecording ? 'מקליט…' : hasStopped ? 'ההקלטה מוכנה' : 'הקלטה הסתיימה'}
           </Text>
           <Text style={[styles.transcriptText, { fontFamily: fonts.sans }]}>
             {isRecording
               ? 'דבר בחופשיות — התמלול ייוצר לאחר העיבוד'
-              : 'לחץ ✓ לעיבוד ויצירת הדוח, או על המיקרופון להקלטה חדשה'}
+              : hasStopped
+                ? 'לחץ ✓ לעיבוד ויצירת הדוח, או על המיקרופון להקלטה חדשה'
+                : 'לחץ על המיקרופון להתחלת הקלטה'}
           </Text>
         </View>
       </ScrollView>
 
       {/* Voice controls */}
       <View style={[styles.controls, { paddingBottom: insets.bottom + 24 }]}>
-        {transcribing ? (
+        {checkmarkLoading ? (
           <View style={styles.transcribingRow}>
             <ActivityIndicator size="small" color={voiceColors.sageLight} />
             <Text style={[styles.transcribingText, { fontFamily: fonts.sans }]}>מתמלל…</Text>
@@ -205,20 +339,24 @@ export function VoiceScreen({ onStop, onBack, transcribing }: VoiceScreenProps) 
         )}
 
         <Text style={[styles.timer, { fontFamily: fonts.sans }]}>
-          {formatTime(elapsed)} · {isRecording ? 'מקליט' : 'עצר'}
+          {formatTime(elapsed)} · {isRecording ? 'מקליט' : hasStopped ? 'מוכן' : 'עצר'}
         </Text>
 
         <View style={styles.controlRow}>
-          {/* Cancel */}
-          <Pressable style={styles.controlSideBtn} onPress={handleCancel} disabled={!!transcribing}>
+          {/* Cancel / X */}
+          <Pressable
+            style={styles.controlSideBtn}
+            onPress={handleCancel}
+            disabled={checkmarkLoading}
+          >
             <Icons.close size={22} color="#fff" />
           </Pressable>
 
-          {/* Stop / restart */}
+          {/* Stop / Restart mic */}
           <Pressable
             style={styles.bigMicBtn}
             onPress={handleToggleRecording}
-            disabled={!!transcribing}
+            disabled={checkmarkLoading}
           >
             {isRecording ? (
               <View style={styles.stopSquare} />
@@ -227,13 +365,17 @@ export function VoiceScreen({ onStop, onBack, transcribing }: VoiceScreenProps) 
             )}
           </Pressable>
 
-          {/* Done */}
+          {/* Confirm checkmark */}
           <Pressable
-            onPress={handleDone}
-            style={[styles.controlSideBtn, { backgroundColor: voiceColors.sageLight }]}
-            disabled={!!transcribing}
+            onPress={handleConfirm}
+            style={[
+              styles.controlSideBtn,
+              { backgroundColor: voiceColors.sageLight },
+              checkmarkDisabled && styles.controlSideBtnDisabled,
+            ]}
+            disabled={checkmarkDisabled}
           >
-            {transcribing ? (
+            {checkmarkLoading ? (
               <ActivityIndicator size="small" color="#0F1612" />
             ) : (
               <Icons.check size={26} color="#0F1612" stroke={3} />
@@ -350,6 +492,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.08)',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  controlSideBtnDisabled: {
+    opacity: 0.4,
   },
   bigMicBtn: {
     width: 88,

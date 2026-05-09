@@ -11,11 +11,11 @@ export interface IssueOption {
 
 export const PROFESSION_ISSUES: Record<Profession, IssueOption[]> = {
   leak_detection: [
-    { id: 'pipe_leak',    label: 'נזילת צינור',  desc: 'פריצה, קורוזיה',    color: '#4A7B9D', bg: '#E2EBF1', icon: 'pipe' },
+    { id: 'leak',        label: 'איתור נזילה',  desc: 'גילוי מקור הנזילה',  color: '#C2613B', bg: '#F8E9DF', icon: 'drop' },
+    { id: 'pipe_leak',   label: 'נזילת צינור',  desc: 'פריצה, קורוזיה',    color: '#4A7B9D', bg: '#E2EBF1', icon: 'pipe' },
     { id: 'roof_leak',   label: 'נזילת גג',     desc: 'חדירת מים',         color: '#5A8770', bg: '#E5EDE7', icon: 'roof' },
-    { id: 'wall_moisture', label: 'לחות בקיר', desc: 'ספיגה, עובש',        color: '#8B5A8B', bg: '#EFE0EF', icon: 'moisture' },
-    { id: 'floor_leak',  label: 'נזילת ריצפה', desc: 'תחת אריחים',         color: '#C2613B', bg: '#F8E9DF', icon: 'drop' },
-    { id: 'sewage',      label: 'ביוב',         desc: 'ריח, חסימה',        color: '#B8862B', bg: '#F4ECD7', icon: 'pipe' },
+    { id: 'wall_moisture', label: 'לחות בקיר',  desc: 'ספיגה, עובש',       color: '#8B5A8B', bg: '#EFE0EF', icon: 'moisture' },
+    { id: 'floor_leak',  label: 'נזילת רצפה',  desc: 'תחת אריחים',         color: '#B8862B', bg: '#F4ECD7', icon: 'drop' },
     { id: 'other',       label: 'אחר',          desc: 'תיאור חופשי',       color: '#807A72', bg: '#EFEDE7', icon: 'more' },
   ],
   plumber: [

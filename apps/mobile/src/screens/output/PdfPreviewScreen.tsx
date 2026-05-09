@@ -44,7 +44,7 @@ function propertyLabel(type: string): string {
   return map[type] ?? type;
 }
 
-// ─── Section title ────────────────────────────────────────────────────────────
+// ─── Shared components ────────────────────────────────────────────────────────
 
 function SectionTitle({ num, label }: { num: number; label: string }) {
   return (
@@ -55,49 +55,153 @@ function SectionTitle({ num, label }: { num: number; label: string }) {
   );
 }
 
-// ─── Report sections ──────────────────────────────────────────────────────────
+function PageDivider({ pageNum, label }: { pageNum: number; label: string }) {
+  return (
+    <View style={styles.pageDivider}>
+      <View style={styles.pageDividerLine} />
+      <View style={styles.pageDividerBadge}>
+        <Text style={styles.pageDividerNum}>עמוד {pageNum}</Text>
+        <Text style={styles.pageDividerLabel}>{label}</Text>
+      </View>
+      <View style={styles.pageDividerLine} />
+    </View>
+  );
+}
 
-function ReportContent({ state }: { state: ReturnType<typeof useWizard>['state'] }) {
-  let sectionNum = 1;
+// ─── Report (5-page structure) ────────────────────────────────────────────────
+
+const LEGAL_DISCLAIMER =
+  'דוח זה הוכן על בסיס בדיקה ויזואלית ואינו מהווה חוות דעת הנדסית. ' +
+  'הממצאים וההמלצות מבוססים על מצב הנכס במועד הביקור בלבד. ' +
+  'הכותב אינו אחראי לנזקים שנגרמו לאחר מועד הביקור או לנזקים סמויים שלא ניתן היה לאתרם בבדיקה חיצונית. ' +
+  'כל עבודת תיקון תבוצע לפי שיקול הבעלים ועל אחריותו.';
+
+function ReportContent({
+  state,
+  businessProfile,
+}: {
+  state: ReturnType<typeof useWizard>['state'];
+  businessProfile: ReturnType<typeof useAuth>['businessProfile'];
+}) {
+  const address = buildAddress(state);
+  const propType = propertyLabel(state.propertyType);
+
   return (
     <>
-      {/* Findings */}
+      {/* ── PAGE 1: Visit & Customer Details ── */}
       <View style={styles.pdfSection}>
-        <SectionTitle num={sectionNum++} label="ממצאי הביקור" />
-        {state.issueLabel ? (
-          <Text style={styles.pdfBody}>
-            <Text style={{ fontWeight: '700' }}>{state.issueLabel}</Text>
-            {state.issueNote ? `\n${state.issueNote}` : ''}
-          </Text>
-        ) : (
-          <Text style={styles.pdfBody}>לא צוינו ממצאים.</Text>
+        <SectionTitle num={1} label="פרטי הביקור והלקוח" />
+        <View style={styles.metaGrid}>
+          <View style={styles.metaItem}>
+            <Text style={styles.metaItemLabel}>לקוח</Text>
+            <Text style={styles.metaItemValue}>{state.customerName || '—'}</Text>
+          </View>
+          {!!state.customerPhone && (
+            <View style={styles.metaItem}>
+              <Text style={styles.metaItemLabel}>טלפון</Text>
+              <Text style={styles.metaItemValue}>{state.customerPhone}</Text>
+            </View>
+          )}
+          {!!state.customerEmail && (
+            <View style={styles.metaItem}>
+              <Text style={styles.metaItemLabel}>אימייל</Text>
+              <Text style={styles.metaItemValue}>{state.customerEmail}</Text>
+            </View>
+          )}
+          <View style={styles.metaItem}>
+            <Text style={styles.metaItemLabel}>נכס</Text>
+            <Text style={styles.metaItemValue}>{address || '—'} · {propType}</Text>
+          </View>
+          <View style={styles.metaItem}>
+            <Text style={styles.metaItemLabel}>תאריך ביקור</Text>
+            <Text style={styles.metaItemValue}>{state.inspectionDate || formatDate()}</Text>
+          </View>
+          {!!state.attendees && (
+            <View style={styles.metaItem}>
+              <Text style={styles.metaItemLabel}>נוכחים בביקור</Text>
+              <Text style={styles.metaItemValue}>{state.attendees}</Text>
+            </View>
+          )}
+        </View>
+        {!!state.issueLabel && (
+          <View style={[styles.visitReasonBox]}>
+            <Text style={styles.visitReasonLabel}>סיבת הקריאה</Text>
+            <Text style={styles.visitReasonValue}>{state.issueLabel}</Text>
+            {!!state.issueNote && (
+              <Text style={styles.visitReasonNote}>{state.issueNote}</Text>
+            )}
+          </View>
         )}
       </View>
 
-      {/* Photos */}
-      {state.photos.length > 0 && (
-        <View style={styles.pdfImageGrid}>
-          {state.photos.slice(0, 4).map((uri, i) => (
-            <View key={uri} style={styles.pdfImageCell}>
-              <Image source={{ uri }} style={styles.pdfImage} resizeMode="cover" />
-              <Text style={styles.pdfImageLabel}>{`${i + 1}.${(i + 1)}`}</Text>
+      {/* ── PAGE 2: About the Professional ── */}
+      <PageDivider pageNum={2} label="על הבודק" />
+      <View style={styles.pdfSection}>
+        <SectionTitle num={2} label="פרטי הבודק המקצועי" />
+        <View style={styles.metaGrid}>
+          <View style={styles.metaItem}>
+            <Text style={styles.metaItemLabel}>שם</Text>
+            <Text style={styles.metaItemValue}>{businessProfile?.full_name || '—'}</Text>
+          </View>
+          {!!businessProfile?.business_name && (
+            <View style={styles.metaItem}>
+              <Text style={styles.metaItemLabel}>עסק</Text>
+              <Text style={styles.metaItemValue}>{businessProfile.business_name}</Text>
             </View>
-          ))}
+          )}
+          {!!businessProfile?.license_number && (
+            <View style={styles.metaItem}>
+              <Text style={styles.metaItemLabel}>ח.פ / רישיון</Text>
+              <Text style={styles.metaItemValue}>{businessProfile.license_number}</Text>
+            </View>
+          )}
+          {!!businessProfile?.phone && (
+            <View style={styles.metaItem}>
+              <Text style={styles.metaItemLabel}>טלפון</Text>
+              <Text style={styles.metaItemValue}>{businessProfile.phone}</Text>
+            </View>
+          )}
         </View>
-      )}
+      </View>
 
-      {/* AI analysis */}
-      {!!state.aiSummary && (
-        <View style={styles.pdfSection}>
-          <SectionTitle num={sectionNum++} label="ניתוח הסיבה" />
+      {/* ── PAGE 3: Problem & Photos ── */}
+      <PageDivider pageNum={3} label="תיאור הבעיה" />
+      <View style={styles.pdfSection}>
+        <SectionTitle num={3} label="תיאור הבעיה והממצאים" />
+        {!!state.aiSummary ? (
           <Text style={styles.pdfBody}>{state.aiSummary}</Text>
+        ) : state.issueNote ? (
+          <Text style={styles.pdfBody}>{state.issueNote}</Text>
+        ) : (
+          <Text style={styles.pdfBody}>לא צוין תיאור מפורט.</Text>
+        )}
+        {!!state.voiceTranscript && (
+          <View style={{ marginTop: 8 }}>
+            <Text style={styles.metaItemLabel}>הערות שטח</Text>
+            <Text style={styles.pdfBody}>{state.voiceTranscript}</Text>
+          </View>
+        )}
+      </View>
+
+      {state.photos.length > 0 && (
+        <View style={styles.pdfSection}>
+          <SectionTitle num={4} label="תיעוד תמונות" />
+          <View style={styles.pdfImageGrid}>
+            {state.photos.slice(0, 6).map((uri, i) => (
+              <View key={uri} style={styles.pdfImageCell}>
+                <Image source={{ uri }} style={styles.pdfImage} resizeMode="cover" />
+                <Text style={styles.pdfImageLabel}>{`תמונה ${i + 1}`}</Text>
+              </View>
+            ))}
+          </View>
         </View>
       )}
 
-      {/* Recommendations */}
-      {state.recommendations.length > 0 && (
+      {/* ── PAGE 4: Recommendations ── */}
+      <PageDivider pageNum={4} label="המלצות" />
+      {state.recommendations.length > 0 ? (
         <View style={styles.pdfSection}>
-          <SectionTitle num={sectionNum++} label="המלצות" />
+          <SectionTitle num={5} label="המלצות לטיפול" />
           {state.recommendations.map((r: Recommendation, i: number) => (
             <View
               key={i}
@@ -114,74 +218,98 @@ function ReportContent({ state }: { state: ReturnType<typeof useWizard>['state']
             </View>
           ))}
         </View>
-      )}
-
-      {/* Voice notes */}
-      {!!state.voiceTranscript && (
+      ) : (
         <View style={styles.pdfSection}>
-          <SectionTitle num={sectionNum++} label="הערות שטח" />
-          <Text style={styles.pdfBody}>{state.voiceTranscript}</Text>
+          <SectionTitle num={5} label="המלצות לטיפול" />
+          <Text style={styles.pdfBody}>לא צוינו המלצות ספציפיות.</Text>
         </View>
       )}
+
+      {/* ── PAGE 5: Legal Disclaimer ── */}
+      <PageDivider pageNum={5} label="הצהרה משפטית" />
+      <View style={styles.pdfSection}>
+        <SectionTitle num={6} label="הגבלת אחריות" />
+        <Text style={[styles.pdfBody, styles.disclaimerText]}>{LEGAL_DISCLAIMER}</Text>
+      </View>
     </>
   );
 }
 
 // ─── Quote sections ───────────────────────────────────────────────────────────
 
+const VAT_RATE = 0.18;
+
 function QuoteContent({ state }: { state: ReturnType<typeof useWizard>['state'] }) {
   const subtotal = state.quoteItems.reduce((s, i) => s + i.qty * i.unitPrice, 0);
-  const vat = Math.round(subtotal * 0.17);
+  const vat = Math.round(subtotal * VAT_RATE);
   const total = subtotal + vat;
 
   return (
-    <View style={styles.pdfSection}>
-      <SectionTitle num={1} label="פירוט עבודות" />
-      {state.quoteItems.length === 0 ? (
-        <Text style={styles.pdfBody}>לא הוזנו פריטים.</Text>
-      ) : (
-        <>
-          {/* Header row */}
-          <View style={[styles.quoteRow, styles.quoteHeaderRow]}>
-            <Text style={[styles.quoteCell, styles.quoteCellFlex, styles.quoteCellHeader]}>תיאור עבודה</Text>
-            <Text style={[styles.quoteCell, styles.quoteCellNarrow, styles.quoteCellHeader]}>מחיר</Text>
-          </View>
-          {state.quoteItems.map((item, i) => (
-            <View key={item.key} style={[styles.quoteRow, i % 2 === 1 && styles.quoteRowAlt]}>
-              <View style={[styles.quoteCellFlex]}>
-                <Text style={styles.quoteCell}>{item.title}</Text>
-                {!!item.description && (
-                  <Text style={[styles.quoteCell, { color: '#807A72', fontSize: 7, marginTop: 1 }]}>
-                    {item.description}
+    <>
+      <View style={styles.pdfSection}>
+        <SectionTitle num={1} label="פירוט עבודות" />
+        {state.quoteItems.length === 0 ? (
+          <Text style={styles.pdfBody}>לא הוזנו פריטים.</Text>
+        ) : (
+          <>
+            {state.quoteItems.map((item, i) => (
+              <View
+                key={item.key}
+                style={[
+                  styles.quoteItem,
+                  i < state.quoteItems.length - 1 && styles.quoteItemBorder,
+                ]}
+              >
+                <View style={styles.quoteItemHeader}>
+                  <View style={styles.quoteItemNumBadge}>
+                    <Text style={styles.quoteItemNum}>{i + 1}</Text>
+                  </View>
+                  <Text style={styles.quoteItemTitle}>{item.title}</Text>
+                  <Text style={styles.quoteItemPrice}>
+                    ₪{item.unitPrice.toLocaleString()}
                   </Text>
+                </View>
+                {!!item.description && (
+                  <Text style={styles.quoteItemDesc}>{item.description}</Text>
                 )}
               </View>
-              <Text style={[styles.quoteCell, styles.quoteCellNarrow]}>₪{item.unitPrice.toLocaleString()}</Text>
+            ))}
+
+            {/* Totals */}
+            <View style={styles.quoteTotals}>
+              <View style={styles.quoteTotalRow}>
+                <Text style={styles.quoteTotalLabel}>סכום לפני מע״מ</Text>
+                <Text style={styles.quoteTotalValue}>₪{subtotal.toLocaleString()}</Text>
+              </View>
+              <View style={styles.quoteTotalRow}>
+                <Text style={styles.quoteTotalLabel}>מע״מ (18%)</Text>
+                <Text style={styles.quoteTotalValue}>₪{vat.toLocaleString()}</Text>
+              </View>
+              <View style={[styles.quoteTotalRow, styles.quoteTotalFinalRow]}>
+                <Text style={styles.quoteTotalFinalLabel}>סה״כ לתשלום</Text>
+                <Text style={styles.quoteTotalFinalValue}>₪{total.toLocaleString()}</Text>
+              </View>
             </View>
-          ))}
-          <View style={styles.quoteTotals}>
-            <View style={styles.quoteTotalRow}>
-              <Text style={styles.quoteTotalLabel}>סכום לפני מע״מ</Text>
-              <Text style={styles.quoteTotalValue}>₪{subtotal.toLocaleString()}</Text>
-            </View>
-            <View style={styles.quoteTotalRow}>
-              <Text style={styles.quoteTotalLabel}>מע״מ (17%)</Text>
-              <Text style={styles.quoteTotalValue}>₪{vat.toLocaleString()}</Text>
-            </View>
-            <View style={[styles.quoteTotalRow, styles.quoteTotalFinalRow]}>
-              <Text style={styles.quoteTotalFinalLabel}>סה״כ לתשלום</Text>
-              <Text style={styles.quoteTotalFinalValue}>₪{total.toLocaleString()}</Text>
-            </View>
+          </>
+        )}
+        {!!state.quoteNotes && (
+          <View style={{ marginTop: 10 }}>
+            <Text style={[styles.metaItemLabel, { marginBottom: 3 }]}>הערות</Text>
+            <Text style={styles.pdfBody}>{state.quoteNotes}</Text>
           </View>
-        </>
-      )}
-      {!!state.quoteNotes && (
-        <View style={{ marginTop: 10 }}>
-          <Text style={[styles.pdfMetaLabel, { marginBottom: 3 }]}>הערות</Text>
-          <Text style={styles.pdfBody}>{state.quoteNotes}</Text>
+        )}
+      </View>
+
+      {/* Validity footer */}
+      {!!state.quoteValidityDate && (
+        <View style={styles.quoteValidityRow}>
+          <Icons.calendar size={11} color="#807A72" />
+          <Text style={styles.quoteValidityText}>
+            הצעה זו בתוקף עד: {state.quoteValidityDate}
+          </Text>
         </View>
       )}
-    </View>
+    </>
   );
 }
 
@@ -196,24 +324,35 @@ function WarrantyContent({ state }: { state: ReturnType<typeof useWizard>['state
           {state.warrantyWorkDescription || 'לא צוין תיאור עבודה.'}
         </Text>
       </View>
+
       {state.photos.length > 0 && (
         <View style={styles.pdfImageGrid}>
           {state.photos.slice(0, 4).map((uri, i) => (
             <View key={uri} style={styles.pdfImageCell}>
               <Image source={{ uri }} style={styles.pdfImage} resizeMode="cover" />
-              <Text style={styles.pdfImageLabel}>{`${i + 1}.${(i + 1)}`}</Text>
+              <Text style={styles.pdfImageLabel}>{`${i + 1}`}</Text>
             </View>
           ))}
         </View>
       )}
+
       <View style={styles.pdfSection}>
         <SectionTitle num={2} label="תנאי האחריות" />
         <View style={styles.warrantyTermRow}>
           <Text style={styles.warrantyTermLabel}>תקופת אחריות</Text>
           <Text style={styles.warrantyTermValue}>{state.warrantyDuration || 'לא צוין'}</Text>
         </View>
-        {!!state.warrantyConditions && (
-          <Text style={[styles.pdfBody, { marginTop: 6 }]}>{state.warrantyConditions}</Text>
+
+        {/* Numbered conditions list */}
+        {state.warrantyConditions.length > 0 && (
+          <View style={{ marginTop: 8, gap: 4 }}>
+            {state.warrantyConditions.map((cond, i) => (
+              <View key={i} style={styles.warrantyConditionRow}>
+                <Text style={styles.warrantyConditionNum}>{i + 1}.</Text>
+                <Text style={styles.warrantyConditionText}>{cond}</Text>
+              </View>
+            ))}
+          </View>
         )}
       </View>
     </>
@@ -232,8 +371,6 @@ export function PdfPreviewScreen({ colors = lightColors, onBack, onSend }: PdfPr
   const state = wizard.state;
   const docConfig = DOCUMENT_TYPES[state.docType];
   const docTitle = `${docConfig.titlePrefix} ${state.customerName || 'לא צוין'}`;
-  const address = buildAddress(state);
-  const propType = propertyLabel(state.propertyType);
   const brandInitial = (businessProfile?.business_name ?? businessProfile?.full_name ?? 'ד')[0];
 
   React.useEffect(() => {
@@ -285,27 +422,10 @@ export function PdfPreviewScreen({ colors = lightColors, onBack, onSend }: PdfPr
             </View>
           </View>
 
-          {/* ── Customer + property ── */}
-          <View style={styles.pdfMetaRow}>
-            <View style={styles.pdfMetaCol}>
-              <Text style={styles.pdfMetaLabel}>לקוח</Text>
-              <Text style={styles.pdfMetaValue}>{state.customerName || '—'}</Text>
-              {!!state.customerPhone && <Text style={styles.pdfMetaSub}>{state.customerPhone}</Text>}
-              {!!state.customerEmail && <Text style={styles.pdfMetaSub}>{state.customerEmail}</Text>}
-            </View>
-            <View style={styles.pdfMetaCol}>
-              <Text style={styles.pdfMetaLabel}>נכס</Text>
-              {address ? (
-                <Text style={styles.pdfMetaValue}>{address}</Text>
-              ) : (
-                <Text style={styles.pdfMetaValue}>—</Text>
-              )}
-              <Text style={styles.pdfMetaSub}>{propType}</Text>
-            </View>
-          </View>
-
           {/* ── Doc-type specific content ── */}
-          {state.docType === 'report' && <ReportContent state={state} />}
+          {state.docType === 'report' && (
+            <ReportContent state={state} businessProfile={businessProfile} />
+          )}
           {state.docType === 'quote' && <QuoteContent state={state} />}
           {state.docType === 'warranty' && <WarrantyContent state={state} />}
 
@@ -381,7 +501,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     paddingBottom: 14,
     borderBottomWidth: 1.5,
-    marginBottom: 14,
+    marginBottom: 16,
     gap: 10,
   },
   pdfDocTitle: { fontFamily: fonts.serif, fontSize: 16, fontWeight: '700', color: '#1B1916', letterSpacing: -0.3 },
@@ -397,25 +517,52 @@ const styles = StyleSheet.create({
   pdfBrandName: { fontSize: 8, fontWeight: '600', color: '#1B1916', textAlign: 'right' },
   pdfTaxId: { fontSize: 7, color: '#807A72' },
 
-  // Meta row
-  pdfMetaRow: { flexDirection: 'row', gap: 14, marginBottom: 16 },
-  pdfMetaCol: { flex: 1 },
-  pdfMetaLabel: { fontSize: 7, color: '#807A72', textTransform: 'uppercase', letterSpacing: 0.5 },
-  pdfMetaValue: { fontSize: 9, fontWeight: '700', color: '#1B1916', marginTop: 2 },
-  pdfMetaSub: { fontSize: 8, color: '#4A4641' },
+  // Page divider
+  pageDivider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginVertical: 14,
+  },
+  pageDividerLine: { flex: 1, height: 0.5, backgroundColor: '#C7C1B6' },
+  pageDividerBadge: { alignItems: 'center', gap: 1 },
+  pageDividerNum: { fontSize: 7, fontWeight: '600', color: '#807A72', letterSpacing: 0.5 },
+  pageDividerLabel: { fontSize: 9, fontWeight: '700', color: '#4A4641' },
 
   // Sections
-  pdfSection: { marginBottom: 14 },
-  pdfSectionTitle: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
+  pdfSection: { marginBottom: 12 },
+  pdfSectionTitle: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
   pdfSectionLine: { width: 12, height: 1, backgroundColor: '#1B1916' },
   pdfSectionLabel: { fontFamily: fonts.serif, fontSize: 11, fontWeight: '700', color: '#1B1916' },
   pdfBody: { fontSize: 9, color: '#1B1916', lineHeight: 14 },
+
+  // Meta grid
+  metaGrid: { gap: 5, marginBottom: 8 },
+  metaItem: { flexDirection: 'row', gap: 6, alignItems: 'flex-start' },
+  metaItemLabel: { fontSize: 7, color: '#807A72', minWidth: 55, paddingTop: 1, textTransform: 'uppercase', letterSpacing: 0.3 },
+  metaItemValue: { fontSize: 9, color: '#1B1916', fontWeight: '600', flex: 1 },
+
+  // Visit reason box
+  visitReasonBox: {
+    backgroundColor: '#F8F7F4',
+    borderRadius: 6,
+    padding: 8,
+    marginTop: 4,
+    borderLeftWidth: 2,
+    borderLeftColor: '#1B1916',
+  },
+  visitReasonLabel: { fontSize: 7, color: '#807A72', textTransform: 'uppercase', letterSpacing: 0.3, marginBottom: 3 },
+  visitReasonValue: { fontSize: 9, fontWeight: '700', color: '#1B1916' },
+  visitReasonNote: { fontSize: 8.5, color: '#4A4641', marginTop: 2, lineHeight: 13 },
 
   // Photos
   pdfImageGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 12 },
   pdfImageCell: { width: '47%' },
   pdfImage: { width: '100%', height: 80, borderRadius: 6 },
-  pdfImageLabel: { fontSize: 8, color: '#807A72', textAlign: 'center', marginTop: 3 },
+  pdfImageLabel: { fontSize: 7, color: '#807A72', textAlign: 'center', marginTop: 2 },
+
+  // Legal disclaimer
+  disclaimerText: { fontSize: 8, color: '#807A72', lineHeight: 13, fontStyle: 'italic' },
 
   // Recommendations
   pdfRecRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingVertical: 5 },
@@ -426,14 +573,20 @@ const styles = StyleSheet.create({
   pdfRecTitle: { fontSize: 8, fontWeight: '700', color: '#1B1916' },
   pdfRecDesc: { fontSize: 7.5, color: '#4A4641', marginTop: 1 },
 
-  // Quote table
-  quoteRow: { flexDirection: 'row', paddingVertical: 4 },
-  quoteHeaderRow: { borderBottomWidth: 0.5, borderBottomColor: '#C7C1B6', marginBottom: 2 },
-  quoteRowAlt: { backgroundColor: '#F8F7F4' },
-  quoteCell: { fontSize: 8, color: '#1B1916', paddingHorizontal: 2 },
-  quoteCellFlex: { flex: 1 },
-  quoteCellNarrow: { width: 52, textAlign: 'right' },
-  quoteCellHeader: { fontWeight: '700', color: '#807A72', fontSize: 7, textTransform: 'uppercase' },
+  // Quote item list
+  quoteItem: { paddingVertical: 7 },
+  quoteItemBorder: { borderBottomWidth: 0.5, borderBottomColor: '#E8E4DE' },
+  quoteItemHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
+  quoteItemNumBadge: {
+    width: 14, height: 14, borderRadius: 3,
+    backgroundColor: '#1B1916',
+    alignItems: 'center', justifyContent: 'center',
+    flexShrink: 0, marginTop: 1,
+  },
+  quoteItemNum: { fontSize: 7, fontWeight: '700', color: '#F5F3EE' },
+  quoteItemTitle: { flex: 1, fontSize: 9, fontWeight: '700', color: '#1B1916' },
+  quoteItemPrice: { fontSize: 9, fontWeight: '800', color: '#1B1916', flexShrink: 0 },
+  quoteItemDesc: { fontSize: 8, color: '#807A72', lineHeight: 12, marginTop: 3, paddingStart: 20 },
   quoteTotals: { marginTop: 8, borderTopWidth: 0.5, borderTopColor: '#C7C1B6', paddingTop: 6, gap: 3 },
   quoteTotalRow: { flexDirection: 'row', justifyContent: 'space-between' },
   quoteTotalLabel: { fontSize: 8, color: '#4A4641' },
@@ -442,10 +595,25 @@ const styles = StyleSheet.create({
   quoteTotalFinalLabel: { fontSize: 9, fontWeight: '700', color: '#1B1916' },
   quoteTotalFinalValue: { fontSize: 9, fontWeight: '700', color: '#1B1916' },
 
+  // Quote validity
+  quoteValidityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginTop: 12,
+    paddingTop: 8,
+    borderTopWidth: 0.5,
+    borderTopColor: '#C7C1B6',
+  },
+  quoteValidityText: { fontSize: 8, color: '#4A4641', fontWeight: '600' },
+
   // Warranty
   warrantyTermRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 },
   warrantyTermLabel: { fontSize: 8, color: '#807A72' },
   warrantyTermValue: { fontSize: 8, fontWeight: '700', color: '#1B1916' },
+  warrantyConditionRow: { flexDirection: 'row', gap: 5, alignItems: 'flex-start' },
+  warrantyConditionNum: { fontSize: 8, fontWeight: '700', color: '#1B1916', minWidth: 14 },
+  warrantyConditionText: { fontSize: 8, color: '#1B1916', lineHeight: 13, flex: 1 },
 
   // Signature
   pdfSigRow: {

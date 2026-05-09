@@ -9,8 +9,9 @@ import { Icons } from '@/components/icons';
 import { lightColors, fonts } from '@/theme/tokens';
 import { useWizard, type WizardQuoteItem } from '@/context/WizardContext';
 import { useWizardStep } from '@/hooks/useWizardStep';
+import { useWizardExit } from '@/hooks/useWizardExit';
 
-const VAT = 0.17;
+const VAT = 0.18;
 
 interface QuoteItemsStepProps {
   colors?: typeof lightColors;
@@ -24,13 +25,23 @@ function formatILS(n: number) {
 
 const EMPTY_FORM = { title: '', description: '', price: '' };
 
+const VALIDITY_PRESETS = ['30 ימים', '60 ימים', '90 ימים', 'אחר'];
+
 export function QuoteItemsStep({ colors = lightColors, onNext, onBack }: QuoteItemsStepProps) {
   const wizard = useWizard();
   const { progress, stepNum, stepOf, goNext, goBack } = useWizardStep();
+  const { triggerExit } = useWizardExit();
   const scrollRef = useRef<ScrollView>(null);
 
   const [items, setItems] = useState<WizardQuoteItem[]>(wizard.state.quoteItems);
   const [notes, setNotes] = useState(wizard.state.quoteNotes);
+
+  const initValidity = wizard.state.quoteValidityDate;
+  const isPresetValidity = VALIDITY_PRESETS.slice(0, -1).includes(initValidity);
+  const [selectedValidity, setSelectedValidity] = useState(
+    initValidity ? (isPresetValidity ? initValidity : 'אחר') : '30 ימים',
+  );
+  const [customValidity, setCustomValidity] = useState(isPresetValidity || !initValidity ? '' : initValidity);
   const [form, setForm] = useState(EMPTY_FORM);
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [errors, setErrors] = useState<{ title?: string; price?: string }>({});
@@ -94,6 +105,9 @@ export function QuoteItemsStep({ colors = lightColors, onNext, onBack }: QuoteIt
     ]);
   };
 
+  const effectiveValidity =
+    selectedValidity === 'אחר' ? (customValidity.trim() || 'אחר') : selectedValidity;
+
   const handleNext = () => {
     if (items.length === 0) {
       Alert.alert('שגיאה', 'יש להוסיף לפחות פריט עבודה אחד');
@@ -101,6 +115,7 @@ export function QuoteItemsStep({ colors = lightColors, onNext, onBack }: QuoteIt
     }
     wizard.setQuoteItems(items);
     wizard.setQuoteNotes(notes);
+    wizard.setQuoteValidityDate(effectiveValidity);
     if (onNext) onNext();
     else goNext();
   };
@@ -113,7 +128,21 @@ export function QuoteItemsStep({ colors = lightColors, onNext, onBack }: QuoteIt
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <View style={[styles.root, { backgroundColor: colors.bg }]}>
-        <Header step={stepNum} ofSteps={stepOf} onBack={onBack ?? goBack} colors={colors} />
+        <Header
+          step={stepNum}
+          ofSteps={stepOf}
+          onBack={onBack ?? goBack}
+          colors={colors}
+          action={
+            <Pressable
+              onPress={triggerExit}
+              style={[styles.exitBtn, { backgroundColor: colors.bgElev, borderColor: colors.line }]}
+              hitSlop={6}
+            >
+              <Icons.home size={20} color={colors.ink2} />
+            </Pressable>
+          }
+        />
         <ProgressBar value={progress} colors={colors} />
 
         <ScrollView
@@ -307,7 +336,7 @@ export function QuoteItemsStep({ colors = lightColors, onNext, onBack }: QuoteIt
                 <Text style={[styles.totalValue, { color: colors.ink1, fontFamily: fonts.sans }]}>{formatILS(subtotal)}</Text>
               </View>
               <View style={[styles.totalRow, styles.totalRowMid]}>
-                <Text style={[styles.totalLabel, { color: colors.ink3, fontFamily: fonts.sans }]}>מע״מ (17%)</Text>
+                <Text style={[styles.totalLabel, { color: colors.ink3, fontFamily: fonts.sans }]}>מע״מ (18%)</Text>
                 <Text style={[styles.totalValue, { color: colors.ink3, fontFamily: fonts.sans }]}>{formatILS(vat)}</Text>
               </View>
               <View style={[styles.totalRow, styles.totalRowFinal, { borderTopColor: colors.line }]}>
@@ -316,6 +345,47 @@ export function QuoteItemsStep({ colors = lightColors, onNext, onBack }: QuoteIt
               </View>
             </View>
           )}
+
+          {/* ── Quote validity ── */}
+          <View style={[styles.validityWrap, { backgroundColor: colors.bgElev, borderColor: colors.line }]}>
+            <Text style={[styles.fieldLabel, { color: colors.ink2, fontFamily: fonts.sans, marginBottom: 10 }]}>
+              תוקף ההצעה
+            </Text>
+            <View style={styles.validityRow}>
+              {VALIDITY_PRESETS.map((v) => (
+                <Pressable
+                  key={v}
+                  onPress={() => setSelectedValidity(v)}
+                  style={[
+                    styles.validityPill,
+                    {
+                      backgroundColor: selectedValidity === v ? colors.ink1 : colors.bg,
+                      borderColor: selectedValidity === v ? colors.ink1 : colors.lineStrong,
+                    },
+                  ]}
+                >
+                  <Text style={[
+                    styles.validityPillText,
+                    { color: selectedValidity === v ? colors.bg : colors.ink1, fontFamily: fonts.sans },
+                  ]}>
+                    {v}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+            {selectedValidity === 'אחר' && (
+              <View style={[styles.inputRow, { marginTop: 8, backgroundColor: colors.bg, borderColor: colors.lineStrong }]}>
+                <TextInput
+                  style={[styles.textInput, { color: colors.ink1, fontFamily: fonts.sans }]}
+                  placeholder="לדוגמה: 45 ימים, עד 01/07/2025…"
+                  placeholderTextColor={colors.ink4}
+                  value={customValidity}
+                  onChangeText={setCustomValidity}
+                  textAlign="right"
+                />
+              </View>
+            )}
+          </View>
 
           {/* ── Notes ── */}
           <View style={[styles.notesWrap, { backgroundColor: colors.bgElev, borderColor: colors.line }]}>
@@ -476,6 +546,27 @@ const styles = StyleSheet.create({
   totalValue: { fontSize: 14, fontWeight: '600' },
   totalLabelBig: { fontSize: 16, fontWeight: '700' },
   totalValueBig: { fontSize: 20, fontWeight: '800' },
+
+  // Exit button
+  exitBtn: {
+    width: 44, height: 44, borderRadius: 999, borderWidth: 1,
+    alignItems: 'center', justifyContent: 'center',
+  },
+
+  // Validity
+  validityWrap: {
+    borderRadius: 18,
+    borderWidth: 1,
+    padding: 16,
+  },
+  validityRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  validityPill: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  validityPillText: { fontSize: 13, fontWeight: '600' },
 
   // Notes
   notesWrap: {

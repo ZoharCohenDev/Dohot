@@ -11,11 +11,21 @@ import {
 import { DOCUMENT_TYPES } from '@/config/documentTypes';
 
 export interface WizardQuoteItem {
-  key: string;       // local React key (not saved to DB)
+  key: string;
   title: string;
   description: string;
   qty: number;
   unitPrice: number;
+}
+
+const DEFAULT_WARRANTY_CONDITIONS = [
+  'האחריות חלה על עבודת ההתקנה / התיקון שבוצעה.',
+  'האחריות אינה חלה על נזקים הנגרמים מכוח עליון, שימוש לרעה או פגיעה מכוונת.',
+  'תיקונים שנעשו על ידי גורם שלישי מבטלים את האחריות.',
+];
+
+function todayString(): string {
+  return new Date().toLocaleDateString('he-IL', { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
 interface WizardState {
@@ -29,12 +39,14 @@ interface WizardState {
   customerHouseNumber: string;
   customerApartment: string;
   customerFloor: string;
-  customerAddress: string;  // legacy formatted string
+  customerAddress: string;
   // Report-specific
   propertyType: PropertyType;
-  issueType: string;      // profession-specific issue ID
-  issueLabel: string;     // Hebrew label used in AI prompt + PDF
+  issueType: string;
+  issueLabel: string;
   issueNote: string;
+  attendees: string;         // people present during inspection
+  inspectionDate: string;    // formatted date, auto-set to today
   photos: string[];
   voiceTranscript: string;
   aiSummary: string;
@@ -42,9 +54,10 @@ interface WizardState {
   // Quote-specific
   quoteItems: WizardQuoteItem[];
   quoteNotes: string;
+  quoteValidityDate: string; // quote validity date label
   // Warranty-specific
   warrantyDuration: string;
-  warrantyConditions: string;
+  warrantyConditions: string[];   // was string, now a list
   warrantyWorkDescription: string;
   // Shared output
   documentId: string | null;
@@ -59,14 +72,18 @@ interface WizardContextValue {
   setPropertyType: (t: PropertyType) => void;
   setIssueData: (id: string, label: string) => void;
   setIssueNote: (n: string) => void;
+  setAttendees: (attendees: string) => void;
+  setInspectionDate: (date: string) => void;
   addPhoto: (uri: string) => void;
   removePhoto: (uri: string) => void;
+  replacePhoto: (oldUri: string, newUri: string) => void;
   setVoiceTranscript: (t: string) => void;
   setAiResult: (summary: string, recommendations: Recommendation[]) => void;
   setRecommendations: (recs: Recommendation[]) => void;
   setQuoteItems: (items: WizardQuoteItem[]) => void;
   setQuoteNotes: (n: string) => void;
-  setWarrantyData: (duration: string, conditions: string, workDescription: string) => void;
+  setQuoteValidityDate: (date: string) => void;
+  setWarrantyData: (duration: string, conditions: string[], workDescription: string) => void;
   initDraft: (professionalId: string, fields: CustomerFields) => Promise<void>;
   saveDocument: (professionalId: string) => Promise<void>;
   setPdfUrl: (url: string) => void;
@@ -88,14 +105,17 @@ const DEFAULT: WizardState = {
   issueType: 'leak',
   issueLabel: 'גילוי נזילה',
   issueNote: '',
+  attendees: '',
+  inspectionDate: todayString(),
   photos: [],
   voiceTranscript: '',
   aiSummary: '',
   recommendations: [],
   quoteItems: [],
   quoteNotes: '',
+  quoteValidityDate: '',
   warrantyDuration: '12 חודשים',
-  warrantyConditions: '',
+  warrantyConditions: DEFAULT_WARRANTY_CONDITIONS,
   warrantyWorkDescription: '',
   documentId: null,
   pdfUrl: null,
@@ -109,13 +129,17 @@ const WizardContext = createContext<WizardContextValue>({
   setPropertyType: () => {},
   setIssueData: () => {},
   setIssueNote: () => {},
+  setAttendees: () => {},
+  setInspectionDate: () => {},
   addPhoto: () => {},
   removePhoto: () => {},
+  replacePhoto: () => {},
   setVoiceTranscript: () => {},
   setAiResult: () => {},
   setRecommendations: () => {},
   setQuoteItems: () => {},
   setQuoteNotes: () => {},
+  setQuoteValidityDate: () => {},
   setWarrantyData: () => {},
   initDraft: async () => {},
   saveDocument: async () => {},
@@ -160,11 +184,23 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
   const setIssueNote = (issueNote: string) =>
     setState((s) => ({ ...s, issueNote }));
 
+  const setAttendees = (attendees: string) =>
+    setState((s) => ({ ...s, attendees }));
+
+  const setInspectionDate = (inspectionDate: string) =>
+    setState((s) => ({ ...s, inspectionDate }));
+
   const addPhoto = (uri: string) =>
     setState((s) => ({ ...s, photos: [...s.photos, uri] }));
 
   const removePhoto = (uri: string) =>
     setState((s) => ({ ...s, photos: s.photos.filter((p) => p !== uri) }));
+
+  const replacePhoto = (oldUri: string, newUri: string) =>
+    setState((s) => ({
+      ...s,
+      photos: s.photos.map((p) => (p === oldUri ? newUri : p)),
+    }));
 
   const setVoiceTranscript = (voiceTranscript: string) =>
     setState((s) => ({ ...s, voiceTranscript }));
@@ -181,13 +217,16 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
   const setQuoteNotes = (quoteNotes: string) =>
     setState((s) => ({ ...s, quoteNotes }));
 
-  const setWarrantyData = (warrantyDuration: string, warrantyConditions: string, warrantyWorkDescription: string) =>
+  const setQuoteValidityDate = (quoteValidityDate: string) =>
+    setState((s) => ({ ...s, quoteValidityDate }));
+
+  const setWarrantyData = (warrantyDuration: string, warrantyConditions: string[], warrantyWorkDescription: string) =>
     setState((s) => ({ ...s, warrantyDuration, warrantyConditions, warrantyWorkDescription }));
 
   const setPdfUrl = (pdfUrl: string) =>
     setState((s) => ({ ...s, pdfUrl }));
 
-  const reset = () => setState(DEFAULT);
+  const reset = () => setState({ ...DEFAULT, inspectionDate: todayString() });
 
   const initDraft = async (
     professionalId: string,
@@ -230,7 +269,7 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
         await upsertReport(docId, {
           propertyType: state.propertyType,
           issueType: state.issueType,
-          issueNote: state.issueNote,
+          issueNote: [state.issueNote, state.attendees ? `נוכחים: ${state.attendees}` : ''].filter(Boolean).join('\n'),
           photos: state.photos,
           voiceTranscript: state.voiceTranscript,
           aiSummary: state.aiSummary,
@@ -243,7 +282,7 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
         await upsertReport(docId, {
           propertyType: state.propertyType,
           issueType: state.warrantyDuration,
-          issueNote: state.warrantyConditions,
+          issueNote: state.warrantyConditions.join('\n'),
           photos: state.photos,
           voiceTranscript: '',
           aiSummary: state.warrantyWorkDescription,
@@ -266,13 +305,17 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
       setPropertyType,
       setIssueData,
       setIssueNote,
+      setAttendees,
+      setInspectionDate,
       addPhoto,
       removePhoto,
+      replacePhoto,
       setVoiceTranscript,
       setAiResult,
       setRecommendations,
       setQuoteItems,
       setQuoteNotes,
+      setQuoteValidityDate,
       setWarrantyData,
       initDraft,
       saveDocument,

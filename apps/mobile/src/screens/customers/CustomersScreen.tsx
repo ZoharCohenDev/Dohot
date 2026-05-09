@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   View, Text, Pressable, TextInput, FlatList,
-  ActivityIndicator, StyleSheet,
+  ActivityIndicator, StyleSheet, Alert, Linking,
 } from 'react-native';
 import { Header, BottomNav, type TabId } from '@/components/layout';
 import { ScaledText } from '@/components/primitives';
@@ -9,6 +9,7 @@ import { Avatar } from '@/components/shared';
 import { Icons } from '@/components/icons';
 import { lightColors, fonts } from '@/theme/tokens';
 import { useCustomers, type CustomerWithStats } from '@/hooks/useCustomers';
+import { deleteCustomer } from '@/services/documents';
 import type { CustomerType } from '@dohot/shared';
 
 interface CustomersScreenProps {
@@ -45,12 +46,24 @@ function formatAddress(c: CustomerWithStats): string {
   return parts.join(', ') || c.address || '';
 }
 
-function CustomerCard({ item, colors }: { item: CustomerWithStats; colors: typeof lightColors }) {
+function CustomerCard({
+  item,
+  colors,
+  onLongPress,
+}: {
+  item: CustomerWithStats;
+  colors: typeof lightColors;
+  onLongPress?: () => void;
+}) {
   const address = formatAddress(item);
   const lastActivity = relativeDate(item.last_contact_at);
 
   return (
-    <Pressable style={[styles.card, { backgroundColor: colors.bgElev }]}>
+    <Pressable
+      style={[styles.card, { backgroundColor: colors.bgElev }]}
+      onLongPress={onLongPress}
+      delayLongPress={500}
+    >
       <View style={styles.cardTop}>
         <Avatar name={item.name} size={46} colors={colors} />
         <View style={styles.cardMain}>
@@ -89,12 +102,16 @@ function CustomerCard({ item, colors }: { item: CustomerWithStats; colors: typeo
       {(!!item.phone || !!item.email) && (
         <View style={[styles.cardBottom, { borderTopColor: colors.line }]}>
           {!!item.phone && (
-            <View style={styles.contactChip}>
-              <Icons.phone size={13} color={colors.ink3} />
-              <Text style={[styles.contactText, { color: colors.ink2, fontFamily: fonts.sans }]}>
+            <Pressable
+              style={styles.contactChip}
+              onPress={() => Linking.openURL(`tel:${(item.phone ?? '').replace(/[-\s]/g, '')}`)}
+              hitSlop={6}
+            >
+              <Icons.phone size={13} color={colors.accent} />
+              <Text style={[styles.contactText, { color: colors.accent, fontFamily: fonts.sans, textDecorationLine: 'underline' }]}>
                 {item.phone}
               </Text>
-            </View>
+            </Pressable>
           )}
           {!!item.email && (
             <View style={styles.contactChip}>
@@ -123,10 +140,37 @@ export function CustomersScreen({ colors = lightColors, onNavigate }: CustomersS
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  const { customers, total, loading, error } = useCustomers(
+  const { customers, total, loading, error, refetch } = useCustomers(
     debouncedSearch,
     FILTER_CHIPS[activeFilter]?.type,
   );
+
+  const handleLongPress = (customer: CustomerWithStats) => {
+    const hasDocuments = customer.documentCount > 0;
+    const warningLine = hasDocuments
+      ? `ללקוח זה ${customer.documentCount} מסמכ${customer.documentCount === 1 ? '' : 'ים'} שיימחקו גם הם.\n`
+      : '';
+
+    Alert.alert(
+      'מחק לקוח',
+      `${warningLine}האם למחוק את ${customer.name}? פעולה זו אינה ניתנת לביטול.`,
+      [
+        { text: 'ביטול', style: 'cancel' },
+        {
+          text: 'מחק לקוח',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteCustomer(customer.id);
+              refetch();
+            } catch {
+              Alert.alert('שגיאה', 'לא ניתן היה למחוק את הלקוח. נסה שנית.');
+            }
+          },
+        },
+      ],
+    );
+  };
 
   return (
     <View style={[styles.root, { backgroundColor: colors.bg }]}>
@@ -218,7 +262,13 @@ export function CustomersScreen({ colors = lightColors, onNavigate }: CustomersS
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.listContent}
             ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
-            renderItem={({ item }) => <CustomerCard item={item} colors={colors} />}
+            renderItem={({ item }) => (
+              <CustomerCard
+                item={item}
+                colors={colors}
+                onLongPress={() => handleLongPress(item)}
+              />
+            )}
           />
         )}
       </View>

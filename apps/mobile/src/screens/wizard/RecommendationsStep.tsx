@@ -6,6 +6,7 @@ import { Icons } from '@/components/icons';
 import { lightColors, fonts } from '@/theme/tokens';
 import type { Recommendation } from '@dohot/shared';
 import { useWizard } from '@/context/WizardContext';
+import { useWizardExit } from '@/hooks/useWizardExit';
 
 interface RecommendationsStepProps {
   colors?: typeof lightColors;
@@ -61,6 +62,7 @@ const FALLBACK_SUMMARY =
 
 export function RecommendationsStep({ colors = lightColors, onNext, onBack, isSaving }: RecommendationsStepProps) {
   const wizard = useWizard();
+  const { triggerExit } = useWizardExit();
 
   // Initialise from AI result if available, otherwise use fallback
   const initialRecs: RecDisplay[] =
@@ -74,7 +76,21 @@ export function RecommendationsStep({ colors = lightColors, onNext, onBack, isSa
 
   return (
     <View style={[styles.root, { backgroundColor: colors.bg }]}>
-      <Header step={5} ofSteps={5} onBack={onBack} colors={colors} />
+      <Header
+        step={5}
+        ofSteps={5}
+        onBack={onBack}
+        colors={colors}
+        action={
+          <Pressable
+            onPress={triggerExit}
+            style={[styles.exitBtn, { backgroundColor: colors.bgElev, borderColor: colors.line }]}
+            hitSlop={6}
+          >
+            <Icons.home size={20} color={colors.ink2} />
+          </Pressable>
+        }
+      />
       <ProgressBar value={1} colors={colors} />
 
       <ScrollView
@@ -165,6 +181,10 @@ export function RecommendationsStep({ colors = lightColors, onNext, onBack, isSa
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  exitBtn: {
+    width: 44, height: 44, borderRadius: 999, borderWidth: 1,
+    alignItems: 'center', justifyContent: 'center',
+  },
   scroll: { flex: 1 },
   content: {
     paddingHorizontal: 20,

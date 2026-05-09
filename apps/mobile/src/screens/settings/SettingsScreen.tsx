@@ -15,9 +15,9 @@ import { useSettings, type FontSizePref } from '@/context/SettingsContext';
 import { signOut } from '@/services/auth';
 import { pickAndUploadImage } from '@/services/storage';
 import { encodeSignatureSvg } from '@/services/profile';
-import type { Certification } from '@dohot/shared';
+import type { Certification, Profession } from '@dohot/shared';
 
-type ModalKey = 'business' | 'signature' | 'certs' | 'disclaimer' | 'fontsize' | 'billing' | 'upgrade' | null;
+type ModalKey = 'business' | 'signature' | 'certs' | 'disclaimer' | 'fontsize' | 'billing' | 'upgrade' | 'profession' | null;
 
 interface SettingsScreenProps {
   dark?: boolean;
@@ -720,6 +720,72 @@ function FontSizeModal({ visible, onClose, colors }: FontSizeModalProps) {
   );
 }
 
+// ─── ProfessionModal ──────────────────────────────────────────────────────────
+
+const PROFESSIONS: { value: Profession; label: string; desc: string }[] = [
+  { value: 'leak_detection',    label: 'גילוי נזילות',   desc: 'איתור ותיקון נזילות' },
+  { value: 'plumber',           label: 'אינסטלאי',        desc: 'עבודות אינסטלציה וצנרת' },
+  { value: 'electrician',       label: 'חשמלאי',          desc: 'עבודות חשמל ותאורה' },
+  { value: 'renovation',        label: 'שיפוצניק',        desc: 'שיפוצים ובנייה' },
+  { value: 'ac',                label: 'מיזוג אוויר',     desc: 'התקנה ותחזוקת מיזוג' },
+  { value: 'roofing',           label: 'עבודות גג',       desc: 'גגות ואיטום' },
+  { value: 'waterproofing',     label: 'איטום',            desc: 'איטום ועמידות מים' },
+  { value: 'general_technician',label: 'טכנאי כללי',      desc: 'תחומים מגוונים' },
+];
+
+function ProfessionModal({ visible, onClose, colors }: { visible: boolean; onClose: () => void; colors: typeof lightColors }) {
+  const { businessProfile, updateProfile } = useAuth();
+  const [saving, setSaving] = React.useState(false);
+  const current = businessProfile?.profession ?? '';
+
+  const handleSelect = async (value: Profession) => {
+    if (value === current) { onClose(); return; }
+    setSaving(true);
+    try {
+      await updateProfile({ profession: value });
+      onClose();
+    } catch {
+      Alert.alert('שגיאה', 'לא ניתן לשמור את השינוי');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <BottomSheet visible={visible} onClose={onClose} title="תחום עיסוק" colors={colors}>
+      {saving ? (
+        <View style={{ height: 80, alignItems: 'center', justifyContent: 'center' }}>
+          <ActivityIndicator color={colors.ink3} />
+        </View>
+      ) : (
+        PROFESSIONS.map((p) => (
+          <Pressable
+            key={p.value}
+            onPress={() => handleSelect(p.value)}
+            style={[
+              styles.optionRow,
+              {
+                borderColor: colors.line,
+                backgroundColor: p.value === current ? colors.bgSunken : colors.bgElev,
+              },
+            ]}
+          >
+            <View style={{ flex: 1 }}>
+              <ScaledText style={[styles.optionLabel, { color: colors.ink1, fontFamily: fonts.sans }]}>
+                {p.label}
+              </ScaledText>
+              <ScaledText style={[styles.optionDesc, { color: colors.ink3, fontFamily: fonts.sans }]}>
+                {p.desc}
+              </ScaledText>
+            </View>
+            {p.value === current && <Icons.check size={20} color={colors.ai2} />}
+          </Pressable>
+        ))
+      )}
+    </BottomSheet>
+  );
+}
+
 // ─── BillingModal ─────────────────────────────────────────────────────────────
 
 function BillingModal({ visible, onClose, colors }: { visible: boolean; onClose: () => void; colors: typeof lightColors }) {
@@ -978,10 +1044,13 @@ export function SettingsScreen({ dark = false, colors = lightColors, onNavigate,
         </SettingGroup>
 
         <SettingGroup title="מנוי ופרופיל" colors={colors}>
-          {profLabel ? (
-            <SettingRow icon={<Icons.building size={20} color={colors.ink2} />} label="תחום"
-              value={profLabel} colors={colors} />
-          ) : null}
+          <SettingRow
+            icon={<Icons.building size={20} color={colors.ink2} />}
+            label="תחום עיסוק"
+            value={profLabel || 'לא הוגדר'}
+            colors={colors}
+            onPress={() => setModal('profession')}
+          />
           <SettingRow icon={<Icons.history size={20} color={colors.ink2} />} label="תוקף מנוי"
             value={subDateLabel} colors={colors} />
           <SettingRow
@@ -1017,6 +1086,7 @@ export function SettingsScreen({ dark = false, colors = lightColors, onNavigate,
       <CertificationsModal visible={openModal === 'certs'} onClose={() => setModal(null)} colors={colors} />
       <DisclaimerModal visible={openModal === 'disclaimer'} onClose={() => setModal(null)} colors={colors} />
       <FontSizeModal visible={openModal === 'fontsize'} onClose={() => setModal(null)} colors={colors} />
+      <ProfessionModal visible={openModal === 'profession'} onClose={() => setModal(null)} colors={colors} />
       <BillingModal visible={openModal === 'billing'} onClose={() => setModal(null)} colors={colors} />
       <UpgradeModal visible={openModal === 'upgrade'} onClose={() => setModal(null)} colors={colors} />
     </View>

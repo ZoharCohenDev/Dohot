@@ -8,6 +8,7 @@ import { useWizard } from '@/context/WizardContext';
 import { useAuth } from '@/context/AuthContext';
 import { PROFESSION_ISSUES, type IssueOption } from '@/config/professionIssues';
 import { useWizardStep } from '@/hooks/useWizardStep';
+import { useWizardExit } from '@/hooks/useWizardExit';
 import type { Profession } from '@dohot/shared';
 
 interface IssueStepProps {
@@ -31,6 +32,7 @@ export function IssueStep({ colors = lightColors, onNext, onBack }: IssueStepPro
   const wizard = useWizard();
   const { businessProfile } = useAuth();
   const { progress, stepNum, stepOf, goNext, goBack } = useWizardStep();
+  const { triggerExit } = useWizardExit();
 
   const profession = (businessProfile?.profession ?? 'other') as Profession;
   const issues: IssueOption[] = PROFESSION_ISSUES[profession] ?? PROFESSION_ISSUES.other;
@@ -38,6 +40,7 @@ export function IssueStep({ colors = lightColors, onNext, onBack }: IssueStepPro
   const [selectedId, setSelectedId] = React.useState<string>(wizard.state.issueType || issues[0]?.id || '');
   const [issueNote, setIssueNote] = React.useState(wizard.state.issueNote);
   const [customText, setCustomText] = React.useState('');
+  const [attendees, setAttendeesLocal] = React.useState(wizard.state.attendees);
 
   const selectedIssue = issues.find((i) => i.id === selectedId) ?? issues[0];
 
@@ -47,19 +50,35 @@ export function IssueStep({ colors = lightColors, onNext, onBack }: IssueStepPro
       : (selectedIssue?.label ?? selectedId);
     wizard.setIssueData(selectedId, label);
     wizard.setIssueNote(issueNote);
+    wizard.setAttendees(attendees);
     if (onNext) onNext();
     else goNext();
   };
 
   return (
     <View style={[styles.root, { backgroundColor: colors.bg }]}>
-      <Header step={stepNum} ofSteps={stepOf} onBack={onBack ?? goBack} colors={colors} />
+      <Header
+        step={stepNum}
+        ofSteps={stepOf}
+        onBack={onBack ?? goBack}
+        colors={colors}
+        action={
+          <Pressable
+            onPress={triggerExit}
+            style={[styles.exitBtn, { backgroundColor: colors.bgElev, borderColor: colors.line }]}
+            hitSlop={6}
+          >
+            <Icons.home size={20} color={colors.ink2} />
+          </Pressable>
+        }
+      />
       <ProgressBar value={progress} colors={colors} />
 
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         <Text style={[styles.title, { color: colors.ink1, fontFamily: fonts.serif }]}>
           סוג התקלה
@@ -131,6 +150,16 @@ export function IssueStep({ colors = lightColors, onNext, onBack }: IssueStepPro
           colors={colors}
         />
 
+        {/* Attendees field */}
+        <Field
+          label="נוכחים בביקור (אופציונלי)"
+          placeholder="שמות הנוכחים בעת הביקור…"
+          icon={<Icons.customers size={20} color={colors.ink3} />}
+          value={attendees}
+          onChangeText={setAttendeesLocal}
+          colors={colors}
+        />
+
         <View style={[styles.tip, { backgroundColor: colors.bgSunken }]}>
           <Icons.sparkle size={18} color={colors.ai2} />
           <Text style={[styles.tipText, { color: colors.ink2, fontFamily: fonts.sans }]}>
@@ -162,6 +191,10 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 140, gap: 14 },
   title: { fontSize: 30, fontWeight: '500', lineHeight: 33, letterSpacing: -0.6 },
   subtitle: { fontSize: 14 },
+  exitBtn: {
+    width: 44, height: 44, borderRadius: 999, borderWidth: 1,
+    alignItems: 'center', justifyContent: 'center',
+  },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   tile: {
     width: '47.5%',

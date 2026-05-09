@@ -9,6 +9,7 @@ import { Icons } from '@/components/icons';
 import { lightColors, fonts } from '@/theme/tokens';
 import { useWizard } from '@/context/WizardContext';
 import { useWizardStep } from '@/hooks/useWizardStep';
+import { useWizardExit } from '@/hooks/useWizardExit';
 import { useAuth } from '@/context/AuthContext';
 import { searchCustomers, type CustomerFields } from '@/services/documents';
 import type { Customer, PropertyType } from '@dohot/shared';
@@ -53,6 +54,7 @@ export function CustomerStep({
 }: CustomerStepProps) {
   const wizard = useWizard();
   const { progress, stepNum, stepOf, goNext, goBack, config } = useWizardStep();
+  const { triggerExit } = useWizardExit();
   const { businessProfile } = useAuth();
   const profId = professionalId ?? businessProfile?.id ?? '';
 
@@ -155,7 +157,21 @@ export function CustomerStep({
 
   return (
     <View style={[styles.root, { backgroundColor: colors.bg }]}>
-      <Header step={stepNum} ofSteps={stepOf} onBack={onBack ?? goBack} colors={colors} />
+      <Header
+        step={stepNum}
+        ofSteps={stepOf}
+        onBack={onBack ?? goBack}
+        colors={colors}
+        action={
+          <Pressable
+            onPress={triggerExit}
+            style={[styles.exitBtn, { backgroundColor: colors.bgElev, borderColor: colors.line }]}
+            hitSlop={6}
+          >
+            <Icons.home size={20} color={colors.ink2} />
+          </Pressable>
+        }
+      />
       <ProgressBar value={progress} colors={colors} />
 
       <ScrollView
@@ -372,6 +388,10 @@ export function CustomerStep({
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  exitBtn: {
+    width: 44, height: 44, borderRadius: 999, borderWidth: 1,
+    alignItems: 'center', justifyContent: 'center',
+  },
   scroll: { flex: 1 },
   content: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 140, gap: 14 },
   titleBlock: { gap: 6, marginBottom: 8 },

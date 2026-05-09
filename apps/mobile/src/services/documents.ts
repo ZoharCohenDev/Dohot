@@ -249,6 +249,14 @@ export async function upsertQuoteItems(
     .eq('id', documentId);
 }
 
+export async function deleteCustomer(customerId: string): Promise<void> {
+  const { error } = await supabase
+    .from(tables.customers)
+    .delete()
+    .eq('id', customerId);
+  if (error) throw error;
+}
+
 const SERVER_URL = (process.env['EXPO_PUBLIC_API_URL'] ?? 'http://localhost:3000').replace(/\/$/, '');
 
 export async function generateDocumentPdf(documentId: string): Promise<string> {
