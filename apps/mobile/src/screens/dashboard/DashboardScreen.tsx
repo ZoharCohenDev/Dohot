@@ -1,14 +1,17 @@
 import React from 'react';
-import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
+import {
+  View, Text, Pressable, FlatList, ActivityIndicator,
+  StyleSheet, Alert, Linking,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomNav, type TabId } from '@/components/layout';
 import { ScaledText } from '@/components/primitives';
-import { Avatar, WaveBar } from '@/components/shared';
+import { Avatar } from '@/components/shared';
 import { Icons } from '@/components/icons';
-import { lightColors, fonts, shadows } from '@/theme/tokens';
+import { lightColors, fonts } from '@/theme/tokens';
 import { useAuth } from '@/context/AuthContext';
 import { useDashboard } from '@/hooks/useDashboard';
-import type { DocumentType } from '@dohot/shared';
+import { useQuoteFollowUp, type QuoteFollowUpItem } from '@/hooks/useQuoteFollowUp';
 
 interface DashboardScreenProps {
   colors?: typeof lightColors;
@@ -17,176 +20,248 @@ interface DashboardScreenProps {
   onCreateType?: (type: string) => void;
 }
 
-const ACTIONS = [
-  { type: 'report',    title: 'דוח מקצועי',   desc: 'תיעוד נזק',          Icon: Icons.doc,       colorFn: (c: typeof lightColors) => c.accent, bgFn: (c: typeof lightColors) => c.accentBg },
-  { type: 'quote',     title: 'הצעת מחיר',    desc: 'תמחור פריטים',       Icon: Icons.quote,     colorFn: (c: typeof lightColors) => c.info,   bgFn: (c: typeof lightColors) => c.infoBg },
-  { type: 'worklog',   title: 'תיעוד עבודה',  desc: 'לפני / אחרי',        Icon: Icons.image,     colorFn: (c: typeof lightColors) => c.ai2,    bgFn: (c: typeof lightColors) => c.aiBg },
-  { type: 'agreement', title: 'הסכם עבודה',   desc: 'חתימה דיגיטלית',    Icon: Icons.agreement, colorFn: (c: typeof lightColors) => c.warn,   bgFn: (c: typeof lightColors) => c.warnBg },
-];
-
-function docTypeStyle(type: DocumentType, colors: typeof lightColors) {
-  switch (type) {
-    case 'report':    return { Icon: Icons.doc,       colorFn: colors.accent, bgFn: colors.accentBg };
-    case 'quote':     return { Icon: Icons.quote,     colorFn: colors.info,   bgFn: colors.infoBg };
-    case 'worklog':   return { Icon: Icons.image,     colorFn: colors.ai2,    bgFn: colors.aiBg };
-    case 'agreement': return { Icon: Icons.agreement, colorFn: colors.warn,   bgFn: colors.warnBg };
-  }
+function formatDate(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric', year: '2-digit' });
 }
 
-function relativeDate(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
-  const days = Math.floor(diff / 86400000);
-  if (days === 0) return 'היום';
-  if (days === 1) return 'אתמול';
-  if (days < 7)  return `לפני ${days} ימים`;
-  if (days < 14) return 'לפני שבוע';
-  return `לפני ${Math.floor(days / 7)} שבועות`;
+function formatAmount(amount: number | null): string {
+  if (amount == null) return '';
+  return `₪${amount.toLocaleString('he-IL')}`;
 }
 
-export function DashboardScreen({ colors = lightColors, onCreateReport, onNavigate, onCreateType }: DashboardScreenProps) {
+function formatAddress(q: QuoteFollowUpItem): string {
+  const c = q.customers;
+  if (!c) return '';
+  const line1 = [c.street, c.house_number].filter(Boolean).join(' ');
+  const apt = [
+    c.apartment ? `דירה ${c.apartment}` : '',
+    c.floor ? `קומה ${c.floor}` : '',
+  ].filter(Boolean).join(', ');
+  return [line1, apt, c.city].filter(Boolean).join(', ') || c.address || '';
+}
+
+function QuoteCard({
+  item,
+  colors,
+  onToggle,
+  onLongPress,
+}: {
+  item: QuoteFollowUpItem;
+  colors: typeof lightColors;
+  onToggle: () => void;
+  onLongPress: () => void;
+}) {
+  const address = formatAddress(item);
+  const phone = item.customers?.phone;
+  const completed = item.followUp.completed;
+
+  return (
+    <Pressable
+      style={[styles.card, { backgroundColor: colors.bgElev, opacity: completed ? 0.72 : 1 }]}
+      onLongPress={onLongPress}
+      delayLongPress={500}
+    >
+      <View style={styles.cardMain}>
+        {/* Checkbox */}
+        <Pressable
+          onPress={onToggle}
+          hitSlop={8}
+          style={[
+            styles.checkbox,
+            {
+              borderColor: completed ? colors.ai : colors.ink4,
+              backgroundColor: completed ? colors.ai : 'transparent',
+            },
+          ]}
+        >
+          {completed && <Icons.check size={13} color={colors.bgElev} stroke={2.5} />}
+        </Pressable>
+
+        {/* Content */}
+        <View style={styles.cardContent}>
+          <View style={styles.cardTopRow}>
+            <Text
+              style={[
+                styles.customerName,
+                { color: colors.ink1, fontFamily: fonts.sans, textDecorationLine: completed ? 'line-through' : 'none' },
+              ]}
+              numberOfLines={1}
+            >
+              {item.customers?.name ?? 'ללא שם'}
+            </Text>
+            <Text style={[styles.dateText, { color: colors.ink4, fontFamily: fonts.sans }]}>
+              {formatDate(item.created_at)}
+            </Text>
+          </View>
+
+          {!!address && (
+            <View style={styles.infoRow}>
+              <Icons.pin2 size={12} color={colors.ink4} />
+              <Text style={[styles.infoText, { color: colors.ink3, fontFamily: fonts.sans }]} numberOfLines={1}>
+                {address}
+              </Text>
+            </View>
+          )}
+
+          <View style={styles.cardBottomRow}>
+            {!!phone && (
+              <Pressable
+                style={styles.phoneChip}
+                onPress={() => Linking.openURL(`tel:${phone.replace(/[-\s]/g, '')}`)}
+                hitSlop={6}
+              >
+                <Icons.phone size={12} color={colors.info} />
+                <Text style={[styles.phoneText, { color: colors.info, fontFamily: fonts.sans }]}>
+                  {phone}
+                </Text>
+              </Pressable>
+            )}
+            {!!item.amount && (
+              <View style={[styles.amountBadge, { backgroundColor: colors.infoBg }]}>
+                <Text style={[styles.amountText, { color: colors.info, fontFamily: fonts.sans }]}>
+                  {formatAmount(item.amount)}
+                </Text>
+              </View>
+            )}
+          </View>
+        </View>
+      </View>
+    </Pressable>
+  );
+}
+
+export function DashboardScreen({ colors = lightColors, onNavigate, onCreateType }: DashboardScreenProps) {
   const insets = useSafeAreaInsets();
   const { businessProfile } = useAuth();
-  const { stats, recent } = useDashboard();
+  const { stats } = useDashboard();
+  const { items, loading, error, toggleFollowUp, deleteQuote } = useQuoteFollowUp();
 
   const displayName = businessProfile?.full_name || businessProfile?.business_name || '';
   const firstName = displayName.split(' ')[0] ?? displayName;
 
+  const handleLongPress = (item: QuoteFollowUpItem) => {
+    const name = item.customers?.name ?? 'הצעה זו';
+    Alert.alert(
+      'מחק הצעת מחיר',
+      `האם למחוק את הצעת המחיר של ${name}? פעולה זו אינה ניתנת לביטול.`,
+      [
+        { text: 'ביטול', style: 'cancel' },
+        {
+          text: 'מחק הצעת מחיר',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteQuote(item.id);
+            } catch {
+              Alert.alert('שגיאה', 'לא ניתן היה למחוק את הצעת המחיר. נסה שנית.');
+            }
+          },
+        },
+      ],
+    );
+  };
+
   return (
     <View style={[styles.root, { backgroundColor: colors.bg }]}>
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={[styles.content, { paddingTop: insets.top + 12 }]}
+      <FlatList
+        data={items}
+        keyExtractor={(item) => item.id}
         showsVerticalScrollIndicator={false}
-      >
-        {/* Top bar */}
-        <View style={styles.topBar}>
-          <View style={styles.greeting}>
-            <Avatar name={displayName} size={42} logoUrl={businessProfile?.logo_url} />
-            <View>
-              <ScaledText style={[styles.greetSub, { color: colors.ink3, fontFamily: fonts.sans }]}>
-                בוקר טוב,
-              </ScaledText>
-              <ScaledText style={[styles.greetName, { color: colors.ink1, fontFamily: fonts.sans }]}>
-                {firstName}
-              </ScaledText>
-            </View>
-          </View>
-          <Pressable style={[styles.notifBtn, { backgroundColor: colors.bgElev, borderColor: colors.line }]}>
-            <Icons.bell size={20} color={colors.ink1} />
-            <View style={[styles.notifDot, { backgroundColor: colors.accent }]} />
-          </Pressable>
-        </View>
-
-        {/* Stats strip */}
-        <View style={styles.statsRow}>
-          <View style={[styles.statCard, { backgroundColor: colors.bgElev, borderColor: colors.line }]}>
-            <ScaledText style={[styles.statValue, { color: colors.ink1, fontFamily: fonts.sans }]}>
-              {stats.monthlyReports}
-            </ScaledText>
-            <ScaledText style={[styles.statLabel, { color: colors.ink3, fontFamily: fonts.sans }]}>
-              דוחות החודש
-            </ScaledText>
-          </View>
-          <View style={[styles.statCard, { backgroundColor: colors.bgElev, borderColor: colors.line }]}>
-            <ScaledText style={[styles.statValue, { color: colors.accent, fontFamily: fonts.sans }]}>
-              {stats.activeQuotes}
-            </ScaledText>
-            <ScaledText style={[styles.statLabel, { color: colors.ink3, fontFamily: fonts.sans }]}>
-              הצעות פעילות
-            </ScaledText>
-          </View>
-        </View>
-
-        {/* Hero voice card */}
-        <Pressable onPress={onCreateReport} style={styles.voiceCard}>
-          <View style={styles.voiceAurora} pointerEvents="none" />
-          <View style={styles.voiceTagRow}>
-            <Icons.sparkle size={16} color="#84B097" />
-            <Text style={styles.voiceTag}>עוזר חכם</Text>
-          </View>
-          <Text style={styles.voiceTitle}>
-            {'צרו דוח חדש '}
-            <Text style={styles.voiceTitleItalic}>בקול בלבד</Text>
-          </Text>
-          <View style={styles.voiceBottom}>
-            <View style={styles.micBtn}>
-              <Icons.micFill size={22} color="#1B2A22" />
-            </View>
-            <WaveBar color="#84B097" barCount={8} heights={[8, 16, 12, 20, 14, 18, 10, 22]} />
-          </View>
-        </Pressable>
-
-        {/* 4 action tiles */}
-        <ScaledText style={[styles.sectionLabel, { color: colors.ink2, fontFamily: fonts.sans }]}>
-          מה ליצור?
-        </ScaledText>
-        <View style={styles.actionsGrid}>
-          {ACTIONS.map((a) => (
-            <Pressable
-              key={a.type}
-              onPress={() => onCreateType?.(a.type)}
-              style={[styles.actionTile, { backgroundColor: colors.bgElev }, shadows.card]}
-            >
-              <View style={[styles.actionIcon, { backgroundColor: a.bgFn(colors) }]}>
-                <a.Icon size={22} color={a.colorFn(colors)} />
-              </View>
-              <View>
-                <ScaledText style={[styles.actionTitle, { color: colors.ink1, fontFamily: fonts.sans }]}>
-                  {a.title}
-                </ScaledText>
-                <ScaledText style={[styles.actionDesc, { color: colors.ink3, fontFamily: fonts.sans }]}>
-                  {a.desc}
-                </ScaledText>
-              </View>
-            </Pressable>
-          ))}
-        </View>
-
-        {/* Recent activity */}
-        {recent.length > 0 && (
+        contentContainerStyle={[styles.content, { paddingTop: insets.top + 12 }]}
+        ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
+        ListHeaderComponent={() => (
           <>
-            <View style={styles.recentHeader}>
-              <ScaledText style={[styles.sectionLabel, { color: colors.ink2, fontFamily: fonts.sans }]}>
-                פעילות אחרונה
-              </ScaledText>
-              <Pressable style={styles.seeAllBtn} onPress={() => onNavigate?.('docs')}>
-                <ScaledText style={[styles.seeAll, { color: colors.ink3, fontFamily: fonts.sans }]}>
-                  הכל
-                </ScaledText>
-                <Icons.chevL size={14} color={colors.ink3} />
+            {/* Top bar */}
+            <View style={styles.topBar}>
+              <View style={styles.greeting}>
+                <Avatar name={displayName} size={42} logoUrl={businessProfile?.logo_url} />
+                <View>
+                  <ScaledText style={[styles.greetSub, { color: colors.ink3, fontFamily: fonts.sans }]}>
+                    בוקר טוב,
+                  </ScaledText>
+                  <ScaledText style={[styles.greetName, { color: colors.ink1, fontFamily: fonts.sans }]}>
+                    {firstName}
+                  </ScaledText>
+                </View>
+              </View>
+              <Pressable style={[styles.notifBtn, { backgroundColor: colors.bgElev, borderColor: colors.line }]}>
+                <Icons.bell size={20} color={colors.ink1} />
+                <View style={[styles.notifDot, { backgroundColor: colors.accent }]} />
               </Pressable>
             </View>
-            <View style={styles.recentList}>
-              {recent.map((doc) => {
-                const { Icon, colorFn, bgFn } = docTypeStyle(doc.type, colors);
-                const customerName = doc.customers?.name;
-                const subtitle = customerName
-                  ? `${customerName} · ${relativeDate(doc.created_at)}`
-                  : relativeDate(doc.created_at);
-                return (
-                  <Pressable
-                    key={doc.id}
-                    style={[styles.recentRow, { backgroundColor: colors.bgElev, borderColor: colors.line }]}
-                  >
-                    <View style={[styles.recentIcon, { backgroundColor: bgFn }]}>
-                      <Icon size={20} color={colorFn} />
-                    </View>
-                    <View style={styles.recentInfo}>
-                      <ScaledText style={[styles.recentTitle, { color: colors.ink1, fontFamily: fonts.sans }]} numberOfLines={1}>
-                        {doc.title}
-                      </ScaledText>
-                      <ScaledText style={[styles.recentSub, { color: colors.ink3, fontFamily: fonts.sans }]}>
-                        {subtitle}
-                      </ScaledText>
-                    </View>
-                    <Icons.chevL size={18} color={colors.ink4} />
-                  </Pressable>
-                );
-              })}
+
+            {/* Stats strip */}
+            <View style={styles.statsRow}>
+              <View style={[styles.statCard, { backgroundColor: colors.bgElev, borderColor: colors.line }]}>
+                <ScaledText style={[styles.statValue, { color: colors.ink1, fontFamily: fonts.sans }]}>
+                  {stats.monthlyReports}
+                </ScaledText>
+                <ScaledText style={[styles.statLabel, { color: colors.ink3, fontFamily: fonts.sans }]}>
+                  דוחות החודש
+                </ScaledText>
+              </View>
+              <View style={[styles.statCard, { backgroundColor: colors.bgElev, borderColor: colors.line }]}>
+                <ScaledText style={[styles.statValue, { color: colors.accent, fontFamily: fonts.sans }]}>
+                  {stats.activeQuotes}
+                </ScaledText>
+                <ScaledText style={[styles.statLabel, { color: colors.ink3, fontFamily: fonts.sans }]}>
+                  הצעות פעילות
+                </ScaledText>
+              </View>
             </View>
+
+            {/* Section header */}
+            <ScaledText style={[styles.sectionLabel, { color: colors.ink2, fontFamily: fonts.sans }]}>
+              מעקב הצעות מחיר
+            </ScaledText>
+
+            {loading && (
+              <View style={styles.center}>
+                <ActivityIndicator color={colors.ink3} />
+              </View>
+            )}
+
+            {!loading && !!error && (
+              <View style={styles.center}>
+                <ScaledText style={[styles.emptyTitle, { color: colors.ink3, fontFamily: fonts.sans }]}>
+                  {error}
+                </ScaledText>
+              </View>
+            )}
           </>
         )}
-      </ScrollView>
+        ListEmptyComponent={() => {
+          if (loading || error) return null;
+          return (
+            <View style={styles.emptyState}>
+              <View style={[styles.emptyIcon, { backgroundColor: colors.bgElev }]}>
+                <Icons.quote size={32} color={colors.ink4} />
+              </View>
+              <ScaledText style={[styles.emptyTitle, { color: colors.ink2, fontFamily: fonts.sans }]}>
+                אין הצעות מחיר למעקב כרגע
+              </ScaledText>
+              <Pressable
+                style={[styles.emptyBtn, { backgroundColor: colors.ink1 }]}
+                onPress={() => onCreateType?.('quote')}
+              >
+                <Icons.plus size={16} color={colors.bg} />
+                <Text style={[styles.emptyBtnText, { color: colors.bg, fontFamily: fonts.sans }]}>
+                  צור הצעת מחיר
+                </Text>
+              </Pressable>
+            </View>
+          );
+        }}
+        renderItem={({ item }) => (
+          <QuoteCard
+            item={item}
+            colors={colors}
+            onToggle={() => toggleFollowUp(item.id)}
+            onLongPress={() => handleLongPress(item)}
+          />
+        )}
+      />
 
       <BottomNav active="home" onTab={onNavigate} colors={colors} />
     </View>
@@ -195,12 +270,13 @@ export function DashboardScreen({ colors = lightColors, onCreateReport, onNaviga
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  scroll: { flex: 1 },
   content: {
     paddingHorizontal: 20,
     paddingBottom: 120,
     gap: 0,
   },
+
+  // Top bar
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -212,147 +288,74 @@ const styles = StyleSheet.create({
   greetSub: { fontSize: 12 },
   greetName: { fontSize: 16, fontWeight: '700', lineHeight: 20 },
   notifBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 999,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: 44, height: 44, borderRadius: 999,
+    borderWidth: 1, alignItems: 'center', justifyContent: 'center',
   },
   notifDot: {
-    position: 'absolute',
-    top: 11,
-    end: 11,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    position: 'absolute', top: 11, end: 11,
+    width: 8, height: 8, borderRadius: 4,
   },
-  statsRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 18,
-  },
-  statCard: {
-    flex: 1,
-    borderRadius: 18,
-    padding: 14,
-    borderWidth: 1,
-  },
+
+  // Stats
+  statsRow: { flexDirection: 'row', gap: 8, marginBottom: 20 },
+  statCard: { flex: 1, borderRadius: 18, padding: 14, borderWidth: 1 },
   statValue: { fontSize: 22, fontWeight: '800', letterSpacing: -0.6 },
   statLabel: { fontSize: 11, marginTop: 2 },
-  voiceCard: {
-    borderRadius: 24,
-    padding: 20,
-    backgroundColor: '#1B2A22',
-    marginBottom: 18,
-    overflow: 'hidden',
-    shadowColor: '#1B2A22',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.25,
-    shadowRadius: 16,
-    elevation: 8,
-  },
-  voiceAurora: {
-    position: 'absolute',
-    top: -40,
-    end: -40,
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    backgroundColor: 'rgba(132,176,151,0.25)',
-  },
-  voiceTagRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 12,
-  },
-  voiceTag: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#84B097',
-    letterSpacing: 1,
-  },
-  voiceTitle: {
-    fontFamily: fonts.serif,
-    fontSize: 26,
-    fontWeight: '500',
-    lineHeight: 30,
-    letterSpacing: -0.6,
-    color: '#F5F3EE',
-    maxWidth: 260,
-  },
-  voiceTitleItalic: {
-    fontStyle: 'italic',
-    color: '#B8D4C2',
-  },
-  voiceBottom: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    marginTop: 18,
-  },
-  micBtn: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
-    backgroundColor: '#84B097',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+
+  // Section
   sectionLabel: {
-    fontSize: 13,
-    fontWeight: '700',
-    marginBottom: 12,
-    letterSpacing: -0.1,
+    fontSize: 13, fontWeight: '700',
+    marginBottom: 12, letterSpacing: -0.1,
   },
-  actionsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-    marginBottom: 22,
-  },
-  actionTile: {
-    width: '47.5%',
-    borderRadius: 20,
-    padding: 16,
-    height: 132,
-    justifyContent: 'space-between',
-  },
-  actionIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  actionTitle: { fontSize: 15, fontWeight: '700' },
-  actionDesc: { fontSize: 12, marginTop: 2 },
-  recentHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  seeAllBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  seeAll: { fontSize: 12, fontWeight: '600' },
-  recentList: { gap: 8 },
-  recentRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    padding: 14,
+
+  // Quote card
+  card: {
     borderRadius: 18,
-    borderWidth: 1,
+    padding: 14,
+    shadowColor: '#1B1916',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
   },
-  recentIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
+  cardMain: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  checkbox: {
+    width: 24, height: 24, borderRadius: 7,
+    borderWidth: 1.5, alignItems: 'center', justifyContent: 'center',
+    marginTop: 1, flexShrink: 0,
   },
-  recentInfo: { flex: 1, minWidth: 0 },
-  recentTitle: { fontSize: 14, fontWeight: '600' },
-  recentSub: { fontSize: 12, marginTop: 2 },
+  cardContent: { flex: 1, minWidth: 0 },
+  cardTopRow: {
+    flexDirection: 'row', alignItems: 'flex-start',
+    justifyContent: 'space-between', gap: 8, marginBottom: 4,
+  },
+  customerName: { fontSize: 15, fontWeight: '700', flex: 1 },
+  dateText: { fontSize: 11, flexShrink: 0, marginTop: 2 },
+  infoRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 6 },
+  infoText: { fontSize: 12, flex: 1 },
+  cardBottomRow: {
+    flexDirection: 'row', alignItems: 'center',
+    justifyContent: 'space-between', gap: 8,
+  },
+  phoneChip: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  phoneText: { fontSize: 12, textDecorationLine: 'underline' },
+  amountBadge: {
+    paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999,
+  },
+  amountText: { fontSize: 12, fontWeight: '700' },
+
+  // Empty state
+  center: { alignItems: 'center', paddingVertical: 40 },
+  emptyState: { alignItems: 'center', paddingTop: 48, paddingBottom: 40, gap: 10 },
+  emptyIcon: {
+    width: 64, height: 64, borderRadius: 20,
+    alignItems: 'center', justifyContent: 'center', marginBottom: 4,
+  },
+  emptyTitle: { fontSize: 16, fontWeight: '700', textAlign: 'center' },
+  emptyBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingHorizontal: 20, paddingVertical: 12, borderRadius: 999,
+    marginTop: 4,
+  },
+  emptyBtnText: { fontSize: 14, fontWeight: '700' },
 });

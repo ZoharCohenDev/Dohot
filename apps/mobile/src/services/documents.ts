@@ -257,6 +257,14 @@ export async function deleteCustomer(customerId: string): Promise<void> {
   if (error) throw error;
 }
 
+export async function deleteDocument(documentId: string): Promise<void> {
+  const { error } = await supabase
+    .from(tables.documents)
+    .delete()
+    .eq('id', documentId);
+  if (error) throw error;
+}
+
 const SERVER_URL = (process.env['EXPO_PUBLIC_API_URL'] ?? 'http://localhost:3000').replace(/\/$/, '');
 
 export async function generateDocumentPdf(documentId: string): Promise<string> {
