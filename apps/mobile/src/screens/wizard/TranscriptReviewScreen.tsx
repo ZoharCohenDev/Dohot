@@ -251,8 +251,8 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   aiTagText: { fontSize: 12, fontWeight: '700' },
-  title: { fontSize: 30, fontWeight: '500', lineHeight: 33, letterSpacing: -0.6 },
-  subtitle: { fontSize: 14 },
+  title: { fontSize: 30, fontWeight: '500', lineHeight: 33, letterSpacing: -0.6, textAlign: 'right' },
+  subtitle: { fontSize: 14, textAlign: 'right' },
 
   banner: {
     flexDirection: 'row-reverse',
@@ -261,7 +261,7 @@ const styles = StyleSheet.create({
     padding: 14,
     borderRadius: 14,
   },
-  bannerText: { flex: 1, fontSize: 13, lineHeight: 20 },
+  bannerText: { flex: 1, fontSize: 13, lineHeight: 20, textAlign: 'right' },
 
   card: {
     borderRadius: 18,
@@ -274,7 +274,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
-  cardLabel: { fontSize: 13, fontWeight: '700', flex: 1 },
+  cardLabel: { fontSize: 13, fontWeight: '700', flex: 1, textAlign: 'right' },
   optionalTag: { fontSize: 11 },
 
   transcribingState: {
@@ -304,7 +304,7 @@ const styles = StyleSheet.create({
     padding: 14,
     borderRadius: 14,
   },
-  infoText: { flex: 1, fontSize: 13, lineHeight: 20 },
+  infoText: { flex: 1, fontSize: 13, lineHeight: 20, textAlign: 'right' },
 
-  btnRow: { flexDirection: 'row', gap: 10, alignItems: 'center' },
+  btnRow: { flexDirection: 'row-reverse', gap: 10, alignItems: 'center', width: '100%' },
 });

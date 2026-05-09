@@ -167,13 +167,16 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 17,
     fontWeight: '700',
+    textAlign: 'right',
   },
   cardDesc: {
     fontSize: 13,
     marginTop: 1,
+    textAlign: 'right',
   },
   cardDetail: {
     fontSize: 12,
     marginTop: 3,
+    textAlign: 'right',
   },
 });

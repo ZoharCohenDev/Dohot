@@ -260,6 +260,14 @@ export function VoiceScreen({ onStop, onBack, transcribing }: VoiceScreenProps) 
   };
 
   /**
+   * Skip: discard recording and go straight to manual text input.
+   */
+  const handleSkipRecording = async () => {
+    await safeDiscardRecording();
+    onStop?.('');
+  };
+
+  /**
    * Big mic button: stop if recording, restart if stopped.
    */
   const handleToggleRecording = async () => {
@@ -365,6 +373,15 @@ export function VoiceScreen({ onStop, onBack, transcribing }: VoiceScreenProps) 
             )}
           </Pressable>
 
+          {/* Skip to manual input */}
+          <Pressable
+            style={[styles.controlSideBtn, checkmarkLoading && styles.controlSideBtnDisabled]}
+            onPress={handleSkipRecording}
+            disabled={checkmarkLoading}
+          >
+            <Icons.pencil size={22} color="#fff" />
+          </Pressable>
+
           {/* Confirm checkmark */}
           <Pressable
             onPress={handleConfirm}
@@ -415,6 +432,7 @@ const styles = StyleSheet.create({
     color: voiceColors.textPrimary,
     letterSpacing: -0.6,
     lineHeight: 35,
+    textAlign: 'right',
   },
   titleItalic: { fontStyle: 'italic', color: voiceColors.sageDark },
   transcript: {
@@ -431,11 +449,13 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     letterSpacing: 1,
+    textAlign: 'right',
   },
   transcriptText: {
     fontSize: 15,
     lineHeight: 24,
     color: voiceColors.textSecondary,
+    textAlign: 'right',
   },
   controls: {
     position: 'absolute',

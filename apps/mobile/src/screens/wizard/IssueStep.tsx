@@ -37,14 +37,16 @@ export function IssueStep({ colors = lightColors, onNext, onBack }: IssueStepPro
   const profession = (businessProfile?.profession ?? 'other') as Profession;
   const issues: IssueOption[] = PROFESSION_ISSUES[profession] ?? PROFESSION_ISSUES.other;
 
-  const [selectedId, setSelectedId] = React.useState<string>(wizard.currentIssue.issueType || issues[0]?.id || '');
+  const [selectedId, setSelectedId] = React.useState<string>(wizard.currentIssue.issueType || '');
   const [issueNote, setIssueNote] = React.useState(wizard.currentIssue.issueNote);
   const [customText, setCustomText] = React.useState('');
   const [attendees, setAttendeesLocal] = React.useState(wizard.state.attendees);
 
-  const selectedIssue = issues.find((i) => i.id === selectedId) ?? issues[0];
+  const selectedIssue = issues.find((i) => i.id === selectedId);
+  const canProceed = !!selectedId && (selectedId !== 'other' || customText.trim().length > 0);
 
   const handleNext = () => {
+    if (!canProceed) return;
     const label = selectedId === 'other' && customText.trim()
       ? customText.trim()
       : (selectedIssue?.label ?? selectedId);
@@ -179,6 +181,7 @@ export function IssueStep({ colors = lightColors, onNext, onBack }: IssueStepPro
           size="lg"
           full
           onPress={handleNext}
+          disabled={!canProceed}
           iconRight={<Icons.back size={20} color={colors.bg} />}
           colors={colors}
         >
@@ -193,8 +196,8 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   scroll: { flex: 1 },
   content: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 140, gap: 14 },
-  title: { fontSize: 30, fontWeight: '500', lineHeight: 33, letterSpacing: -0.6 },
-  subtitle: { fontSize: 14 },
+  title: { fontSize: 30, fontWeight: '500', lineHeight: 33, letterSpacing: -0.6, textAlign: 'right' },
+  subtitle: { fontSize: 14, textAlign: 'right' },
   exitBtn: {
     width: 44, height: 44, borderRadius: 999, borderWidth: 1,
     alignItems: 'center', justifyContent: 'center',
@@ -209,8 +212,8 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   tileIcon: { width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  tileLabel: { fontSize: 15, fontWeight: '700' },
-  tileDesc: { fontSize: 11, marginTop: 2 },
+  tileLabel: { fontSize: 15, fontWeight: '700', textAlign: 'right' },
+  tileDesc: { fontSize: 11, marginTop: 2, textAlign: 'right' },
   checkBadge: {
     position: 'absolute',
     top: 12,
@@ -232,6 +235,6 @@ const styles = StyleSheet.create({
   },
   customInput: { flex: 1, fontSize: 15 },
   tip: { flexDirection: 'row-reverse', alignItems: 'center', gap: 10, padding: 14, borderRadius: 14 },
-  tipText: { fontSize: 13, flex: 1 },
+  tipText: { fontSize: 13, flex: 1, textAlign: 'right' },
   tipBold: { fontWeight: '700' },
 });

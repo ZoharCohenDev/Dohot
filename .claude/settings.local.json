@@ -18,7 +18,8 @@
       "Bash(npx --prefix apps/mobile tsc --noEmit)",
       "Bash(apps/mobile/node_modules/.bin/tsc --noEmit -p apps/mobile/tsconfig.json)",
       "Bash(yarn tsc *)",
-      "Bash(npm run *)"
+      "Bash(npm run *)",
+      "Bash(xargs ls -la)"
     ]
   }
 }

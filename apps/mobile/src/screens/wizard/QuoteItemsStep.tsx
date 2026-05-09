@@ -431,8 +431,8 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 140, gap: 16 },
 
   titleBlock: { gap: 6 },
-  title: { fontSize: 30, fontWeight: '500', lineHeight: 33, letterSpacing: -0.6 },
-  subtitle: { fontSize: 14 },
+  title: { fontSize: 30, fontWeight: '500', lineHeight: 33, letterSpacing: -0.6, textAlign: 'right' },
+  subtitle: { fontSize: 14, textAlign: 'right' },
 
   // Form card
   formCard: {
@@ -452,7 +452,7 @@ const styles = StyleSheet.create({
   editBannerText: { fontSize: 13, fontWeight: '700', flex: 1 },
   editCancelBtn: { marginEnd: 'auto' },
   fieldGroup: { gap: 6 },
-  fieldLabel: { fontSize: 13, fontWeight: '600', paddingHorizontal: 2 },
+  fieldLabel: { fontSize: 13, fontWeight: '600', paddingHorizontal: 2, textAlign: 'right' },
   fieldError: { fontSize: 12, paddingHorizontal: 2 },
   inputRow: {
     flexDirection: 'row-reverse',
@@ -483,7 +483,7 @@ const styles = StyleSheet.create({
 
   // Section
   section: { gap: 10 },
-  sectionHeader: { fontSize: 13, fontWeight: '700', paddingHorizontal: 4 },
+  sectionHeader: { fontSize: 13, fontWeight: '700', paddingHorizontal: 4, textAlign: 'right' },
 
   // Item cards
   itemList: { gap: 8 },
@@ -509,7 +509,7 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   itemNumText: { fontSize: 11, fontWeight: '700' },
-  itemTitle: { flex: 1, fontSize: 14, fontWeight: '700' },
+  itemTitle: { flex: 1, fontSize: 14, fontWeight: '700', textAlign: 'right' },
   itemPrice: { fontSize: 15, fontWeight: '800', flexShrink: 0 },
   itemDesc: {
     fontSize: 13,

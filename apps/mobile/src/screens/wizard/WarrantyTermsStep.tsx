@@ -324,9 +324,9 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   scroll: { flex: 1 },
   content: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 140, gap: 18 },
-  title: { fontSize: 30, fontWeight: '500', lineHeight: 33, letterSpacing: -0.6 },
-  subtitle: { fontSize: 14 },
-  sectionLabel: { fontSize: 13, fontWeight: '700', marginBottom: 10 },
+  title: { fontSize: 30, fontWeight: '500', lineHeight: 33, letterSpacing: -0.6, textAlign: 'right' },
+  subtitle: { fontSize: 14, textAlign: 'right' },
+  sectionLabel: { fontSize: 13, fontWeight: '700', marginBottom: 10, textAlign: 'right' },
   exitBtn: {
     width: 44, height: 44, borderRadius: 999, borderWidth: 1,
     alignItems: 'center', justifyContent: 'center',
@@ -340,7 +340,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
   },
-  durationLabel: { fontSize: 14, fontWeight: '600' },
+  durationLabel: { fontSize: 14, fontWeight: '600', textAlign: 'right' },
   customDurationInput: {
     marginTop: 10,
     borderWidth: 1,
@@ -386,7 +386,7 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   conditionNum: { fontSize: 11, fontWeight: '700' },
-  conditionText: { flex: 1, fontSize: 13, lineHeight: 18 },
+  conditionText: { flex: 1, fontSize: 13, lineHeight: 18, textAlign: 'right' },
   conditionActions: {
     flexDirection: 'row-reverse',
     gap: 14,
@@ -440,6 +440,6 @@ const styles = StyleSheet.create({
 
   // Preview
   previewRow: { flexDirection: 'row-reverse', gap: 12, alignItems: 'flex-start' },
-  previewTitle: { fontSize: 13, fontWeight: '700', marginBottom: 4 },
-  previewText: { fontSize: 12, lineHeight: 18 },
+  previewTitle: { fontSize: 13, fontWeight: '700', marginBottom: 4, textAlign: 'right' },
+  previewText: { fontSize: 12, lineHeight: 18, textAlign: 'right' },
 });

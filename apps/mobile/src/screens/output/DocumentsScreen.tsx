@@ -89,11 +89,6 @@ export function DocumentsScreen({ colors = lightColors, onNavigate }: DocumentsS
         large
         title="המסמכים שלי"
         subtitle={loading ? '' : `${documents.length} מסמכים`}
-        action={
-          <Pressable style={[styles.searchBtn, { backgroundColor: colors.bgElev, borderColor: colors.line }]}>
-            <Icons.search size={20} color={colors.ink1} />
-          </Pressable>
-        }
         colors={colors}
       />
 
@@ -246,7 +241,7 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   docInfo: { flex: 1, minWidth: 0 },
-  docTitle: { fontSize: 14, fontWeight: '600' },
+  docTitle: { fontSize: 14, fontWeight: '600', textAlign: 'right' },
   docMeta: {
     flexDirection: 'row-reverse',
     alignItems: 'center',

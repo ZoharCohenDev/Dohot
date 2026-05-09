@@ -532,7 +532,7 @@ function CertificationsModal({ visible, onClose, colors }: CertsModalProps) {
                 <ScaledText style={[styles.certNoteText, { color: colors.ink1, fontFamily: fonts.sans }]} numberOfLines={3}>{note}</ScaledText>
               </>
             ) : (
-              <ScaledText style={[styles.certNoteEmpty, { color: colors.ink3, fontFamily: fonts.sans }]}>הוסף הערה כללית…</ScaledText>
+              <ScaledText style={[styles.certNoteEmpty, { color: colors.ink3, fontFamily: fonts.sans  }]}>הוסף הערה כללית…</ScaledText>
             )}
           </View>
           <Icons.edit size={15} color={colors.ink4} />
@@ -1117,17 +1117,17 @@ const styles = StyleSheet.create({
 
   profileRow: { flexDirection: 'row-reverse', alignItems: 'center', gap: 14 },
   profileInfo: { flex: 1 },
-  profileName: { fontWeight: '700', fontSize: 17 },
-  profileBiz: { fontSize: 13, marginTop: 2 },
+  profileName: { fontWeight: '700', fontSize: 17, textAlign: 'right' },
+  profileBiz: { fontSize: 13, marginTop: 2, textAlign: 'right' },
   proBadge: { flexDirection: 'row-reverse', alignItems: 'center', gap: 5, paddingVertical: 3, paddingHorizontal: 8, borderRadius: 999, marginTop: 6, alignSelf: 'flex-end' },
   proBadgeText: { fontSize: 11, fontWeight: '600' },
 
   group: { marginBottom: 18 },
-  groupTitle: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 8, paddingHorizontal: 4 },
+  groupTitle: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 8, paddingHorizontal: 4, textAlign: 'right' },
   groupCard: { borderRadius: 18, overflow: 'hidden', borderWidth: 1 },
   settingRow: { flexDirection: 'row-reverse', alignItems: 'center', gap: 14, paddingVertical: 14, paddingHorizontal: 16 },
   settingIcon: { flexShrink: 0 },
-  settingLabel: { flex: 1, fontSize: 15, fontWeight: '500' },
+  settingLabel: { flex: 1, fontSize: 15, fontWeight: '500', textAlign: 'right' },
   settingRight: { flexDirection: 'row-reverse', alignItems: 'center', gap: 6 },
   settingValue: { fontSize: 13 },
 
@@ -1150,14 +1150,14 @@ const styles = StyleSheet.create({
   logoRow: { flexDirection: 'row-reverse', alignItems: 'center', gap: 14, marginBottom: 6 },
   logoBox: { width: 72, height: 72, borderRadius: 18, borderWidth: 1, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   logoImg: { width: 72, height: 72, borderRadius: 18 },
-  logoLabel: { fontWeight: '700', fontSize: 15 },
-  logoSub: { fontSize: 13, marginTop: 2 },
-  linkText: { fontSize: 13, fontWeight: '600' },
+  logoLabel: { fontWeight: '700', fontSize: 15, textAlign: 'right' },
+  logoSub: { fontSize: 13, marginTop: 2, textAlign: 'right' },
+  linkText: { fontSize: 13, fontWeight: '600', textAlign: 'right' },
 
   // Input
   inputWrap: { gap: 6 },
-  fieldLabel: { fontSize: 13, fontWeight: '600', paddingHorizontal: 2 },
-  inputBox: { flexDirection: 'row', paddingHorizontal: 16, borderWidth: 1, borderRadius: 14 },
+  fieldLabel: { fontSize: 13, fontWeight: '600', paddingHorizontal: 2, textAlign: 'right' },
+  inputBox: { flexDirection: 'row-reverse', paddingHorizontal: 16, borderWidth: 1, borderRadius: 14 },
   inputText: { flex: 1, fontSize: 15, padding: 0 },
   multilineText: { textAlignVertical: 'top' },
 
@@ -1175,17 +1175,17 @@ const styles = StyleSheet.create({
 
   // Certifications
   certNoteBox: { flexDirection: 'row-reverse', alignItems: 'center', gap: 10, borderRadius: 14, borderWidth: 1, padding: 14 },
-  certNoteLabel: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 },
-  certNoteText: { fontSize: 13, lineHeight: 19 },
-  certNoteEmpty: { fontSize: 13, fontStyle: 'italic' },
+  certNoteLabel: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4, textAlign: 'right' },
+  certNoteText: { fontSize: 13, lineHeight: 19, textAlign: 'right' },
+  certNoteEmpty: { fontSize: 13, fontStyle: 'italic', textAlign: 'right' },
   certList: { gap: 8 },
   certRow: { flexDirection: 'row-reverse', alignItems: 'center', gap: 12, padding: 12, borderRadius: 14 },
   certIconBox: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   certThumb: { width: 56, height: 56, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', position: 'relative' },
   certImgUpload: { aspectRatio: 1, borderRadius: 14, borderWidth: 1, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', position: 'relative' },
   certImgReplaceHint: { position: 'absolute', bottom: 0, left: 0, right: 0, paddingVertical: 4, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center' },
-  certName: { fontSize: 14, fontWeight: '600' },
-  certYear: { fontSize: 12, marginTop: 2 },
+  certName: { fontSize: 14, fontWeight: '600', textAlign: 'right' },
+  certYear: { fontSize: 12, marginTop: 2, textAlign: 'right' },
   certForm: { gap: 12 },
   formActions: { flexDirection: 'row', gap: 10 },
   certPreviewOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.88)', alignItems: 'center', justifyContent: 'center' },
@@ -1197,8 +1197,8 @@ const styles = StyleSheet.create({
 
   // Font size
   optionRow: { flexDirection: 'row-reverse', alignItems: 'center', padding: 16, borderRadius: 14, borderWidth: 1 },
-  optionLabel: { fontSize: 15, fontWeight: '600' },
-  optionDesc: { fontSize: 12, marginTop: 2 },
+  optionLabel: { fontSize: 15, fontWeight: '600', textAlign: 'right' },
+  optionDesc: { fontSize: 12, marginTop: 2, textAlign: 'right' },
 
   // Empty state
   emptyState: { alignItems: 'center', paddingVertical: 32, gap: 10 },

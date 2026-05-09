@@ -269,7 +269,6 @@ export function RecommendationsStep({ colors = lightColors, onNext, onBack, isSa
       <Header
         step={5}
         ofSteps={5}
-        onBack={onBack}
         colors={colors}
         action={
           <Pressable
@@ -416,8 +415,8 @@ const styles = StyleSheet.create({
   scroll: { flex: 1 },
   content: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 140, gap: 14 },
   aiLabel: { flexDirection: 'row-reverse', alignItems: 'center', gap: 8 },
-  aiLabelText: { fontSize: 11, fontWeight: '700', letterSpacing: 1 },
-  title: { fontSize: 30, fontWeight: '500', lineHeight: 33, letterSpacing: -0.6 },
+  aiLabelText: { fontSize: 11, fontWeight: '700', letterSpacing: 1, textAlign: 'right' },
+  title: { fontSize: 30, fontWeight: '500', lineHeight: 33, letterSpacing: -0.6, textAlign: 'right' },
 
   issueBlock: { gap: 10 },
   issueDivider: {
@@ -429,22 +428,22 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', flexShrink: 0,
   },
   issueNumText: { fontSize: 14, fontWeight: '700' },
-  issueDividerLabel: { fontSize: 15, fontWeight: '700' },
+  issueDividerLabel: { fontSize: 15, fontWeight: '700', textAlign: 'right' },
 
   summaryHeader: {
     flexDirection: 'row-reverse', alignItems: 'center',
     justifyContent: 'space-between', marginBottom: 10,
   },
-  summaryTitle: { fontSize: 13, fontWeight: '700' },
-  summaryText: { fontSize: 14, lineHeight: 23 },
+  summaryTitle: { fontSize: 13, fontWeight: '700', textAlign: 'right' },
+  summaryText: { fontSize: 14, lineHeight: 23, textAlign: 'right' },
 
   recList: { gap: 10 },
   recRow: { flexDirection: 'row-reverse', alignItems: 'flex-start', gap: 12 },
   recNum: { width: 28, height: 28, borderRadius: 8, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   recNumText: { fontSize: 14, fontWeight: '700' },
   recContent: { flex: 1, gap: 8 },
-  recTitle: { fontSize: 15, fontWeight: '700' },
-  recDesc: { fontSize: 13, lineHeight: 20 },
+  recTitle: { fontSize: 15, fontWeight: '700', textAlign: 'right' },
+  recDesc: { fontSize: 13, lineHeight: 20, textAlign: 'right' },
   recActions: { flexDirection: 'column', gap: 6, flexShrink: 0 },
   recActionBtn: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
 

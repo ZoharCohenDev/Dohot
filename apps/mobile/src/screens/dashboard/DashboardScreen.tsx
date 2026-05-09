@@ -300,8 +300,8 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   greeting: { flexDirection: 'row-reverse', alignItems: 'center', gap: 12 },
-  greetSub: { fontSize: 12 },
-  greetName: { fontSize: 16, fontWeight: '700', lineHeight: 20 },
+  greetSub: { fontSize: 12, textAlign: 'right' },
+  greetName: { fontSize: 16, fontWeight: '700', lineHeight: 20, textAlign: 'right' },
   subBanner: {
     flexDirection: 'row-reverse',
     alignItems: 'flex-start',
@@ -310,18 +310,18 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     marginBottom: 12,
   },
-  subBannerText: { flex: 1, fontSize: 13, lineHeight: 20, fontWeight: '600' },
+  subBannerText: { flex: 1, fontSize: 13, lineHeight: 20, fontWeight: '600', textAlign: 'right' },
 
   // Stats
   statsRow: { flexDirection: 'row-reverse', gap: 8, marginBottom: 20 },
   statCard: { flex: 1, borderRadius: 18, padding: 14, borderWidth: 1 },
-  statValue: { fontSize: 22, fontWeight: '800', letterSpacing: -0.6 },
-  statLabel: { fontSize: 11, marginTop: 2 },
+  statValue: { fontSize: 22, fontWeight: '800', letterSpacing: -0.6, textAlign: 'right' },
+  statLabel: { fontSize: 11, marginTop: 2, textAlign: 'right' },
 
   // Section
   sectionLabel: {
     fontSize: 13, fontWeight: '700',
-    marginBottom: 12, letterSpacing: -0.1,
+    marginBottom: 12, letterSpacing: -0.1, textAlign: 'right',
   },
 
   // Quote card
@@ -345,16 +345,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row-reverse', alignItems: 'flex-start',
     justifyContent: 'space-between', gap: 8, marginBottom: 4,
   },
-  customerName: { fontSize: 15, fontWeight: '700', flex: 1 },
+  customerName: { fontSize: 15, fontWeight: '700', flex: 1, textAlign: 'right' },
   dateText: { fontSize: 11, flexShrink: 0, marginTop: 2 },
   infoRow: { flexDirection: 'row-reverse', alignItems: 'center', gap: 4, marginBottom: 6 },
-  infoText: { fontSize: 12, flex: 1 },
+  infoText: { fontSize: 12, flex: 1, textAlign: 'right' },
   cardBottomRow: {
     flexDirection: 'row-reverse', alignItems: 'center',
     justifyContent: 'space-between', gap: 8,
   },
   phoneChip: { flexDirection: 'row-reverse', alignItems: 'center', gap: 5 },
-  phoneText: { fontSize: 12, textDecorationLine: 'underline' },
+  phoneText: { fontSize: 12, textDecorationLine: 'underline', textAlign: 'right' },
   amountBadge: {
     paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999,
   },

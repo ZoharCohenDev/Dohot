@@ -165,11 +165,6 @@ export function CustomersScreen({ colors = lightColors, onNavigate }: CustomersS
         large
         title="לקוחות"
         subtitle={loading ? '' : `${total} לקוחות`}
-        action={
-          <Pressable style={[styles.addBtn, { backgroundColor: colors.ink1 }]}>
-            <Icons.plus size={22} color={colors.bg} />
-          </Pressable>
-        }
         colors={colors}
       />
 
@@ -266,14 +261,14 @@ const styles = StyleSheet.create({
   cardTop: { flexDirection: 'row-reverse', alignItems: 'flex-start', gap: 12, padding: 14 },
   cardMain: { flex: 1, minWidth: 0 },
   nameRow: { flexDirection: 'row-reverse', alignItems: 'center', gap: 8, marginBottom: 4 },
-  customerName: { fontSize: 15, fontWeight: '700', flex: 1 },
+  customerName: { fontSize: 15, fontWeight: '700', flex: 1, textAlign: 'right' },
   docBadge: {
     flexDirection: 'row-reverse', alignItems: 'center', gap: 3,
     paddingHorizontal: 7, paddingVertical: 3, borderRadius: 999,
   },
   docBadgeText: { fontSize: 11, fontWeight: '700' },
   infoRow: { flexDirection: 'row-reverse', alignItems: 'center', gap: 4 },
-  infoText: { fontSize: 12, flex: 1 },
+  infoText: { fontSize: 12, flex: 1, textAlign: 'right' },
   lastActivity: { fontSize: 11, marginTop: 2, flexShrink: 0 },
   cardBottom: {
     flexDirection: 'row-reverse', flexWrap: 'wrap',
@@ -281,7 +276,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
   },
   contactChip: { flexDirection: 'row-reverse', alignItems: 'center', gap: 5 },
-  contactText: { fontSize: 12 },
+  contactText: { fontSize: 12, textAlign: 'right' },
 
   // Empty state
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingBottom: 80, gap: 8 },

@@ -538,12 +538,6 @@ export function PdfPreviewScreen({ colors = lightColors, onBack, onSend }: PdfPr
     <View style={[styles.root, { backgroundColor: colors.bgSunken }]}>
       <Header
         title="תצוגה מקדימה"
-        onBack={onBack}
-        action={
-          <Pressable style={[styles.shareBtn, { backgroundColor: colors.bgElev, borderColor: colors.line }]}>
-            <Icons.share size={20} color={colors.ink1} />
-          </Pressable>
-        }
         colors={colors}
       />
 
@@ -638,22 +632,17 @@ export function PdfPreviewScreen({ colors = lightColors, onBack, onSend }: PdfPr
             {pdfError}
           </Text>
         )}
-        <View style={styles.bottomRow}>
-          <Button kind="ghost" size="lg" icon={<Icons.edit size={18} color={colors.ink1} />} colors={colors}>
-            ערוך
-          </Button>
-          <Button
-            kind="primary"
-            size="lg"
-            full
-            disabled={generatingPdf}
-            onPress={handleSend}
-            iconRight={generatingPdf ? <ActivityIndicator size="small" color={colors.bg} /> : undefined}
-            colors={colors}
-          >
-            {generatingPdf ? 'מייצר PDF…' : 'שלח ללקוח'}
-          </Button>
-        </View>
+        <Button
+          kind="primary"
+          size="lg"
+          full
+          disabled={generatingPdf}
+          onPress={handleSend}
+          iconRight={generatingPdf ? <ActivityIndicator size="small" color={colors.bg} /> : undefined}
+          colors={colors}
+        >
+          {generatingPdf ? 'מייצר PDF…' : 'שלח ללקוח'}
+        </Button>
       </FixedBottom>
     </View>
   );

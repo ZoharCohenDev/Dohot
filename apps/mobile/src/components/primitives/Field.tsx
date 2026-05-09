@@ -74,6 +74,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     paddingHorizontal: 4,
+    textAlign: 'right',
   },
   inputRow: {
     flexDirection: 'row-reverse',

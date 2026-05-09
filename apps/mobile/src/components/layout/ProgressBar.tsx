@@ -18,7 +18,7 @@ export function ProgressBar({ value, colors = lightColors }: ProgressBarProps) {
     }).start();
   }, [value, widthAnim]);
 
-  const width = widthAnim.interpolate({
+  const widthPercent = widthAnim.interpolate({
     inputRange: [0, 1],
     outputRange: ['0%', '100%'],
   });
@@ -28,7 +28,7 @@ export function ProgressBar({ value, colors = lightColors }: ProgressBarProps) {
       style={[styles.track, { backgroundColor: colors.bgSunken, marginHorizontal: 20 }]}
     >
       <Animated.View
-        style={[styles.fill, { backgroundColor: colors.accent, width }]}
+        style={[styles.fill, { backgroundColor: colors.accent, width: widthPercent }]}
       />
     </View>
   );
@@ -41,7 +41,10 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   fill: {
-    height: '100%',
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
     borderRadius: 999,
   },
 });

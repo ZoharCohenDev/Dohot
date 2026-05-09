@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   View, Text, Pressable, ActivityIndicator, Alert,
-  StyleSheet,
+  StyleSheet, Linking,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Header } from '@/components/layout';
@@ -9,7 +9,7 @@ import { Icons } from '@/components/icons';
 import { lightColors, fonts } from '@/theme/tokens';
 import { useWizard } from '@/context/WizardContext';
 import { downloadPdfToCache, deleteCachedPdf } from '@/services/pdfExport';
-import { sharePdfFile } from '@/services/shareService';
+import { sharePdfFile, buildWhatsAppText } from '@/services/shareService';
 
 interface SendScreenProps {
   colors?: typeof lightColors;
@@ -33,6 +33,7 @@ export function SendScreen({ colors = lightColors, onBack, onDone }: SendScreenP
   const pdfUrl = wizard.state.pdfUrl;
   const customerName = wizard.state.customerName;
   const customerPhone = wizard.state.customerPhone;
+  const customerEmail = wizard.state.customerEmail;
   const issueType = wizard.state.reportIssues[0]?.issueType ?? 'other';
   const docTitle = DOC_TYPE_LABELS[issueType] ?? 'דוח מקצועי';
 
@@ -90,14 +91,25 @@ export function SendScreen({ colors = lightColors, onBack, onDone }: SendScreenP
   const handleShareFile = () =>
     withFile('share', (uri) => sharePdfFile(uri, docTitle));
 
-  // WhatsApp button opens the same native share sheet — user picks WhatsApp.
-  // The whatsapp:// URL scheme does not support file attachments, so the
-  // native OS share sheet is the correct way to send a PDF file to WhatsApp.
   const handleWhatsApp = () =>
-    withFile('whatsapp', (uri) => sharePdfFile(uri, docTitle));
+    withFile('whatsapp', async (uri) => {
+      if (customerPhone) {
+        const digits = customerPhone.replace(/\D/g, '');
+        const waPhone = digits.startsWith('0') && digits.length >= 9
+          ? '972' + digits.slice(1)
+          : digits;
+        const message = buildWhatsAppText(customerName ?? '', docTitle);
+        const waUrl = `whatsapp://send?phone=${waPhone}&text=${encodeURIComponent(message)}`;
+        try {
+          const canOpen = await Linking.canOpenURL(waUrl);
+          if (canOpen) await Linking.openURL(waUrl);
+        } catch { /* fall through */ }
+      }
+      await sharePdfFile(uri, docTitle);
+    });
 
-  const handleSaveToDevice = () =>
-    withFile('save', (uri) => sharePdfFile(uri, docTitle));
+  const handleEmail = () =>
+    withFile('email', (uri) => sharePdfFile(uri, docTitle));
 
   type Option = {
     id: string;
@@ -118,36 +130,36 @@ export function SendScreen({ colors = lightColors, onBack, onDone }: SendScreenP
       bg: '#25D366',
       title: 'WhatsApp',
       subtitle: customerPhone
-        ? `בחר WhatsApp · ${customerPhone}`
-        : 'בחר WhatsApp מחלונית השיתוף',
+        ? `${customerPhone} · פתח שיחה ישירה`
+        : 'פתח את WhatsApp',
       big: true,
       onPress: handleWhatsApp,
     },
+    ...(customerEmail ? [{
+      id: 'email',
+      Icon: Icons.mail,
+      iconColor: '#fff',
+      bg: colors.info,
+      title: 'שלח במייל',
+      subtitle: customerEmail,
+      big: false,
+      onPress: handleEmail,
+    }] : []),
     {
       id: 'share',
       Icon: Icons.share,
       iconColor: '#fff',
       bg: colors.ink1,
       title: 'שתף קובץ PDF',
-      subtitle: 'מייל, טלגרם, Drive ועוד',
+      subtitle: 'טלגרם, Drive ועוד',
       big: false,
       onPress: handleShareFile,
-    },
-    {
-      id: 'save',
-      Icon: Icons.download,
-      iconColor: '#fff',
-      bg: colors.ink2,
-      title: 'שמור במכשיר',
-      subtitle: 'ייצא לספריית הקבצים',
-      big: false,
-      onPress: handleSaveToDevice,
     },
   ];
 
   return (
     <View style={[styles.root, { backgroundColor: colors.bg, paddingBottom: insets.bottom + 24 }]}>
-      <Header onBack={onBack} colors={colors} />
+      <Header colors={colors} />
 
       <View style={styles.body}>
         {/* Success indicator */}
@@ -228,22 +240,14 @@ export function SendScreen({ colors = lightColors, onBack, onDone }: SendScreenP
           </Text>
         </View>
 
-        {/* Exit actions */}
-        <View style={styles.exitRow}>
-          <Pressable
-            onPress={onBack}
-            style={[styles.exitBtn, { backgroundColor: colors.bgElev, borderColor: colors.line }]}
-          >
-            <Text style={[styles.exitBtnText, { color: colors.ink2, fontFamily: fonts.sans }]}>חזרה</Text>
-          </Pressable>
-          <Pressable
-            onPress={onDone}
-            style={[styles.doneBtn, { backgroundColor: colors.ink1 }]}
-          >
-            <Text style={[styles.doneBtnText, { color: colors.bg, fontFamily: fonts.sans }]}>סיום</Text>
-            <Icons.home size={16} color={colors.bg} />
-          </Pressable>
-        </View>
+        {/* Exit action */}
+        <Pressable
+          onPress={onDone}
+          style={[styles.doneBtn, { backgroundColor: colors.ink1 }]}
+        >
+          <Text style={[styles.doneBtnText, { color: colors.bg, fontFamily: fonts.sans }]}>סיום</Text>
+          <Icons.home size={16} color={colors.bg} />
+        </Pressable>
 
         <View style={styles.footer}>
           <Icons.shieldCheck size={14} color={colors.ai2} />
@@ -301,16 +305,8 @@ const styles = StyleSheet.create({
   },
   fileBadgeText: { fontSize: 12, fontWeight: '600' },
 
-  exitRow: {
-    flexDirection: 'row', gap: 10, marginTop: 20,
-  },
-  exitBtn: {
-    flex: 1, height: 52, borderRadius: 16, borderWidth: 1,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  exitBtnText: { fontSize: 15, fontWeight: '600' },
   doneBtn: {
-    flex: 2, height: 52, borderRadius: 16,
+    height: 52, borderRadius: 16, marginTop: 20,
     flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'center', gap: 8,
   },
   doneBtnText: { fontSize: 15, fontWeight: '700' },
