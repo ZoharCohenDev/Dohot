@@ -143,8 +143,12 @@ async function uploadAnnotatedImage(userId: string, localUri: string): Promise<s
 
   if (error) throw error;
 
-  const { data } = supabase.storage.from('report-images').getPublicUrl(storagePath);
-  return data.publicUrl;
+  // report-images is a private bucket — signed URL required (same as storage.ts)
+  const { data: signed, error: signErr } = await supabase.storage
+    .from('report-images')
+    .createSignedUrl(storagePath, 60 * 60 * 24 * 365);
+  if (signErr || !signed) throw signErr ?? new Error('Failed to create signed URL');
+  return signed.signedUrl;
 }
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
