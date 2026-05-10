@@ -110,6 +110,39 @@ adminRouter.post('/users', requireAdmin, async (req, res) => {
   res.status(201).json({ user: profile });
 });
 
+// ─── DELETE /api/admin/users/:id ─────────────────────────────────────────────
+
+adminRouter.delete('/users/:id', requireAdmin, async (req, res) => {
+  const { id } = req.params as { id: string };
+
+  if (id === req.userId) {
+    res.status(400).json({ error: 'Cannot delete your own account' });
+    return;
+  }
+
+  // Hard-delete the auth user; cascade removes business_profiles when FK is set.
+  const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(id);
+
+  if (authError) {
+    // Related documents block hard-delete — soft-delete the profile instead.
+    const { error: softError } = await supabaseAdmin
+      .from('business_profiles')
+      .update({ is_active: false })
+      .eq('id', id);
+    if (softError) {
+      res.status(500).json({ error: softError.message });
+      return;
+    }
+    res.json({ deleted: true, soft: true });
+    return;
+  }
+
+  // Belt-and-suspenders: remove profile row if no cascade was configured.
+  await supabaseAdmin.from('business_profiles').delete().eq('id', id);
+
+  res.json({ deleted: true });
+});
+
 // ─── PATCH /api/admin/users/:id ───────────────────────────────────────────────
 
 adminRouter.patch('/users/:id', requireAdmin, async (req, res) => {

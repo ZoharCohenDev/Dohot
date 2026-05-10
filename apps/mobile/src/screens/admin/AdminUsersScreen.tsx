@@ -7,8 +7,9 @@ import { Header } from '@/components/layout';
 import { Button, Card, ScaledText } from '@/components/primitives';
 import { Icons } from '@/components/icons';
 import { lightColors, fonts } from '@/theme/tokens';
-import { adminListUsers, type AdminUser } from '@/services/adminApi';
+import { adminListUsers, adminDeleteUser, type AdminUser } from '@/services/adminApi';
 import { signOut } from '@/services/auth';
+import { useAuth } from '@/context/AuthContext';
 import type { Profession } from '@dohot/shared';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -49,15 +50,18 @@ interface UserCardProps {
   user: AdminUser;
   colors: typeof lightColors;
   onPress: () => void;
+  onLongPress: () => void;
 }
 
-function UserCard({ user, colors, onPress }: UserCardProps) {
+function UserCard({ user, colors, onPress, onLongPress }: UserCardProps) {
   const status = subscriptionStatus(user);
   const isAdmin = user.role === 'admin';
 
   return (
     <Pressable
       onPress={onPress}
+      onLongPress={onLongPress}
+      delayLongPress={400}
       style={({ pressed }) => [styles.userCard, { backgroundColor: colors.bgElev, borderColor: colors.line, opacity: pressed ? 0.7 : 1 }]}
     >
       <View style={styles.userCardLeft}>
@@ -102,9 +106,37 @@ interface AdminUsersScreenProps {
 }
 
 export function AdminUsersScreen({ colors = lightColors, onCreateUser, onEditUser }: AdminUsersScreenProps) {
+  const { user: currentUser } = useAuth();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  const handleDeleteUser = useCallback((target: AdminUser) => {
+    if (target.id === currentUser?.id) {
+      Alert.alert('לא ניתן למחוק', 'לא ניתן למחוק את המשתמש המחובר כעת');
+      return;
+    }
+
+    Alert.alert(
+      'מחיקת משתמש',
+      `האם אתה בטוח שברצונך למחוק את ${target.full_name}?\n\nפעולה זו אינה ניתנת לביטול.`,
+      [
+        { text: 'ביטול', style: 'cancel' },
+        {
+          text: 'מחק משתמש',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await adminDeleteUser(target.id);
+              setUsers((prev) => prev.filter((u) => u.id !== target.id));
+            } catch (e) {
+              Alert.alert('שגיאה', e instanceof Error ? e.message : 'לא ניתן למחוק את המשתמש');
+            }
+          },
+        },
+      ],
+    );
+  }, [currentUser?.id]);
 
   const handleLogout = () => {
     Alert.alert('התנתקות', 'האם לצאת מהחשבון?', [
@@ -188,6 +220,7 @@ export function AdminUsersScreen({ colors = lightColors, onCreateUser, onEditUse
                   user={u}
                   colors={colors}
                   onPress={() => onEditUser?.(u)}
+                  onLongPress={() => handleDeleteUser(u)}
                 />
               ))}
             </View>

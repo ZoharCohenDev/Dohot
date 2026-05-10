@@ -19,7 +19,8 @@
       "Bash(apps/mobile/node_modules/.bin/tsc --noEmit -p apps/mobile/tsconfig.json)",
       "Bash(yarn tsc *)",
       "Bash(npm run *)",
-      "Bash(xargs ls -la)"
+      "Bash(xargs ls -la)",
+      "mcp__ide__getDiagnostics"
     ]
   }
 }

@@ -63,6 +63,18 @@ export async function adminCreateUser(input: CreateUserInput): Promise<AdminUser
   return json.user!;
 }
 
+export async function adminDeleteUser(id: string): Promise<void> {
+  const headers = await authHeaders();
+  const res = await fetch(`${SERVER_URL}/api/admin/users/${id}`, {
+    method: 'DELETE',
+    headers,
+  });
+  if (!res.ok) {
+    const json = await res.json() as { error?: string };
+    throw new Error(json.error ?? 'Failed to delete user');
+  }
+}
+
 export async function adminUpdateUser(id: string, input: UpdateUserInput): Promise<AdminUser> {
   const headers = await authHeaders();
   const res = await fetch(`${SERVER_URL}/api/admin/users/${id}`, {

@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import {
-  View, Text, ScrollView, StyleSheet, Alert, Pressable,
+  View, Text, StyleSheet, Alert, Pressable,
 } from 'react-native';
 import { Header, FixedBottom } from '@/components/layout';
-import { Button, Field, Card } from '@/components/primitives';
+import { Button, Field, Card, KeyboardAwareScrollView } from '@/components/primitives';
 import { Icons } from '@/components/icons';
 import { lightColors, fonts } from '@/theme/tokens';
 import { adminUpdateUser, type AdminUser } from '@/services/adminApi';
@@ -110,11 +110,9 @@ export function EditUserScreen({ user, colors = lightColors, onDone, onBack }: E
         colors={colors}
       />
 
-      <ScrollView
+      <KeyboardAwareScrollView
         style={styles.scroll}
         contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
       >
         {/* Active/Disabled banner */}
         {!isActive && (
@@ -251,7 +249,7 @@ export function EditUserScreen({ user, colors = lightColors, onDone, onBack }: E
             </Pressable>
           </View>
         </Card>
-      </ScrollView>
+      </KeyboardAwareScrollView>
 
       <FixedBottom colors={colors}>
         <Button
