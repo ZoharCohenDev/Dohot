@@ -21,7 +21,9 @@
       "Bash(npm run *)",
       "Bash(xargs ls -la)",
       "mcp__ide__getDiagnostics",
-      "Bash(npx expo *)"
+      "Bash(npx expo *)",
+      "Bash(grep -E \"\\\\.\\(ts|tsx|js|jsx\\)$\")",
+      "Bash(dir D:\\\\projects\\\\Dohot\\\\apps\\\\mobile *)"
     ]
   }
 }

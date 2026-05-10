@@ -1,8 +1,9 @@
 import React from 'react';
 import {
-  View, Text, Pressable, ScrollView, StyleSheet,
+  View, Text, Pressable, ScrollView, StyleSheet, Modal, StatusBar,
   Alert, ActivityIndicator, Image, ActionSheetIOS, Platform,
 } from 'react-native';
+import type { ImagePickerAsset } from 'expo-image-picker';
 import { Header, FixedBottom, ProgressBar } from '@/components/layout';
 import { Button } from '@/components/primitives';
 import { Icons } from '@/components/icons';
@@ -11,7 +12,7 @@ import { useWizard } from '@/context/WizardContext';
 import { useAuth } from '@/context/AuthContext';
 import { useWizardStep } from '@/hooks/useWizardStep';
 import { useWizardExit } from '@/hooks/useWizardExit';
-import { pickAndUploadImage, captureAndUploadImage } from '@/services/storage';
+import { pickImageAsset, captureImageAsset, uploadImageAsset } from '@/services/storage';
 
 interface PhotosStepProps {
   colors?: typeof lightColors;
@@ -33,41 +34,70 @@ export function PhotosStep({ colors = lightColors, onNext, onBack, onAnnotate }:
   const { user } = useAuth();
   const { progress, stepNum, stepOf, goNext, goBack } = useWizardStep();
   const { triggerExit } = useWizardExit();
-  const [uploading, setUploading] = React.useState(false);
+
+  const [pendingAsset, setPendingAsset] = React.useState<ImagePickerAsset | null>(null);
+  const [previewUploading, setPreviewUploading] = React.useState<'confirm' | 'edit' | null>(null);
 
   const photos = wizard.currentIssue.photos;
 
   const handleAddPhoto = () => {
     if (!user?.id) return;
 
-    const doUpload = async (source: 'camera' | 'library') => {
-      setUploading(true);
-      try {
-        const fn = source === 'camera' ? captureAndUploadImage : pickAndUploadImage;
-        const url = await fn(user.id!, 'report-images', { aspect: [4, 3] });
-        if (url) wizard.addPhoto(url);
-      } catch {
-        Alert.alert('שגיאה', 'לא ניתן היה להעלות את התמונה. נסה שוב.');
-      } finally {
-        setUploading(false);
-      }
+    const doPick = async (source: 'camera' | 'library') => {
+      const fn = source === 'camera' ? captureImageAsset : pickImageAsset;
+      const asset = await fn();
+      if (asset) setPendingAsset(asset);
     };
 
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
         { options: ['ביטול', 'צלם תמונה', 'בחר מהגלריה'], cancelButtonIndex: 0 },
         (idx) => {
-          if (idx === 1) doUpload('camera');
-          else if (idx === 2) doUpload('library');
+          if (idx === 1) doPick('camera');
+          else if (idx === 2) doPick('library');
         },
       );
     } else {
       Alert.alert('הוסף תמונה', '', [
-        { text: 'צלם תמונה', onPress: () => doUpload('camera') },
-        { text: 'בחר מהגלריה', onPress: () => doUpload('library') },
+        { text: 'צלם תמונה', onPress: () => doPick('camera') },
+        { text: 'בחר מהגלריה', onPress: () => doPick('library') },
         { text: 'ביטול', style: 'cancel' },
       ]);
     }
+  };
+
+  const handleConfirmPhoto = async () => {
+    if (!pendingAsset || !user?.id || previewUploading) return;
+    setPreviewUploading('confirm');
+    try {
+      const url = await uploadImageAsset(user.id, 'report-images', pendingAsset);
+      wizard.addPhoto(url);
+      setPendingAsset(null);
+    } catch {
+      Alert.alert('שגיאה', 'לא ניתן היה להעלות את התמונה. נסה שוב.');
+    } finally {
+      setPreviewUploading(null);
+    }
+  };
+
+  const handleEditPhoto = async () => {
+    if (!pendingAsset || !user?.id || previewUploading) return;
+    setPreviewUploading('edit');
+    try {
+      const url = await uploadImageAsset(user.id, 'report-images', pendingAsset);
+      wizard.addPhoto(url);
+      setPendingAsset(null);
+      onAnnotate?.(url);
+    } catch {
+      Alert.alert('שגיאה', 'לא ניתן היה להעלות את התמונה. נסה שוב.');
+    } finally {
+      setPreviewUploading(null);
+    }
+  };
+
+  const handleCancelPreview = () => {
+    if (previewUploading) return;
+    setPendingAsset(null);
   };
 
   const handleDelete = (uri: string) => {
@@ -122,22 +152,18 @@ export function PhotosStep({ colors = lightColors, onNext, onBack, onAnnotate }:
         </View>
 
         {/* Camera button */}
-        <Pressable style={styles.cameraBtn} onPress={handleAddPhoto} disabled={uploading}>
-          {uploading ? (
-            <ActivityIndicator size="large" color="#fff" />
-          ) : (
-            <>
-              <Icons.camera size={28} color="#fff" />
-              <View>
-                <Text style={styles.cameraBtnTitle}>
-                  {photos.length > 0 ? 'הוסף תמונה נוספת' : 'צלם או בחר מהגלריה'}
-                </Text>
-                <Text style={styles.cameraBtnSub}>
-                  {photos.length > 0 ? 'מצלמה או גלריה' : 'תיעוד הנזק יופיע בדוח'}
-                </Text>
-              </View>
-            </>
-          )}
+        <Pressable style={styles.cameraBtn} onPress={handleAddPhoto}>
+          <>
+            <Icons.camera size={28} color="#fff" />
+            <View>
+              <Text style={styles.cameraBtnTitle}>
+                {photos.length > 0 ? 'הוסף תמונה נוספת' : 'צלם או בחר מהגלריה'}
+              </Text>
+              <Text style={styles.cameraBtnSub}>
+                {photos.length > 0 ? 'מצלמה או גלריה' : 'תיעוד הנזק יופיע בדוח'}
+              </Text>
+            </View>
+          </>
         </Pressable>
 
         {/* Photo grid or empty state */}
@@ -220,7 +246,6 @@ export function PhotosStep({ colors = lightColors, onNext, onBack, onAnnotate }:
           kind="primary"
           size="lg"
           full
-          disabled={uploading}
           onPress={onNext ?? goNext}
           iconRight={<Icons.back size={20} color={colors.bg} />}
           colors={colors}
@@ -228,6 +253,90 @@ export function PhotosStep({ colors = lightColors, onNext, onBack, onAnnotate }:
           המשך לקול
         </Button>
       </FixedBottom>
+
+      {/* ── In-app image preview modal (Android-safe, no native cropper) ── */}
+      <Modal
+        visible={!!pendingAsset}
+        transparent={false}
+        animationType="slide"
+        onRequestClose={handleCancelPreview}
+        statusBarTranslucent
+      >
+        <View style={styles.previewRoot}>
+          <StatusBar barStyle="light-content" backgroundColor="#0E0D0B" />
+
+          {/* Top bar */}
+          <View style={styles.previewTopBar}>
+            <Pressable
+              onPress={handleCancelPreview}
+              style={styles.previewCloseBtn}
+              disabled={!!previewUploading}
+            >
+              <Icons.close size={20} color="#fff" />
+            </Pressable>
+            <Text style={[styles.previewTopTitle, { fontFamily: fonts.sans }]}>תצוגה מקדימה</Text>
+            <View style={styles.previewTopSpacer} />
+          </View>
+
+          {/* Image */}
+          <View style={styles.previewImageWrap}>
+            {pendingAsset && (
+              <Image
+                source={{ uri: pendingAsset.uri }}
+                style={styles.previewImage}
+                resizeMode="contain"
+              />
+            )}
+          </View>
+
+          {/* Action buttons */}
+          <View style={styles.previewActions}>
+            {/* ביטול */}
+            <Pressable
+              style={[styles.previewBtn, styles.previewBtnCancel]}
+              onPress={handleCancelPreview}
+              disabled={!!previewUploading}
+            >
+              <Text style={[styles.previewBtnText, styles.previewBtnCancelText, { fontFamily: fonts.sans }]}>
+                ביטול
+              </Text>
+            </Pressable>
+
+            {/* ערוך תמונה */}
+            <Pressable
+              style={[styles.previewBtn, styles.previewBtnEdit]}
+              onPress={handleEditPhoto}
+              disabled={!!previewUploading}
+            >
+              {previewUploading === 'edit' ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <>
+                  <Icons.pencil size={14} color="#fff" />
+                  <Text style={[styles.previewBtnText, styles.previewBtnEditText, { fontFamily: fonts.sans }]}>
+                    ערוך תמונה
+                  </Text>
+                </>
+              )}
+            </Pressable>
+
+            {/* אישור */}
+            <Pressable
+              style={[styles.previewBtn, styles.previewBtnConfirm]}
+              onPress={handleConfirmPhoto}
+              disabled={!!previewUploading}
+            >
+              {previewUploading === 'confirm' ? (
+                <ActivityIndicator size="small" color="#1B1916" />
+              ) : (
+                <Text style={[styles.previewBtnText, styles.previewBtnConfirmText, { fontFamily: fonts.sans }]}>
+                  אישור
+                </Text>
+              )}
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -310,4 +419,83 @@ const styles = StyleSheet.create({
     paddingVertical: 8, paddingHorizontal: 12, borderRadius: 999,
   },
   toolChipLabel: { fontSize: 12, fontWeight: '600' },
+
+  // ── Preview modal ──────────────────────────────────────────────────────────
+  previewRoot: {
+    flex: 1,
+    backgroundColor: '#0E0D0B',
+  },
+  previewTopBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 56,
+    paddingBottom: 16,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+  previewCloseBtn: {
+    width: 40, height: 40, borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  previewTopTitle: {
+    color: '#fff', fontSize: 14, fontWeight: '600',
+  },
+  previewTopSpacer: { width: 40 },
+
+  previewImageWrap: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  previewImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 12,
+  },
+
+  previewActions: {
+    flexDirection: 'row-reverse',
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 52,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  previewBtn: {
+    flex: 1,
+    height: 52,
+    borderRadius: 999,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  previewBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  previewBtnCancel: {
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  previewBtnCancelText: {
+    color: 'rgba(255,255,255,0.8)',
+  },
+  previewBtnEdit: {
+    backgroundColor: 'rgba(255,255,255,0.18)',
+  },
+  previewBtnEditText: {
+    color: '#fff',
+  },
+  previewBtnConfirm: {
+    backgroundColor: '#C2613B',
+  },
+  previewBtnConfirmText: {
+    color: '#fff',
+  },
 });

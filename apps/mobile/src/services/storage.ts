@@ -1,6 +1,6 @@
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
-import { Alert } from 'react-native';
+import { Alert, Platform } from 'react-native';
 import { supabase } from '@/lib/supabase';
 
 export type StorageBucket = 'logos' | 'signatures' | 'report-images' | 'pdf-documents' | 'cert-images';
@@ -73,7 +73,7 @@ export async function captureAndUploadImage(
 
   const result = await ImagePicker.launchCameraAsync({
     mediaTypes: ['images'],
-    allowsEditing: true,
+    allowsEditing: Platform.OS !== 'android',
     aspect: opts.aspect ?? [4, 3],
     quality: opts.quality ?? 0.85,
   });
@@ -106,7 +106,7 @@ export async function pickAndUploadImage(
 
   const result = await ImagePicker.launchImageLibraryAsync({
     mediaTypes: ['images'],
-    allowsEditing: true,
+    allowsEditing: Platform.OS !== 'android',
     aspect: opts.aspect ?? [1, 1],
     quality: opts.quality ?? 0.85,
   });
@@ -144,4 +144,56 @@ export function pathFromStorageUrl(url: string, bucket: StorageBucket): string {
 /** @deprecated Use pathFromStorageUrl — handles both public and signed URLs. */
 export function pathFromPublicUrl(publicUrl: string, bucket: StorageBucket): string {
   return pathFromStorageUrl(publicUrl, bucket);
+}
+
+/**
+ * Pick an image from the gallery without uploading it.
+ * Never triggers the native Android cropper (allowsEditing: false).
+ * Returns null on cancel or permission denial.
+ */
+export async function pickImageAsset(opts: PickOptions = {}): Promise<ImagePicker.ImagePickerAsset | null> {
+  const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+  if (!perm.granted) {
+    Alert.alert('אין הרשאה', 'יש לאפשר גישה לגלריה בהגדרות הטלפון');
+    return null;
+  }
+  const result = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ['images'],
+    allowsEditing: false,
+    quality: opts.quality ?? 0.85,
+  });
+  if (result.canceled || !result.assets[0]) return null;
+  return result.assets[0];
+}
+
+/**
+ * Capture a photo with the camera without uploading it.
+ * Never triggers the native Android cropper (allowsEditing: false).
+ * Returns null on cancel or permission denial.
+ */
+export async function captureImageAsset(opts: PickOptions = {}): Promise<ImagePicker.ImagePickerAsset | null> {
+  const perm = await ImagePicker.requestCameraPermissionsAsync();
+  if (!perm.granted) {
+    Alert.alert('אין הרשאה', 'יש לאפשר גישה למצלמה בהגדרות הטלפון');
+    return null;
+  }
+  const result = await ImagePicker.launchCameraAsync({
+    mediaTypes: ['images'],
+    allowsEditing: false,
+    quality: opts.quality ?? 0.85,
+  });
+  if (result.canceled || !result.assets[0]) return null;
+  return result.assets[0];
+}
+
+/**
+ * Upload an ImagePickerAsset to a storage bucket.
+ * Companion to pickImageAsset / captureImageAsset for two-step pick → preview → upload flows.
+ */
+export async function uploadImageAsset(
+  userId: string,
+  bucket: StorageBucket,
+  asset: ImagePicker.ImagePickerAsset,
+): Promise<string> {
+  return uploadAsset(userId, bucket, asset);
 }
