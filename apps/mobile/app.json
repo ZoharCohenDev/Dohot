@@ -1,12 +1,12 @@
 {
   "expo": {
-    "name": "דוחות",
+    "name": "Dohot",
     "slug": "dohot",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "scheme": "dohot",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "light",
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
@@ -14,7 +14,7 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.dohot.app",
+      "bundleIdentifier": "com.ronitwito.dohot",
       "buildNumber": "1",
       "infoPlist": {
         "NSMicrophoneUsageDescription": "הקלטת קול ליצירת דוחות",
@@ -28,12 +28,11 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#F5F3EE"
       },
-      "package": "com.dohot.app",
+      "package": "com.ronitwito.dohot",
       "permissions": [
-        "RECORD_AUDIO",
         "CAMERA",
-        "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE"
+        "RECORD_AUDIO",
+        "READ_MEDIA_IMAGES"
       ]
     },
     "plugins": [
@@ -60,6 +59,13 @@
       ],
       "expo-audio"
     ],
+    "newArchEnabled": true,
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "fallbackToCacheTimeout": 0
+    },
     "experiments": {
       "typedRoutes": true
     }

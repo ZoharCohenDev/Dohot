@@ -20,7 +20,8 @@
       "Bash(yarn tsc *)",
       "Bash(npm run *)",
       "Bash(xargs ls -la)",
-      "mcp__ide__getDiagnostics"
+      "mcp__ide__getDiagnostics",
+      "Bash(npx expo *)"
     ]
   }
 }
