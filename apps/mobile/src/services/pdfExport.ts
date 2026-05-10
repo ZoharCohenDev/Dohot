@@ -1,40 +1,49 @@
 import { File, Directory, Paths } from 'expo-file-system';
+import { DOCUMENT_TYPES } from '@/config/documentTypes';
+import type { DocType } from '@/config/documentTypes';
 
-const CACHE_PREFIX = 'dohot_pdf_';
+const FALLBACK_CUSTOMER = 'לקוח ללא שם';
 
-function sanitizeFilename(title: string): string {
-  return title
-    .replace(/[/\\:*?"<>|]/g, '_')
-    .replace(/\s+/g, '_')
-    .replace(/_+/g, '_')
-    .replace(/^_+|_+$/g, '');
+/**
+ * Builds the human-readable PDF filename (without extension) from the wizard state.
+ * Returns e.g. "ישראל ישראלי - דוח בדיקה"
+ *
+ * This is the single source of truth for PDF filenames — used for both the
+ * local cache file (which WhatsApp shows to recipients) and the share dialog.
+ */
+export function buildPdfFilename(docType: DocType, customerName: string): string {
+  const typeLabel = DOCUMENT_TYPES[docType]?.filenameLabel ?? 'דוח';
+  const name = customerName.trim() || FALLBACK_CUSTOMER;
+  return `${name} - ${typeLabel}`
+    // Strip characters that are invalid on iOS / Android / Windows filesystems.
+    .replace(/[/\\:*?"<>|]/g, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
 }
 
 /**
  * Downloads a PDF from a server URL into the local cache directory.
+ * The filename (without extension) should come from buildPdfFilename() so that
+ * the name shown in WhatsApp and the native share sheet matches the document.
  * Overwrites any previous file with the same name (idempotent).
  * Returns the local file URI for use with expo-sharing.
  */
-export async function downloadPdfToCache(pdfUrl: string, docTitle: string): Promise<string> {
-  const name = `${CACHE_PREFIX}${sanitizeFilename(docTitle)}.pdf`;
-  const dest = new File(Paths.cache, name);
-  // The native module throws if the destination already exists — delete it first.
+export async function downloadPdfToCache(pdfUrl: string, filename: string): Promise<string> {
+  const dest = new File(Paths.cache, `${filename}.pdf`);
   if (dest.exists) dest.delete();
   const downloaded = await File.downloadFileAsync(pdfUrl, dest);
   return downloaded.uri;
 }
 
 /**
- * Removes all cached PDFs that were created by this service.
- * Call on wizard reset or app cleanup.
+ * Removes all .pdf files from the app's private cache directory.
+ * Safe to call broadly — no other app can write to our cache directory.
  */
 export async function clearCachedPdfs(): Promise<void> {
   try {
-    const cacheDir = new Directory(Paths.cache);
-    // List files in cache and delete any that match our prefix
-    const files = cacheDir.list();
+    const files = new Directory(Paths.cache).list();
     for (const entry of files) {
-      if (entry instanceof File && entry.uri.includes(CACHE_PREFIX)) {
+      if (entry instanceof File && entry.uri.endsWith('.pdf')) {
         entry.delete();
       }
     }

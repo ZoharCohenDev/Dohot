@@ -3,7 +3,8 @@ import {
   View, Text, TextInput, ScrollView, StyleSheet, Pressable, ActivityIndicator,
   KeyboardAvoidingView, Platform,
 } from 'react-native';
-import { Header, FixedBottom, ProgressBar } from '@/components/layout';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Header, ProgressBar } from '@/components/layout';
 import { Button } from '@/components/primitives';
 import { Icons } from '@/components/icons';
 import { lightColors, fonts } from '@/theme/tokens';
@@ -29,6 +30,7 @@ export function TranscriptReviewScreen({
 }: TranscriptReviewScreenProps) {
   const wizard = useWizard();
   const { triggerExit } = useWizardExit();
+  const insets = useSafeAreaInsets();
   const [transcript, setTranscript] = useState(wizard.currentIssue.description);
   const [notes, setNotes] = useState('');
 
@@ -201,32 +203,42 @@ export function TranscriptReviewScreen({
         )}
       </ScrollView>
 
-      <FixedBottom colors={colors}>
-        <View style={styles.btnRow}>
-          {onAddIssue && (
-            <Button
-              kind="ghost"
-              size="lg"
-              disabled={isTranscribing}
-              onPress={handleAddIssue}
-              colors={colors}
-            >
-              + הוסף תקלה
-            </Button>
-          )}
+      {/* Action bar — regular flex child so KeyboardAvoidingView lifts it
+          above the keyboard. Absolute positioning breaks keyboard avoidance. */}
+      <View
+        style={[
+          styles.actionBar,
+          {
+            backgroundColor: colors.bg,
+            borderTopColor: colors.line,
+            paddingBottom: Math.max(insets.bottom, 16),
+          },
+        ]}
+      >
+        <Button
+          kind="primary"
+          size="lg"
+          full
+          disabled={isTranscribing}
+          onPress={handleSend}
+          iconRight={<Icons.sparkle size={18} color={colors.bg} />}
+          colors={colors}
+        >
+          {isTranscribing ? 'מתמלל…' : onAddIssue ? 'סיים ושלח ל-AI' : 'שלח ל-AI'}
+        </Button>
+        {onAddIssue && (
           <Button
-            kind="primary"
+            kind="ghost"
             size="lg"
             full
             disabled={isTranscribing}
-            onPress={handleSend}
-            iconRight={<Icons.sparkle size={18} color={colors.bg} />}
+            onPress={handleAddIssue}
             colors={colors}
           >
-            {isTranscribing ? 'מתמלל…' : onAddIssue ? 'סיים ושלח ל-AI' : 'שלח ל-AI'}
+            + הוסף תקלה
           </Button>
-        </View>
-      </FixedBottom>
+        )}
+      </View>
     </KeyboardAvoidingView>
   );
 }
@@ -238,7 +250,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   scroll: { flex: 1 },
-  content: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 140, gap: 16 },
+  content: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 24, gap: 16 },
 
   titleBlock: { gap: 8 },
   aiTag: {
@@ -306,5 +318,10 @@ const styles = StyleSheet.create({
   },
   infoText: { flex: 1, fontSize: 13, lineHeight: 20, textAlign: 'right' },
 
-  btnRow: { flexDirection: 'row-reverse', gap: 10, alignItems: 'center', width: '100%' },
+  actionBar: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    gap: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
 });

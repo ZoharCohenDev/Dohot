@@ -42,8 +42,8 @@ export async function transcribeHandler(req: Request, res: Response): Promise<vo
 // Accepts multipart/form-data with an `audio` file field.
 // Returns { text: string }.
 export async function transcribeAudioFileHandler(req: Request, res: Response): Promise<void> {
+  const tStart = Date.now();
   const file = req.file;
-  console.log('[AI] transcribe-audio: request received');
 
   if (!file) {
     console.error('[AI] transcribe-audio: no file in request');
@@ -51,16 +51,25 @@ export async function transcribeAudioFileHandler(req: Request, res: Response): P
     return;
   }
 
-  console.log('[AI] transcribe-audio: file received —', file.originalname, file.size, 'bytes', file.mimetype);
+  console.log(
+    `[AI] transcribe-audio: file received — ${file.originalname}, ` +
+    `${(file.size / 1024).toFixed(1)} KB, ${file.mimetype}`,
+  );
 
   try {
-    console.log('[OpenAI] transcribe-audio: calling Whisper...');
+    const tWhisperStart = Date.now();
     const text = await transcribeAudioBuffer(file.buffer, file.originalname);
-    console.log('[AI] transcribe-audio: success, text length:', text.length);
+    const tWhisperEnd = Date.now();
+
+    console.log(
+      `[AI] transcribe-audio: ok — multer=${tWhisperStart - tStart}ms, ` +
+      `whisper=${tWhisperEnd - tWhisperStart}ms, total=${tWhisperEnd - tStart}ms, ` +
+      `chars=${text.length}`,
+    );
     res.json({ text });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Transcription failed';
-    console.error('[AI] transcribe-audio error:', message);
+    console.error(`[AI] transcribe-audio error after ${Date.now() - tStart}ms:`, message);
     res.status(500).json({ error: message });
   }
 }

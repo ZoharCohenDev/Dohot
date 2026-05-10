@@ -1,15 +1,16 @@
 import React from 'react';
 import {
   View, Text, Pressable, ActivityIndicator, Alert,
-  StyleSheet, Linking,
+  StyleSheet,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Header } from '@/components/layout';
 import { Icons } from '@/components/icons';
 import { lightColors, fonts } from '@/theme/tokens';
 import { useWizard } from '@/context/WizardContext';
-import { downloadPdfToCache, deleteCachedPdf } from '@/services/pdfExport';
-import { sharePdfFile, buildWhatsAppText } from '@/services/shareService';
+import { File } from 'expo-file-system';
+import { downloadPdfToCache, deleteCachedPdf, buildPdfFilename } from '@/services/pdfExport';
+import { sharePdfFile } from '@/services/shareService';
 
 interface SendScreenProps {
   colors?: typeof lightColors;
@@ -17,25 +18,16 @@ interface SendScreenProps {
   onDone?: () => void;
 }
 
-const DOC_TYPE_LABELS: Record<string, string> = {
-  leak: 'דוח גילוי נזילה',
-  waterproofing: 'דוח איטום',
-  pipe: 'דוח בעיית צנרת',
-  roof: 'דוח נזק גג',
-  moisture: 'דוח עובש ולחות',
-  other: 'דוח בדיקה',
-};
-
-export function SendScreen({ colors = lightColors, onBack, onDone }: SendScreenProps) {
+export function SendScreen({ colors = lightColors, onDone }: SendScreenProps) {
   const insets = useSafeAreaInsets();
   const wizard = useWizard();
 
   const pdfUrl = wizard.state.pdfUrl;
-  const customerName = wizard.state.customerName;
   const customerPhone = wizard.state.customerPhone;
   const customerEmail = wizard.state.customerEmail;
-  const issueType = wizard.state.reportIssues[0]?.issueType ?? 'other';
-  const docTitle = DOC_TYPE_LABELS[issueType] ?? 'דוח מקצועי';
+  // Single source of truth for the PDF filename — drives cache file name, share
+  // dialog title, and the filename WhatsApp shows to the recipient.
+  const pdfFilename = buildPdfFilename(wizard.state.docType, wizard.state.customerName);
 
   // Cache the downloaded local URI so we only download once per session
   const localUriRef = React.useRef<string | null>(null);
@@ -57,10 +49,15 @@ export function SendScreen({ colors = lightColors, onBack, onDone }: SendScreenP
       Alert.alert('PDF לא מוכן', 'המתן לסיום יצירת ה-PDF ונסה שוב.');
       return null;
     }
-    if (localUriRef.current) return localUriRef.current;
+    if (localUriRef.current) {
+      // Verify the cached file still exists — Android can evict cache under
+      // memory pressure; re-download silently if it has been cleared.
+      if (new File(localUriRef.current).exists) return localUriRef.current;
+      localUriRef.current = null;
+    }
 
     try {
-      const uri = await downloadPdfToCache(pdfUrl, docTitle);
+      const uri = await downloadPdfToCache(pdfUrl, pdfFilename);
       localUriRef.current = uri;
       return uri;
     } catch (err) {
@@ -89,27 +86,18 @@ export function SendScreen({ colors = lightColors, onBack, onDone }: SendScreenP
   };
 
   const handleShareFile = () =>
-    withFile('share', (uri) => sharePdfFile(uri, docTitle));
+    withFile('share', (uri) => sharePdfFile(uri, pdfFilename));
 
+  // WhatsApp URL scheme (whatsapp://send) supports text pre-fill but NOT file
+  // attachments. Opening the URL sends the text and backgrounds this app, which
+  // prevents the native share sheet from appearing — the PDF never arrives.
+  // The correct approach: open the native share sheet with the PDF file; the
+  // user picks WhatsApp and the file is properly attached.
   const handleWhatsApp = () =>
-    withFile('whatsapp', async (uri) => {
-      if (customerPhone) {
-        const digits = customerPhone.replace(/\D/g, '');
-        const waPhone = digits.startsWith('0') && digits.length >= 9
-          ? '972' + digits.slice(1)
-          : digits;
-        const message = buildWhatsAppText(customerName ?? '', docTitle);
-        const waUrl = `whatsapp://send?phone=${waPhone}&text=${encodeURIComponent(message)}`;
-        try {
-          const canOpen = await Linking.canOpenURL(waUrl);
-          if (canOpen) await Linking.openURL(waUrl);
-        } catch { /* fall through */ }
-      }
-      await sharePdfFile(uri, docTitle);
-    });
+    withFile('whatsapp', (uri) => sharePdfFile(uri, pdfFilename));
 
   const handleEmail = () =>
-    withFile('email', (uri) => sharePdfFile(uri, docTitle));
+    withFile('email', (uri) => sharePdfFile(uri, pdfFilename));
 
   type Option = {
     id: string;
@@ -236,7 +224,7 @@ export function SendScreen({ colors = lightColors, onBack, onDone }: SendScreenP
         <View style={[styles.fileBadge, { backgroundColor: colors.infoBg }]}>
           <Icons.doc size={14} color={colors.info} />
           <Text style={[styles.fileBadgeText, { color: colors.info, fontFamily: fonts.sans }]}>
-            {`${docTitle}.pdf`}
+            {`${pdfFilename}.pdf`}
           </Text>
         </View>
 

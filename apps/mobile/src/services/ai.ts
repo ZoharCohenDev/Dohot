@@ -36,18 +36,29 @@ export async function cleanReportText(
 /**
  * Upload a local audio file to the backend for transcription via OpenAI Whisper.
  * Uses multipart/form-data so React Native can stream the file without base64 overhead.
+ *
+ * Timing breakdown logged for each step:
+ *   t_auth   — Supabase session lookup (local, should be <50ms)
+ *   t_upload — Network: request sent → response headers received (TTFB)
+ *   t_body   — JSON body read (small, <50ms unless network is degraded)
+ *   t_total  — End-to-end wall-clock time
+ *
+ * Server-side timing is logged separately by the controller (see apps/server).
+ * Compare t_upload against the server's processing time to isolate bottlenecks:
+ *   - High t_upload + low server time → upload bandwidth is the bottleneck
+ *   - Low t_upload + high server time → Whisper API is the bottleneck
  */
 export async function transcribeAudioFile(localUri: string): Promise<string> {
-  console.log('[Transcribe] recordedAudioUri:', localUri);
-
   if (!localUri) throw new Error('אין קובץ הקלטה');
+
+  const t0 = Date.now();
+  console.log('[Transcribe] start, uri:', localUri);
 
   const { data: { session } } = await supabase.auth.getSession();
   const token = session?.access_token;
   if (!token) throw new Error('לא מחובר — יש להתחבר מחדש');
+  const tAuth = Date.now();
 
-  // React Native's fetch supports appending { uri, name, type } to FormData
-  // — the native layer reads the file and streams it as multipart.
   const formData = new FormData();
   formData.append('audio', {
     uri: localUri,
@@ -55,28 +66,29 @@ export async function transcribeAudioFile(localUri: string): Promise<string> {
     type: 'audio/m4a',
   } as unknown as Blob);
 
-  console.log('[Transcribe] File upload started →', SERVER_URL);
+  console.log(`[Transcribe] auth=${tAuth - t0}ms, uploading → ${SERVER_URL}`);
 
   const response = await fetch(`${SERVER_URL}/api/ai/transcribe-audio`, {
     method: 'POST',
-    headers: {
-      // Do NOT set Content-Type manually — fetch sets it with the multipart boundary automatically
-      Authorization: `Bearer ${token}`,
-    },
+    headers: { Authorization: `Bearer ${token}` },
     body: formData,
   });
-
-  console.log('[Transcribe] Server response status:', response.status);
+  const tUpload = Date.now();
 
   if (!response.ok) {
     const payload = await response.json().catch(() => ({})) as { error?: string };
     const errMsg = payload.error ?? `Server error ${response.status}`;
-    console.error('[Transcribe] Server error:', errMsg);
+    console.error(`[Transcribe] server error after ${tUpload - tAuth}ms:`, errMsg);
     throw new Error(errMsg);
   }
 
   const data = await response.json() as { text: string };
-  console.log('[Transcribe] Transcription result length:', data.text?.length ?? 0);
+  const tBody = Date.now();
+
+  console.log(
+    `[Transcribe] done — auth=${tAuth - t0}ms, upload+server=${tUpload - tAuth}ms, ` +
+    `body=${tBody - tUpload}ms, total=${tBody - t0}ms, chars=${data.text?.length ?? 0}`,
+  );
   return data.text;
 }
 

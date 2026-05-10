@@ -13,10 +13,39 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   useAudioRecorder,
-  RecordingPresets,
+  IOSOutputFormat,
+  AudioQuality,
   requestRecordingPermissionsAsync,
   setAudioModeAsync,
 } from 'expo-audio';
+import type { RecordingOptions } from 'expo-audio';
+
+// Custom voice-optimized recording preset.
+// HIGH_QUALITY (the default) is 44.1 kHz stereo at 128 kbps — ~960 KB per minute.
+// Whisper internally resamples to 16 kHz mono, so the extra data is wasted bandwidth.
+// This preset is ~75% smaller (~240 KB/min) with no transcription quality loss,
+// dramatically reducing upload time on cellular connections.
+const VOICE_RECORDING_PRESET: RecordingOptions = {
+  extension: '.m4a',
+  sampleRate: 22050,
+  numberOfChannels: 1,
+  bitRate: 48000,
+  android: {
+    outputFormat: 'mpeg4',
+    audioEncoder: 'aac',
+  },
+  ios: {
+    outputFormat: IOSOutputFormat.MPEG4AAC,
+    audioQuality: AudioQuality.MEDIUM,
+    linearPCMBitDepth: 16,
+    linearPCMIsBigEndian: false,
+    linearPCMIsFloat: false,
+  },
+  web: {
+    mimeType: 'audio/webm',
+    bitsPerSecond: 48000,
+  },
+};
 import { Header } from '@/components/layout';
 import { Icons } from '@/components/icons';
 import { fonts, voiceColors } from '@/theme/tokens';
@@ -83,7 +112,7 @@ function formatTime(seconds: number): string {
 
 export function VoiceScreen({ onStop, onBack, transcribing }: VoiceScreenProps) {
   const insets = useSafeAreaInsets();
-  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  const recorder = useAudioRecorder(VOICE_RECORDING_PRESET);
 
   // ── Lifecycle / safety refs ────────────────────────────────────────────────
   // Never access recorder.isRecording directly — it reads the native object

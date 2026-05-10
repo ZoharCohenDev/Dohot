@@ -11,7 +11,7 @@ import * as SecureStore from 'expo-secure-store';
 // "User interaction is not allowed" keychain error on iOS.
 
 const CHUNK_SIZE = 1800;
-const ACCESSIBLE = { accessible: SecureStore.AFTER_FIRST_UNLOCK };
+const ACCESSIBLE = { keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK };
 
 const SecureStoreAdapter = {
   async getItem(key: string): Promise<string | null> {

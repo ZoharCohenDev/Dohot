@@ -660,7 +660,6 @@ const styles = StyleSheet.create({
   // PDF page card — each is one physical PDF page
   pdfPage: {
     backgroundColor: '#fff',
-    borderRadius: 12,
     padding: 28,
     shadowColor: '#1B1916',
     shadowOffset: { width: 0, height: 12 },
@@ -689,7 +688,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   pdfBrandLetter: { color: '#F5F3EE', fontFamily: fonts.serif, fontSize: 16, fontWeight: '700' },
-  pdfBrandName: { fontSize: 8, fontWeight: '600', color: '#1B1916', textAlign: 'left' },
+  pdfBrandName: { fontSize: 8, fontWeight: '600', color: '#1B1916', textAlign: 'right' },
   pdfTaxId: { fontSize: 7, color: '#807A72' },
 
   // Sections

@@ -28,6 +28,7 @@ export interface DocumentTypeConfig {
   steps: WizardStep[];           // ordered wizard steps
   progressSteps: WizardStep[];   // steps shown in the progress bar (excludes transitions)
   titlePrefix: string;           // document title prefix (e.g. "דוח בדיקה –")
+  filenameLabel: string;         // label used in generated PDF filename (e.g. "דוח בדיקה")
   customerNextLabel: string;     // CTA on customer screen
 }
 
@@ -42,6 +43,7 @@ export const DOCUMENT_TYPES: Record<DocType, DocumentTypeConfig> = {
     steps: ['customer', 'issue', 'photos', 'voice-idle', 'voice', 'transcript', 'processing', 'recommendations', 'preview', 'send'],
     progressSteps: ['customer', 'issue', 'photos', 'recommendations', 'preview'],
     titlePrefix: 'דוח בדיקה –',
+    filenameLabel: 'דוח בדיקה',
     customerNextLabel: 'המשך לסוג תקלה',
   },
   quote: {
@@ -54,6 +56,7 @@ export const DOCUMENT_TYPES: Record<DocType, DocumentTypeConfig> = {
     steps: ['customer', 'quote-items', 'preview', 'send'],
     progressSteps: ['customer', 'quote-items', 'preview'],
     titlePrefix: 'הצעת מחיר –',
+    filenameLabel: 'הצעת מחיר',
     customerNextLabel: 'המשך לפריטי עבודה',
   },
   warranty: {
@@ -66,6 +69,7 @@ export const DOCUMENT_TYPES: Record<DocType, DocumentTypeConfig> = {
     steps: ['customer', 'warranty-terms', 'preview', 'send'],
     progressSteps: ['customer', 'warranty-terms', 'preview'],
     titlePrefix: 'תעודת אחריות –',
+    filenameLabel: 'תעודת אחריות',
     customerNextLabel: 'המשך לתנאי אחריות',
   },
 };

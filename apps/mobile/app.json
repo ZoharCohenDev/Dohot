@@ -19,7 +19,9 @@
       "infoPlist": {
         "NSMicrophoneUsageDescription": "הקלטת קול ליצירת דוחות",
         "NSCameraUsageDescription": "צילום תמונות לדוח",
-        "NSPhotoLibraryUsageDescription": "בחירת תמונות מהגלריה"
+        "NSPhotoLibraryUsageDescription": "בחירת תמונות מהגלריה",
+        "CFBundleDevelopmentRegion": "he",
+        "CFBundleLocalizations": ["he"]
       }
     },
     "android": {
@@ -37,6 +39,7 @@
       ]
     },
     "plugins": [
+      "./plugins/withForceRTL",
       "expo-router",
       "expo-font",
       [
