@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, Alert, Pressable } from 'react-native';
+import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, Alert, Pressable, Linking } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BrandMark } from '@/components/shared';
 import { Button, Field } from '@/components/primitives';
@@ -111,6 +111,24 @@ export function LoginScreen({ colors = lightColors, onLoggedIn }: LoginScreenPro
             {loading ? 'מתחבר...' : 'כניסה'}
           </Button>
         </View>
+
+        {/* Legal footer */}
+        <Text style={[styles.legal, { color: colors.ink4, fontFamily: fonts.sans }]}>
+          {'בהמשך השימוש באפליקציה אתה מאשר את '}
+          <Text
+            style={[styles.legalLink, { color: colors.ink2 }]}
+            onPress={() => Linking.openURL('https://dohot.netlify.app/terms')}
+          >
+            תנאי השימוש
+          </Text>
+          {' ו'}
+          <Text
+            style={[styles.legalLink, { color: colors.ink2 }]}
+            onPress={() => Linking.openURL('https://dohot.netlify.app/privacy')}
+          >
+            מדיניות הפרטיות
+          </Text>
+        </Text>
       </View>
     </KeyboardAvoidingView>
   );
@@ -126,4 +144,6 @@ const styles = StyleSheet.create({
   sub: { fontSize: 15, lineHeight: 22, textAlign: 'right' },
   form: { gap: 14 },
   eyeBtn: { position: 'absolute', right: 16, bottom: 16 },
+  legal: { marginTop: 'auto', paddingTop: 20, textAlign: 'center', fontSize: 12, lineHeight: 18 },
+  legalLink: { fontWeight: '600', textDecorationLine: 'underline' },
 });

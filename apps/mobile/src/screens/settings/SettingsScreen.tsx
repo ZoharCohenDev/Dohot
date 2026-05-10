@@ -2,7 +2,7 @@ import React from 'react';
 import {
   View, Pressable, ScrollView, Modal, TextInput,
   StyleSheet, Alert, PanResponder, ActivityIndicator, Image,
-  KeyboardAvoidingView, Platform,
+  KeyboardAvoidingView, Platform, Linking,
 } from 'react-native';
 import Svg, { Path as SvgPath } from 'react-native-svg';
 import { SvgXml } from 'react-native-svg';
@@ -1083,6 +1083,22 @@ export function SettingsScreen({ dark = false, colors = lightColors, onNavigate,
             <SettingRow icon={<Icons.star size={20} color={colors.ink2} />} label="תכנית"
               value={plan === 'pro' ? 'פרו' : 'חינמי'} colors={colors} onPress={() => setModal('upgrade')} last />
           )}
+        </SettingGroup>
+
+        <SettingGroup title="מידע משפטי" colors={colors}>
+          <SettingRow
+            icon={<Icons.doc size={20} color={colors.ink2} />}
+            label="תנאי שימוש"
+            colors={colors}
+            onPress={() => Linking.openURL('https://dohot.netlify.app/terms')}
+          />
+          <SettingRow
+            icon={<Icons.lock size={20} color={colors.ink2} />}
+            label="מדיניות פרטיות"
+            colors={colors}
+            last
+            onPress={() => Linking.openURL('https://dohot.netlify.app/privacy')}
+          />
         </SettingGroup>
 
         <Pressable onPress={handleLogout} style={[styles.logoutBtn, { backgroundColor: colors.dangerBg }]}>
