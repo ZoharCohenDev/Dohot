@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, Alert } from 'react-native';
+import { View, Text, StyleSheet, Alert, Pressable, Linking } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Icons } from '@/components/icons';
@@ -49,12 +49,35 @@ export default function ExpiredPage() {
       </Text>
 
       {!isDisabled && (
-        <View style={[styles.contactCard, { backgroundColor: colors.aiBg, borderColor: 'rgba(90,135,112,0.2)' }]}>
-          <Icons.sparkle size={16} color={colors.ai2} />
-          <Text style={[styles.contactText, { color: colors.ai2, fontFamily: fonts.sans }]}>
-            לחידוש המנוי פנה למנהל המערכת
-          </Text>
-        </View>
+        <>
+          <View style={[styles.contactCard, { backgroundColor: colors.aiBg, borderColor: 'rgba(90,135,112,0.2)' }]}>
+            <Icons.sparkle size={16} color={colors.ai2} />
+            <Text style={[styles.contactText, { color: colors.ai2, fontFamily: fonts.sans }]}>
+              לחידוש המנוי פנה למנהל המערכת
+            </Text>
+          </View>
+
+          <View style={styles.phoneSection}>
+            <Text style={[styles.phoneLabel, { color: colors.ink3, fontFamily: fonts.sans }]}>
+              ליצירת קשר לחידוש המנוי:
+            </Text>
+            {(['0549879533', '0526402708'] as const).map((num) => (
+              <Pressable
+                key={num}
+                onPress={() => Linking.openURL(`tel:${num}`)}
+                style={({ pressed }) => [
+                  styles.phoneRow,
+                  { backgroundColor: colors.bgElev, borderColor: colors.line, opacity: pressed ? 0.7 : 1 },
+                ]}
+              >
+                <Icons.phone size={18} color={colors.accent} />
+                <Text style={[styles.phoneNumber, { color: colors.ink1, fontFamily: fonts.sans }]}>
+                  {num}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        </>
       )}
 
       <Button
@@ -79,4 +102,8 @@ const styles = StyleSheet.create({
   body: { fontSize: 15, lineHeight: 22, textAlign: 'center', marginBottom: 24 },
   contactCard: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 14, borderWidth: 1, alignSelf: 'stretch' },
   contactText: { flex: 1, fontSize: 13, fontWeight: '500', textAlign: 'right' },
+  phoneSection: { alignSelf: 'stretch', marginTop: 16, gap: 10 },
+  phoneLabel: { fontSize: 13, fontWeight: '600', textAlign: 'center', marginBottom: 2 },
+  phoneRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingHorizontal: 20, paddingVertical: 14, borderRadius: 14, borderWidth: 1 },
+  phoneNumber: { fontSize: 18, fontWeight: '700', letterSpacing: 0.5, textAlign: 'center' },
 });
