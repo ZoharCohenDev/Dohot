@@ -23,7 +23,17 @@
       "mcp__ide__getDiagnostics",
       "Bash(npx expo *)",
       "Bash(grep -E \"\\\\.\\(ts|tsx|js|jsx\\)$\")",
-      "Bash(dir D:\\\\projects\\\\Dohot\\\\apps\\\\mobile *)"
+      "Bash(dir D:\\\\projects\\\\Dohot\\\\apps\\\\mobile *)",
+      "Bash(Get-ChildItem -Path \"D:\\\\projects\\\\Dohot\" -Recurse -Directory -Name)",
+      "Bash(ipconfig)",
+      "Bash(findstr \"IPv4\")",
+      "Bash(git pull *)",
+      "PowerShell(git add *)",
+      "PowerShell(git pull *)",
+      "PowerShell(git *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push *)"
     ]
   }
 }
