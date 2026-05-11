@@ -75,9 +75,17 @@ function PdfPageHeader({
         <Text style={styles.pdfDocRef}>{formatDate()}</Text>
       </View>
       <View style={styles.pdfBrandSide}>
-        <View style={styles.pdfBrandMark}>
-          <Text style={styles.pdfBrandLetter}>{brandInitial}</Text>
-        </View>
+        {businessProfile?.logo_url ? (
+          <Image
+            source={{ uri: businessProfile.logo_url }}
+            style={styles.pdfLogoImage}
+            resizeMode="contain"
+          />
+        ) : (
+          <View style={styles.pdfBrandMark}>
+            <Text style={styles.pdfBrandLetter}>{brandInitial}</Text>
+          </View>
+        )}
         <Text style={styles.pdfBrandName} numberOfLines={1}>
           {businessProfile?.business_name || businessProfile?.full_name || ''}
         </Text>
@@ -445,6 +453,191 @@ function WarrantyContent({ state }: { state: WizardState }) {
   );
 }
 
+// ─── Work Agreement sections ──────────────────────────────────────────────────
+
+function buildResidentAddress(state: WizardState, apartment: string, floor: string): string {
+  const baseStreet = [state.customerStreet, state.customerHouseNumber].filter(Boolean).join(' ');
+  const aptFloor = [
+    apartment ? `דירה ${apartment}` : '',
+    floor ? `קומה ${floor}` : '',
+  ].filter(Boolean).join(', ');
+  return [baseStreet, aptFloor, state.customerCity].filter(Boolean).join(', ');
+}
+
+function WaPersonBlock({
+  label, name, phone, address,
+}: { label: string; name: string; phone: string; address: string }) {
+  return (
+    <View style={styles.waResidentCard}>
+      <Text style={styles.waResidentCardLabel}>{label}</Text>
+      <View style={styles.metaGrid}>
+        <View style={styles.metaItem}>
+          <Text style={styles.metaItemLabel}>שם</Text>
+          <Text style={styles.metaItemValue}>{name || '—'}</Text>
+        </View>
+        <View style={styles.metaItem}>
+          <Text style={styles.metaItemLabel}>טלפון</Text>
+          <Text style={styles.metaItemValue}>{phone || '—'}</Text>
+        </View>
+        <View style={styles.metaItem}>
+          <Text style={styles.metaItemLabel}>כתובת מלאה</Text>
+          <Text style={styles.metaItemValue}>{address || '—'}</Text>
+        </View>
+        <View style={styles.metaItem}>
+          <Text style={styles.metaItemLabel}>תאריך</Text>
+          <Text style={styles.metaItemValue}>{formatDate()}</Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+function WaCustomerPage({ state }: { state: WizardState }) {
+  const customerAddress = buildAddress(state);
+  const totalParties = 1 + state.waResidents.length;
+
+  return (
+    <View style={styles.pdfSection}>
+      <SectionTitle num={1} label="צדדים להסכם" />
+      <View style={styles.waResidentsList}>
+        {/* Main customer — always דייר 1 */}
+        <View style={totalParties > 1 ? { borderBottomWidth: 0.5, borderBottomColor: '#E5E5E5' } : undefined}>
+          <WaPersonBlock
+            label="דייר 1"
+            name={state.customerName}
+            phone={state.customerPhone}
+            address={customerAddress}
+          />
+        </View>
+
+        {/* Additional residents */}
+        {state.waResidents.map((r, i) => (
+          <View
+            key={r.id}
+            style={i < state.waResidents.length - 1 ? { borderBottomWidth: 0.5, borderBottomColor: '#E5E5E5' } : undefined}
+          >
+            <WaPersonBlock
+              label={`דייר ${i + 2}`}
+              name={r.fullName}
+              phone={r.phone}
+              address={buildResidentAddress(state, r.apartment, r.floor)}
+            />
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+function WaDetailsPage({ state, businessProfile }: { state: WizardState; businessProfile: BusinessProfile }) {
+  const filledItems = state.waWorkItems.filter(i => i.title.trim());
+
+  return (
+    <>
+      {/* Work items */}
+      <View style={styles.pdfSection}>
+        <SectionTitle num={2} label="פירוט העבודות" />
+        {filledItems.length === 0 ? (
+          <Text style={styles.pdfBody}>לא הוזן פירוט עבודות.</Text>
+        ) : (
+          <View style={{ gap: 8 }}>
+            {filledItems.map((item, i) => (
+              <View key={item.id} style={styles.waItemBlock}>
+                <View style={styles.waItemRow}>
+                  <View style={styles.waItemNum}>
+                    <Text style={styles.waItemNumText}>{i + 1}</Text>
+                  </View>
+                  <Text style={[styles.waItemText, { fontWeight: '700' }]}>{item.title}</Text>
+                </View>
+                {item.clauses.filter(c => c.text.trim()).map((clause, j) => (
+                  <View key={clause.id} style={styles.waClauseRow}>
+                    <Text style={styles.waClauseNum}>{`${i + 1}.${j + 1}`}</Text>
+                    <Text style={styles.waClauseText}>{clause.text}</Text>
+                  </View>
+                ))}
+              </View>
+            ))}
+          </View>
+        )}
+      </View>
+
+      {/* Total price */}
+      <View style={[styles.pdfSection, { marginTop: 10 }]}>
+        <SectionTitle num={3} label="מחיר כולל" />
+        <View style={styles.waTotalBox}>
+          <Text style={styles.waTotalLabel}>סה״כ לתשלום כולל מע״מ:</Text>
+          <Text style={styles.waTotalValue}>
+            {state.waTotalPrice ? `₪${Number(state.waTotalPrice).toLocaleString('he-IL')}` : 'לא צוין'}
+          </Text>
+        </View>
+      </View>
+
+      {/* Payment terms */}
+      {state.waPaymentTerms.length > 0 && (
+        <View style={[styles.pdfSection, { marginTop: 10 }]}>
+          <SectionTitle num={4} label="תנאי תשלום" />
+          <View style={{ gap: 4 }}>
+            {state.waPaymentTerms.map((term, i) => (
+              <View key={term.id} style={styles.warrantyConditionRow}>
+                <Text style={styles.warrantyConditionNum}>{i + 1}.</Text>
+                <Text style={styles.warrantyConditionText}>{term.text}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      )}
+
+    </>
+  );
+}
+
+function WaSigPage({ businessProfile }: { businessProfile: BusinessProfile }) {
+  const sigName = [
+    businessProfile?.full_name,
+    businessProfile?.license_number && `ח.פ ${businessProfile.license_number}`,
+  ].filter(Boolean).join(' · ') || 'חתימת הטכנאי';
+  const isSvg = !!businessProfile?.signature_url &&
+    businessProfile.signature_url.startsWith('data:image/svg+xml;base64,');
+
+  return (
+    <>
+      <View style={styles.pdfSection}>
+        <View style={styles.pdfSectionTitle}>
+          <View style={styles.pdfSectionLine} />
+          <Text style={styles.pdfSectionLabel}>חתימות הצדדים</Text>
+        </View>
+      </View>
+      <View style={[styles.waSigRow, { borderTopColor: '#C7C1B6', marginTop: 24 }]}>
+        <View>
+          {businessProfile?.signature_url ? (
+            isSvg ? (
+              <SvgXml
+                xml={atob(businessProfile.signature_url.replace('data:image/svg+xml;base64,', ''))}
+                width={80}
+                height={28}
+              />
+            ) : (
+              <Image
+                source={{ uri: businessProfile.signature_url }}
+                style={styles.pdfSigImage}
+                resizeMode="contain"
+              />
+            )
+          ) : (
+            <View style={styles.pdfSigLine} />
+          )}
+          <Text style={styles.pdfSigName}>{sigName}</Text>
+          <Text style={[styles.pdfSigName, { marginTop: 2 }]}>{formatDate()}</Text>
+        </View>
+        <View style={styles.waClientSig}>
+          <View style={styles.pdfSigLine} />
+          <Text style={styles.pdfSigName}>חתימת הלקוח</Text>
+        </View>
+      </View>
+    </>
+  );
+}
+
 // ─── Main screen ──────────────────────────────────────────────────────────────
 
 export function PdfPreviewScreen({ colors = lightColors, onBack, onSend }: PdfPreviewScreenProps) {
@@ -454,8 +647,6 @@ export function PdfPreviewScreen({ colors = lightColors, onBack, onSend }: PdfPr
   const [pdfError, setPdfError] = React.useState('');
 
   // Each PDF page gets its own View ref. Keyed by page ID string.
-  // captureRef on each View captures that page at its full natural height —
-  // no scrolling needed, no A4 mid-image slicing.
   const pageRefs = React.useRef<Map<string, View | null>>(new Map());
   function setPageRef(key: string) {
     return (ref: View | null) => { pageRefs.current.set(key, ref); };
@@ -463,7 +654,9 @@ export function PdfPreviewScreen({ colors = lightColors, onBack, onSend }: PdfPr
 
   const state = wizard.state;
   const docConfig = DOCUMENT_TYPES[state.docType];
-  const docTitle = `${docConfig.titlePrefix} ${state.customerName || 'לא צוין'}`;
+  const docTitle = state.docType === 'work-agreement'
+    ? docConfig.label
+    : `${docConfig.titlePrefix} ${state.customerName || 'לא צוין'}`;
   const brandInitial = (businessProfile?.business_name ?? businessProfile?.full_name ?? 'ד')[0] ?? 'ד';
 
   const certs = businessProfile?.certifications ?? [];
@@ -484,6 +677,8 @@ export function PdfPreviewScreen({ colors = lightColors, onBack, onSend }: PdfPr
 
   const headerProps = { docTitle, brandInitial, businessProfile };
 
+  const isMultiPage = state.docType === 'report' || state.docType === 'work-agreement';
+
   const handleSend = async () => {
     if (!state.documentId) return;
     if (state.pdfUrl) { onSend?.(); return; }
@@ -492,20 +687,17 @@ export function PdfPreviewScreen({ colors = lightColors, onBack, onSend }: PdfPr
     setPdfError('');
 
     try {
-      // Give layout a frame to fully render before capturing
       await new Promise<void>((r) => setTimeout(r, Platform.OS === 'ios' ? 200 : 400));
 
       let capturedImages: string[];
 
       if (state.docType === 'report') {
-        // Build the ordered list of page keys
         const pageKeys: string[] = ['page1'];
         if (hasAboutPage) pageKeys.push('about');
         if (hasCertsPage) pageKeys.push('certs');
         issues.forEach((_, i) => pageKeys.push(`issue_${i}`));
         pageKeys.push('legal');
 
-        // Capture each page View separately — sequential to avoid memory spikes
         capturedImages = [];
         for (const key of pageKeys) {
           const view = pageRefs.current.get(key);
@@ -513,8 +705,15 @@ export function PdfPreviewScreen({ colors = lightColors, onBack, onSend }: PdfPr
           const base64 = await captureRef(view, { format: 'jpg', quality: 0.92, result: 'base64' });
           capturedImages.push(base64 as string);
         }
+      } else if (state.docType === 'work-agreement') {
+        capturedImages = [];
+        for (const key of ['wa_page1', 'wa_page2', 'wa_page3']) {
+          const view = pageRefs.current.get(key);
+          if (!view) continue;
+          const base64 = await captureRef(view, { format: 'jpg', quality: 0.92, result: 'base64' });
+          capturedImages.push(base64 as string);
+        }
       } else {
-        // Quote / Warranty: single page
         const view = pageRefs.current.get('single');
         if (!view) throw new Error('לא נמצא תוכן לייצוא');
         const base64 = await captureRef(view, { format: 'jpg', quality: 0.92, result: 'base64' });
@@ -548,13 +747,11 @@ export function PdfPreviewScreen({ colors = lightColors, onBack, onSend }: PdfPr
       >
         {state.docType === 'report' && (
           <>
-            {/* Page 1: Client + Professional details */}
             <View ref={setPageRef('page1')} style={styles.pdfPage}>
               <PdfPageHeader {...headerProps} />
               <ReportPage1 state={state} businessProfile={businessProfile} />
             </View>
 
-            {/* Page 2 (optional): אודותינו + הכשרה */}
             {hasAboutPage && (
               <View ref={setPageRef('about')} style={styles.pdfPage}>
                 <PdfPageHeader {...headerProps} />
@@ -566,7 +763,6 @@ export function PdfPreviewScreen({ colors = lightColors, onBack, onSend }: PdfPr
               </View>
             )}
 
-            {/* Next page (optional): Certifications & authorizations */}
             {hasCertsPage && (
               <View ref={setPageRef('certs')} style={styles.pdfPage}>
                 <PdfPageHeader {...headerProps} />
@@ -574,7 +770,6 @@ export function PdfPreviewScreen({ colors = lightColors, onBack, onSend }: PdfPr
               </View>
             )}
 
-            {/* One page per issue: description + photos + recommendations */}
             {issues.map((issue, i) => (
               <View key={issue.id} ref={setPageRef(`issue_${i}`)} style={styles.pdfPage}>
                 <PdfPageHeader {...headerProps} />
@@ -582,7 +777,6 @@ export function PdfPreviewScreen({ colors = lightColors, onBack, onSend }: PdfPr
               </View>
             ))}
 
-            {/* Last page: Limitation of liability */}
             <View ref={setPageRef('legal')} style={styles.pdfPage}>
               <PdfPageHeader {...headerProps} />
               <LegalPage pageNum={legalPageNum} businessProfile={businessProfile} />
@@ -624,6 +818,28 @@ export function PdfPreviewScreen({ colors = lightColors, onBack, onSend }: PdfPr
             </View>
           </View>
         )}
+
+        {state.docType === 'work-agreement' && (
+          <>
+            {/* Page 1: Customer + Residents */}
+            <View ref={setPageRef('wa_page1')} style={styles.pdfPage}>
+              <PdfPageHeader {...headerProps} />
+              <WaCustomerPage state={state} />
+            </View>
+
+            {/* Page 2: Work items + Price + Payment terms */}
+            <View ref={setPageRef('wa_page2')} style={styles.pdfPage}>
+              <PdfPageHeader {...headerProps} />
+              <WaDetailsPage state={state} businessProfile={businessProfile} />
+            </View>
+
+            {/* Page 3: Signatures — always on its own page */}
+            <View ref={setPageRef('wa_page3')} style={styles.pdfPage}>
+              <PdfPageHeader {...headerProps} />
+              <WaSigPage businessProfile={businessProfile} />
+            </View>
+          </>
+        )}
       </ScrollView>
 
       <FixedBottom colors={colors}>
@@ -657,7 +873,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
 
-  // PDF page card — each is one physical PDF page
+  // PDF page card
   pdfPage: {
     backgroundColor: '#fff',
     padding: 28,
@@ -681,6 +897,7 @@ const styles = StyleSheet.create({
   pdfDocTitle: { fontFamily: fonts.serif, fontSize: 16, fontWeight: '700', color: '#1B1916', letterSpacing: -0.3, textAlign: 'right' },
   pdfDocRef: { fontSize: 8, color: '#4A4641', marginTop: 4, letterSpacing: 0.5, textAlign: 'right' },
   pdfBrandSide: { alignItems: 'flex-start', minWidth: 70, maxWidth: 100 },
+  pdfLogoImage: { width: 48, height: 28, marginBottom: 4, borderRadius: 4 },
   pdfBrandMark: {
     width: 28, height: 28, borderRadius: 7,
     backgroundColor: '#1B1916',
@@ -770,6 +987,47 @@ const styles = StyleSheet.create({
   warrantyConditionNum: { fontSize: 8, fontWeight: '700', color: '#1B1916', minWidth: 14, textAlign: 'right' },
   warrantyConditionText: { fontSize: 8, color: '#1B1916', lineHeight: 13, flex: 1, textAlign: 'right' },
 
+  // Work Agreement
+  waResidentsList: {},
+  waResidentCard: { paddingVertical: 8 },
+  waResidentCardLabel: {
+    fontSize: 8, fontWeight: '700', color: '#1B1916',
+    textAlign: 'right', marginBottom: 5, letterSpacing: 0.2,
+  },
+  waItemBlock: { gap: 3 },
+  waItemRow: { flexDirection: 'row-reverse', gap: 6, alignItems: 'flex-start' },
+  waItemNum: {
+    width: 14, height: 14, borderRadius: 3,
+    backgroundColor: '#1B1916',
+    alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1,
+  },
+  waItemNumText: { fontSize: 7, fontWeight: '700', color: '#F5F3EE' },
+  waItemText: { fontSize: 9, color: '#1B1916', flex: 1, lineHeight: 13, textAlign: 'right' },
+  waClauseRow: { flexDirection: 'row-reverse', gap: 6, alignItems: 'flex-start', paddingRight: 20 },
+  waClauseNum: { fontSize: 8, color: '#807A72', fontWeight: '600', minWidth: 22, textAlign: 'right', flexShrink: 0 },
+  waClauseText: { fontSize: 8, color: '#4A4641', flex: 1, lineHeight: 12, textAlign: 'right' },
+  waTotalBox: {
+    flexDirection: 'row-reverse',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#F8F7F4',
+    borderRadius: 6,
+    padding: 10,
+    borderRightWidth: 2,
+    borderRightColor: '#1B1916',
+  },
+  waTotalLabel: { fontSize: 9, fontWeight: '700', color: '#1B1916', textAlign: 'right' },
+  waTotalValue: { fontSize: 14, fontWeight: '800', color: '#1B1916' },
+  waSigRow: {
+    flexDirection: 'row-reverse',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    marginTop: 22,
+    paddingTop: 14,
+    borderTopWidth: 0.5,
+  },
+  waClientSig: { alignItems: 'flex-start' },
+
   // Signature (quote/warranty bottom row)
   pdfSigRow: {
     flexDirection: 'row-reverse', justifyContent: 'space-between',
@@ -794,8 +1052,6 @@ const styles = StyleSheet.create({
   certInfo: { flex: 1, alignItems: 'flex-end' },
   certName: { fontSize: 9, fontWeight: '700', color: '#1B1916', textAlign: 'right' },
   certYear: { fontSize: 8, color: '#807A72', marginTop: 2, textAlign: 'right' },
-
-
 
   // Bottom
   bottomRow: { flexDirection: 'row', gap: 10 },

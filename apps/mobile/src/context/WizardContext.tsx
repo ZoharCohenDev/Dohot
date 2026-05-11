@@ -29,10 +29,40 @@ export interface ReportIssue {
   recommendations: Recommendation[];
 }
 
+export interface WaResident {
+  id: string;
+  fullName: string;
+  phone: string;
+  apartment: string;
+  floor: string;
+  notes: string;
+}
+
+export interface WaWorkClause {
+  id: string;
+  text: string;
+}
+
+export interface WaWorkItem {
+  id: string;
+  title: string;
+  clauses: WaWorkClause[];
+}
+
+export interface WaPaymentTerm {
+  id: string;
+  text: string;
+}
+
 const DEFAULT_WARRANTY_CONDITIONS = [
   'האחריות חלה על עבודת ההתקנה / התיקון שבוצעה.',
   'האחריות אינה חלה על נזקים הנגרמים מכוח עליון, שימוש לרעה או פגיעה מכוונת.',
   'תיקונים שנעשו על ידי גורם שלישי מבטלים את האחריות.',
+];
+
+const DEFAULT_WA_PAYMENT_TERMS = [
+  '50% מקדמה לפני תחילת העבודה.',
+  '50% יתרה עם סיום העבודה ומסירתה.',
 ];
 
 function todayString(): string {
@@ -85,6 +115,11 @@ interface WizardState {
   warrantyDuration: string;
   warrantyConditions: string[];
   warrantyWorkDescription: string;
+  // Work Agreement
+  waResidents: WaResident[];
+  waWorkItems: WaWorkItem[];
+  waTotalPrice: string;
+  waPaymentTerms: WaPaymentTerm[];
   // Output
   documentId: string | null;
   pdfUrl: string | null;
@@ -120,6 +155,11 @@ interface WizardContextValue {
   setQuoteValidityDate: (date: string) => void;
   // Warranty
   setWarrantyData: (duration: string, conditions: string[], workDescription: string) => void;
+  // Work Agreement
+  setWaResidents: (residents: WaResident[]) => void;
+  setWaWorkItems: (items: WaWorkItem[]) => void;
+  setWaTotalPrice: (price: string) => void;
+  setWaPaymentTerms: (terms: WaPaymentTerm[]) => void;
   // Document
   initDraft: (professionalId: string, fields: CustomerFields) => Promise<void>;
   saveDocument: (professionalId: string) => Promise<void>;
@@ -150,6 +190,10 @@ const DEFAULT_STATE: WizardState = {
   warrantyDuration: '12 חודשים',
   warrantyConditions: DEFAULT_WARRANTY_CONDITIONS,
   warrantyWorkDescription: '',
+  waResidents: [],
+  waWorkItems: [{ id: '1', title: '', clauses: [{ id: '1-1', text: '' }] }],
+  waTotalPrice: '',
+  waPaymentTerms: DEFAULT_WA_PAYMENT_TERMS.map((text, i) => ({ id: String(i + 1), text })),
   documentId: null,
   pdfUrl: null,
 };
@@ -180,6 +224,10 @@ const WizardContext = createContext<WizardContextValue>({
   setQuoteNotes: () => {},
   setQuoteValidityDate: () => {},
   setWarrantyData: () => {},
+  setWaResidents: () => {},
+  setWaWorkItems: () => {},
+  setWaTotalPrice: () => {},
+  setWaPaymentTerms: () => {},
   initDraft: async () => {},
   saveDocument: async () => {},
   setPdfUrl: () => {},
@@ -330,6 +378,16 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
   const setWarrantyData = (warrantyDuration: string, warrantyConditions: string[], warrantyWorkDescription: string) =>
     setState(s => ({ ...s, warrantyDuration, warrantyConditions, warrantyWorkDescription }));
 
+  // ── Work Agreement operations ─────────────────────────────────────────────
+
+  const setWaResidents = (waResidents: WaResident[]) => setState(s => ({ ...s, waResidents }));
+
+  const setWaWorkItems = (waWorkItems: WaWorkItem[]) => setState(s => ({ ...s, waWorkItems }));
+
+  const setWaTotalPrice = (waTotalPrice: string) => setState(s => ({ ...s, waTotalPrice }));
+
+  const setWaPaymentTerms = (waPaymentTerms: WaPaymentTerm[]) => setState(s => ({ ...s, waPaymentTerms }));
+
   // ── Document operations ───────────────────────────────────────────────────
 
   const setPdfUrl = (pdfUrl: string) => setState(s => ({ ...s, pdfUrl }));
@@ -403,6 +461,22 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
           aiSummary: state.warrantyWorkDescription,
           recommendations: [],
         });
+      } else if (state.docType === 'work-agreement') {
+        const itemCount = state.waWorkItems.filter(i => i.title.trim()).length;
+        await upsertReport(docId, {
+          propertyType: state.propertyType,
+          issueType: 'other',
+          issueNote: JSON.stringify({
+            residents: state.waResidents,
+            workItems: state.waWorkItems,
+            totalPrice: state.waTotalPrice,
+            paymentTerms: state.waPaymentTerms,
+          }),
+          photos: [],
+          voiceTranscript: '',
+          aiSummary: `הסכם עבודה | ${itemCount} עבודות | סה"כ: ₪${state.waTotalPrice || '0'}`,
+          recommendations: [],
+        });
       }
 
       setState(s => ({ ...s, documentId: docId! }));
@@ -438,6 +512,10 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
       setQuoteNotes,
       setQuoteValidityDate,
       setWarrantyData,
+      setWaResidents,
+      setWaWorkItems,
+      setWaTotalPrice,
+      setWaPaymentTerms,
       initDraft,
       saveDocument,
       setPdfUrl,

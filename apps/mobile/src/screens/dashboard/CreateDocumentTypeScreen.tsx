@@ -33,6 +33,11 @@ const TYPE_VISUALS: Record<DocType, {
     colorFn: (c) => c.warn,
     bgFn: (c) => c.warnBg,
   },
+  'work-agreement': {
+    Icon: Icons.agreement,
+    colorFn: (c) => c.ai2,
+    bgFn: (c) => c.aiBg,
+  },
 };
 
 export function CreateDocumentTypeScreen({

@@ -1,7 +1,7 @@
 import type { DocumentType } from '@dohot/shared';
 
 // UI-level document type — separate from the DB DocumentType
-export type DocType = 'report' | 'quote' | 'warranty';
+export type DocType = 'report' | 'quote' | 'warranty' | 'work-agreement';
 
 // Wizard step identifiers — each maps 1-to-1 to a filename in app/(app)/wizard/
 export type WizardStep =
@@ -15,6 +15,10 @@ export type WizardStep =
   | 'recommendations'
   | 'quote-items'
   | 'warranty-terms'
+  | 'wa-residents'
+  | 'wa-items'
+  | 'wa-price'
+  | 'wa-payment'
   | 'preview'
   | 'send';
 
@@ -72,6 +76,18 @@ export const DOCUMENT_TYPES: Record<DocType, DocumentTypeConfig> = {
     filenameLabel: 'תעודת אחריות',
     customerNextLabel: 'המשך לתנאי אחריות',
   },
+  'work-agreement': {
+    id: 'work-agreement',
+    dbType: 'agreement',
+    label: 'הסכם עבודה',
+    desc: 'הסכם מקצועי מול הלקוח',
+    detail: 'דיירים, פירוט עבודות, מחיר כולל ותנאי תשלום',
+    hasAI: false,
+    steps: ['customer', 'wa-residents', 'wa-items', 'wa-price', 'wa-payment', 'preview', 'send'],
+    progressSteps: ['customer', 'wa-residents', 'wa-items', 'wa-payment', 'preview'],
+    titlePrefix: 'הסכם עבודה –',
+    customerNextLabel: 'המשך לדיירים',
+  },
 };
 
 // Route paths for each step
@@ -86,6 +102,10 @@ export const STEP_ROUTES: Record<WizardStep, string> = {
   'recommendations': '/(app)/wizard/recommendations',
   'quote-items':     '/(app)/wizard/quote-items',
   'warranty-terms':  '/(app)/wizard/warranty-terms',
+  'wa-residents':    '/(app)/wizard/wa-residents',
+  'wa-items':        '/(app)/wizard/wa-items',
+  'wa-price':        '/(app)/wizard/wa-price',
+  'wa-payment':      '/(app)/wizard/wa-payment',
   'preview':         '/(app)/wizard/preview',
   'send':            '/(app)/wizard/send',
 };
