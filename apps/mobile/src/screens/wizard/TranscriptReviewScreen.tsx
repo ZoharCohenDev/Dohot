@@ -250,7 +250,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   scroll: { flex: 1 },
-  content: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 24, gap: 16 },
+  content: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 80, gap: 16 },
 
   titleBlock: { gap: 8 },
   aiTag: {

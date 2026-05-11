@@ -9,51 +9,37 @@ interface FixedBottomProps {
   colors?: typeof lightColors;
 }
 
-/**
- * Bottom action bar that sticks to the screen bottom and lifts to sit tight
- * above the keyboard when it opens.
- *
- * Implementation note: an absolutely-positioned bar can't be lifted by
- * KeyboardAvoidingView (absolute children are outside flow). Instead we
- * subscribe to keyboard events directly and animate the `bottom` offset.
- * This makes behavior identical regardless of which keyboard or which OEM
- * Android device, and stable across repeated open/close cycles.
- *
- * Platform notes:
- * - iOS: use willShow/willHide so the bar moves WITH the keyboard animation,
- *   not after it. endCoordinates.height is the final keyboard height.
- * - Android: didShow/didHide are the only events available pre-API 30, and
- *   the keyboard isn't animated by the OS, so this matches native behavior.
- */
 export function FixedBottom({ children, colors = lightColors }: FixedBottomProps) {
   const insets = useSafeAreaInsets();
   const [keyboardHeight, setKeyboardHeight] = React.useState(0);
 
   React.useEffect(() => {
-    // Android: windowSoftInputMode=adjustResize shrinks the window when the keyboard
-    // opens, so bottom:0 naturally sits above the keyboard — no extra offset needed.
-    // Adding an offset would cause double-adjustment (window shrinks + we move up).
-    // iOS: no adjustResize; we must move up manually to stay above the keyboard.
-    if (Platform.OS !== 'ios') return;
+    if (Platform.OS === 'ios') {
+      // iOS: lift above keyboard manually — no adjustResize on iOS.
+      const onShow = (e: KeyboardEvent) => setKeyboardHeight(e.endCoordinates?.height ?? 0);
+      const onHide = () => setKeyboardHeight(0);
+      const showSub = Keyboard.addListener('keyboardWillShow', onShow);
+      const hideSub = Keyboard.addListener('keyboardWillHide', onHide);
+      return () => { showSub.remove(); hideSub.remove(); };
+    }
 
-    const onShow = (e: KeyboardEvent) => {
-      setKeyboardHeight(e.endCoordinates?.height ?? 0);
-    };
+    // Android: adjustResize shrinks the window so bottom:0 sits above the keyboard.
+    // But FixedBottom still covers the last ~80px of the shrunken window, which blocks
+    // inputs that land there. Hide entirely while the keyboard is open — the ScrollView
+    // then has the full shrunken window and Android natively scrolls the focused input
+    // into view. The 140px paddingBottom in scroll content becomes usable scroll space.
+    const onShow = () => setKeyboardHeight(1);
     const onHide = () => setKeyboardHeight(0);
-
-    const showSub = Keyboard.addListener('keyboardWillShow', onShow);
-    const hideSub = Keyboard.addListener('keyboardWillHide', onHide);
-
-    return () => {
-      showSub.remove();
-      hideSub.remove();
-    };
+    const showSub = Keyboard.addListener('keyboardDidShow', onShow);
+    const hideSub = Keyboard.addListener('keyboardDidHide', onHide);
+    return () => { showSub.remove(); hideSub.remove(); };
   }, []);
 
-  // iOS: lift above keyboard. Android: stay at 0 (adjustResize handles positioning).
+  // Android: hide while keyboard is open so inputs aren't blocked
+  if (Platform.OS === 'android' && keyboardHeight > 0) return null;
+
   const bottomOffset = keyboardHeight > 0 ? keyboardHeight : 0;
-  const verticalPadding =
-    keyboardHeight > 0 ? 12 : Math.max(insets.bottom, 16) + 16;
+  const verticalPadding = keyboardHeight > 0 ? 12 : Math.max(insets.bottom, 16) + 16;
 
   return (
     <View

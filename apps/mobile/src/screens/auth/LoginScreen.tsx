@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, Alert, Pressable, Linking } from 'react-native';
+import { View, Text, StyleSheet, KeyboardAvoidingView, ScrollView, Platform, Alert, Pressable, Linking } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BrandMark } from '@/components/shared';
 import { Button, Field } from '@/components/primitives';
@@ -46,7 +46,12 @@ export function LoginScreen({ colors = lightColors, onLoggedIn }: LoginScreenPro
       style={[styles.root, { backgroundColor: colors.bg }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <View style={[styles.inner, { paddingTop: insets.top + 40, paddingBottom: insets.bottom + 32 }]}>
+      <ScrollView
+        contentContainerStyle={[styles.inner, { paddingTop: insets.top + 40, paddingBottom: insets.bottom + 32 }]}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        bounces={false}
+      >
         {/* Brand */}
         <View style={styles.brand}>
           <BrandMark size={36} colors={colors} />
@@ -129,14 +134,14 @@ export function LoginScreen({ colors = lightColors, onLoggedIn }: LoginScreenPro
             מדיניות הפרטיות
           </Text>
         </Text>
-      </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  inner: { flex: 1, paddingHorizontal: 28 },
+  inner: { flexGrow: 1, paddingHorizontal: 28 },
   brand: { flexDirection: 'row-reverse', alignItems: 'center', gap: 10 },
   brandName: { fontSize: 22, fontWeight: '700', letterSpacing: -0.5 },
   hero: { marginTop: 52, marginBottom: 36 },
