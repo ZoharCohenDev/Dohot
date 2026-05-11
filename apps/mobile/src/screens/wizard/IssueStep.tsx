@@ -60,7 +60,7 @@ export function IssueStep({ colors = lightColors, onNext, onBack }: IssueStepPro
   return (
     <KeyboardAvoidingView
       style={[styles.root, { backgroundColor: colors.bg }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <Header
         step={stepNum}

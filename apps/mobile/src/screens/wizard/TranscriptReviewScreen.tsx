@@ -88,7 +88,7 @@ export function TranscriptReviewScreen({
   return (
     <KeyboardAvoidingView
       style={[styles.root, { backgroundColor: colors.bg }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <Header
         step={4}

@@ -35,7 +35,7 @@ export function WaPriceStep({ colors = lightColors, onNext, onBack }: WaPriceSte
   };
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={[styles.root, { backgroundColor: colors.bg }]}>
         <Header
           step={stepNum}

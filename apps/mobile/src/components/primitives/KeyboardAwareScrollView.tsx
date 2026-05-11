@@ -18,7 +18,9 @@ interface KeyboardAwareScrollViewProps extends ScrollViewProps {
  * Use this as the root content wrapper for any screen or sheet with TextInputs.
  *
  * iOS: KAV (padding) + automaticallyAdjustKeyboardInsets keeps focused inputs visible.
- * Android: KAV (height) + adjustResize window mode handles it.
+ * Android: no KAV behavior — adjustResize (windowSoftInputMode) shrinks the window
+ * automatically, so inputs stay visible without any KAV intervention.
+ * Using behavior="height" on Android combined with adjustResize double-shrinks content.
  */
 export function KeyboardAwareScrollView({
   children,
@@ -29,7 +31,7 @@ export function KeyboardAwareScrollView({
   return (
     <KeyboardAvoidingView
       style={[{ flex: 1 }, containerStyle]}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView
         keyboardShouldPersistTaps="handled"

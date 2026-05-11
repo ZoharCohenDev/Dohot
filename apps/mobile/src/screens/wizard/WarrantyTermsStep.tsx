@@ -100,7 +100,7 @@ export function WarrantyTermsStep({ colors = lightColors, onNext, onBack }: Warr
   return (
     <KeyboardAvoidingView
       style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <View style={[styles.root, { backgroundColor: colors.bg }]}>
         <Header

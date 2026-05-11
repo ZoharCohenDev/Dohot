@@ -4,25 +4,40 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { I18nManager } from 'react-native';
 import * as Font from 'expo-font';
+import * as Updates from 'expo-updates';
 import { Heebo_300Light, Heebo_400Regular, Heebo_500Medium, Heebo_600SemiBold, Heebo_700Bold, Heebo_800ExtraBold } from '@expo-google-fonts/heebo';
 import { FrankRuhlLibre_400Regular, FrankRuhlLibre_500Medium, FrankRuhlLibre_700Bold } from '@expo-google-fonts/frank-ruhl-libre';
 import { AuthProvider } from '@/context/AuthContext';
 import { SettingsProvider } from '@/context/SettingsContext';
 
-// RTL is forced NATIVELY before React Native initializes — see plugins/withForceRTL.js
-// which injects forceRTL into AppDelegate.swift and MainApplication.kt. The JS-level
-// calls below are kept only as a defensive safety net for environments where the
-// native plugin hasn't run (e.g. Expo Go during development). They cannot fix RTL
-// in production by themselves: forceRTL only persists a flag, and the native
-// UIWindow / RCTRootView semantic content is set once at native init.
-console.log('[RTL Debug] I18nManager.isRTL:', I18nManager.isRTL);
-if (!I18nManager.isRTL) {
-  console.warn('[RTL Debug] isRTL is false — native plugin may not have run. Forcing RTL via JS (no-op on first launch).');
-  I18nManager.allowRTL(true);
-  I18nManager.forceRTL(true);
-}
+// IMPORTANT: Read isRTL BEFORE calling forceRTL.
+// forceRTL(true) synchronously mutates I18nManager.isRTL in the current JS context,
+// which would make the reload-check below always see true — and never reload.
+// We need the pre-mutation native value to know if the native layout was set to LTR.
+const nativeIsRTL = I18nManager.isRTL;
+
+// Write to SharedPreferences so the next native init (or reload) picks up RTL.
+I18nManager.allowRTL(true);
+I18nManager.forceRTL(true);
+
+console.log(`[RTL] nativeIsRTL=${nativeIsRTL} __DEV__=${__DEV__}`);
 
 export default function RootLayout() {
+  // In production: if the native layout started as LTR (plugin didn't run or first cold
+  // launch), forceRTL already wrote to SharedPreferences. A JS bundle reload forces the
+  // new React Native runtime to re-read SharedPreferences → isRTL=true.
+  // Loop-safe: after reload nativeIsRTL is true (captured before forceRTL), so this
+  // condition never fires again in subsequent runs.
+  const needsRtlReload = !nativeIsRTL && !__DEV__;
+
+  React.useEffect(() => {
+    if (needsRtlReload) {
+      console.log('[RTL] Triggering reload to apply RTL from SharedPreferences');
+      Updates.reloadAsync().catch(console.error);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const [fontsLoaded, fontError] = Font.useFonts({
     Heebo_300Light,
     Heebo_400Regular,
@@ -37,8 +52,8 @@ export default function RootLayout() {
     FrankRuhlLibre: FrankRuhlLibre_400Regular,
   });
 
-  // Keep splash screen until fonts are ready (or an error occurred)
-  if (!fontsLoaded && !fontError) return null;
+  // Block render until RTL reload completes or fonts are ready
+  if (needsRtlReload || (!fontsLoaded && !fontError)) return null;
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>

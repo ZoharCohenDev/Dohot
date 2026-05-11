@@ -30,16 +30,19 @@ export function FixedBottom({ children, colors = lightColors }: FixedBottomProps
   const [keyboardHeight, setKeyboardHeight] = React.useState(0);
 
   React.useEffect(() => {
-    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
-    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    // Android: windowSoftInputMode=adjustResize shrinks the window when the keyboard
+    // opens, so bottom:0 naturally sits above the keyboard — no extra offset needed.
+    // Adding an offset would cause double-adjustment (window shrinks + we move up).
+    // iOS: no adjustResize; we must move up manually to stay above the keyboard.
+    if (Platform.OS !== 'ios') return;
 
     const onShow = (e: KeyboardEvent) => {
       setKeyboardHeight(e.endCoordinates?.height ?? 0);
     };
     const onHide = () => setKeyboardHeight(0);
 
-    const showSub = Keyboard.addListener(showEvent, onShow);
-    const hideSub = Keyboard.addListener(hideEvent, onHide);
+    const showSub = Keyboard.addListener('keyboardWillShow', onShow);
+    const hideSub = Keyboard.addListener('keyboardWillHide', onHide);
 
     return () => {
       showSub.remove();
@@ -47,9 +50,7 @@ export function FixedBottom({ children, colors = lightColors }: FixedBottomProps
     };
   }, []);
 
-  // When keyboard is open we sit tight above it — no extra safe-area padding
-  // (the keyboard already covers the home indicator area). When closed, we
-  // respect the safe area + a comfortable gap.
+  // iOS: lift above keyboard. Android: stay at 0 (adjustResize handles positioning).
   const bottomOffset = keyboardHeight > 0 ? keyboardHeight : 0;
   const verticalPadding =
     keyboardHeight > 0 ? 12 : Math.max(insets.bottom, 16) + 16;

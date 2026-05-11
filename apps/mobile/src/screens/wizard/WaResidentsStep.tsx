@@ -221,7 +221,7 @@ export function WaResidentsStep({ colors = lightColors, onNext, onBack }: WaResi
   };
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={[styles.root, { backgroundColor: colors.bg }]}>
         <Header
           step={stepNum}

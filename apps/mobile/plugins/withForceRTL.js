@@ -39,8 +39,8 @@ const OBJC_BLOCK = `
 const KOTLIN_BLOCK = `
     // ${MARKER}: Force RTL natively before React Native initializes.
     val i18nUtil = com.facebook.react.modules.i18nmanager.I18nUtil.getInstance()
-    i18nUtil.allowRTL(applicationContext, true)
-    i18nUtil.forceRTL(applicationContext, true)
+    i18nUtil.allowRTL(this, true)
+    i18nUtil.forceRTL(this, true)
 `;
 
 const JAVA_BLOCK = `
@@ -85,24 +85,25 @@ function injectAndroid(contents, language) {
   }
 
   if (language === 'kt') {
-    // Inject BEFORE super.onCreate() so RTL is set before any RN initialization.
-    // I18nUtil writes to SharedPreferences synchronously; RN bridge reads it later.
-    const re = /(override\s+fun\s+onCreate\(\)\s*\{)/;
+    // Inject AFTER super.onCreate() — `this` (Application) is safe to use only
+    // after super has initialized. I18nUtil writes to SharedPreferences
+    // synchronously; RN bridge reads it later when it initializes.
+    const re = /(super\.onCreate\(\))/;
     if (!re.test(contents)) {
-      console.warn('[withForceRTL] Android (kt): onCreate not found — RTL not injected');
+      console.warn('[withForceRTL] Android (kt): super.onCreate() not found — RTL not injected');
       return contents;
     }
-    console.log('[withForceRTL] Android (kt): injection SUCCESS (before super.onCreate)');
+    console.log('[withForceRTL] Android (kt): injection SUCCESS (after super.onCreate)');
     return contents.replace(re, `$1\n${KOTLIN_BLOCK}`);
   }
 
-  // Java — inject BEFORE super.onCreate() for same reason
-  const re = /(public\s+void\s+onCreate\(\)\s*\{)/;
+  // Java — inject AFTER super.onCreate() for same reason
+  const re = /(super\.onCreate\(\);)/;
   if (!re.test(contents)) {
-    console.warn('[withForceRTL] Android (java): onCreate not found — RTL not injected');
+    console.warn('[withForceRTL] Android (java): super.onCreate() not found — RTL not injected');
     return contents;
   }
-  console.log('[withForceRTL] Android (java): injection SUCCESS (before super.onCreate)');
+  console.log('[withForceRTL] Android (java): injection SUCCESS (after super.onCreate)');
   return contents.replace(re, `$1\n${JAVA_BLOCK}`);
 }
 
