@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, KeyboardAvoidingView, ScrollView, Platform, Alert, Pressable, Linking } from 'react-native';
+import { View, Text, StyleSheet, Alert, Pressable, Linking } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BrandMark } from '@/components/shared';
-import { Button, Field } from '@/components/primitives';
+import { Button, Field, KeyboardAwareScrollView } from '@/components/primitives';
 import { Icons } from '@/components/icons';
 import { lightColors, fonts } from '@/theme/tokens';
 import { signInWithUsername } from '@/services/auth';
@@ -42,14 +42,10 @@ export function LoginScreen({ colors = lightColors, onLoggedIn }: LoginScreenPro
   };
 
   return (
-    <KeyboardAvoidingView
-      style={[styles.root, { backgroundColor: colors.bg }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <ScrollView
+    <View style={[styles.root, { backgroundColor: colors.bg }]}>
+      <KeyboardAwareScrollView
+        style={styles.root}
         contentContainerStyle={[styles.inner, { paddingTop: insets.top + 40, paddingBottom: insets.bottom + 32 }]}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
         bounces={false}
       >
         {/* Brand */}
@@ -134,8 +130,8 @@ export function LoginScreen({ colors = lightColors, onLoggedIn }: LoginScreenPro
             מדיניות הפרטיות
           </Text>
         </Text>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      </KeyboardAwareScrollView>
+    </View>
   );
 }
 

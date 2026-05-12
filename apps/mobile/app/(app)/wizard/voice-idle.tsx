@@ -1,13 +1,27 @@
 import { View, Text, Pressable, StyleSheet, StatusBar } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Header } from '@/components/layout';
 import { Icons } from '@/components/icons';
 import { fonts, voiceColors } from '@/theme/tokens';
 import { useWizardStep } from '@/hooks/useWizardStep';
+import { useWizard } from '@/context/WizardContext';
+import { ROUTES } from '@/navigation/constants';
 
 export default function VoiceIdlePage() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const { goNext, goBack } = useWizardStep();
+  const wizard = useWizard();
+
+  // Manual typing bypasses recording entirely.
+  // Clear any prior audio + transcript so the transcript page renders an empty
+  // editor instead of trying to re-transcribe a stale recording.
+  const handleManualTyping = () => {
+    wizard.setRecordedAudioUri('');
+    wizard.setVoiceTranscript('');
+    router.push(ROUTES.WIZARD_TRANSCRIPT);
+  };
 
   return (
     <View style={styles.root}>
@@ -38,14 +52,24 @@ export default function VoiceIdlePage() {
         ))}
       </View>
 
-      <View style={[styles.micSection, { paddingBottom: insets.bottom + 32 }]}>
-        <Pressable
-          onPress={goNext}
-          style={styles.bigMic}
-        >
+      <View style={[styles.micSection, { paddingBottom: insets.bottom + 24 }]}>
+        <Pressable onPress={goNext} style={styles.bigMic}>
           <Icons.micFill size={48} color={voiceColors.bg} />
         </Pressable>
         <Text style={[styles.tapHint, { fontFamily: fonts.sans }]}>הקש כדי להתחיל</Text>
+
+        {/* Secondary action — manual typing bypass.
+            Subdued styling keeps the mic as the primary affordance while making
+            "כתוב ידנית" reachable for technicians who can't record (on a call,
+            noisy environment, etc.). */}
+        <Pressable
+          onPress={handleManualTyping}
+          style={({ pressed }) => [styles.manualBtn, pressed && styles.manualBtnPressed]}
+          hitSlop={6}
+        >
+          <Icons.pencil size={16} color={voiceColors.sageLight} />
+          <Text style={[styles.manualBtnText, { fontFamily: fonts.sans }]}>כתוב ידנית במקום</Text>
+        </Pressable>
       </View>
     </View>
   );
@@ -98,4 +122,25 @@ const styles = StyleSheet.create({
     elevation: 10,
   },
   tapHint: { color: voiceColors.sageLight, fontSize: 13, fontWeight: '600' },
+  manualBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    marginTop: 4,
+  },
+  manualBtnPressed: {
+    backgroundColor: 'rgba(255,255,255,0.12)',
+  },
+  manualBtnText: {
+    color: voiceColors.sageLight,
+    fontSize: 14,
+    fontWeight: '600',
+    letterSpacing: 0.2,
+  },
 });

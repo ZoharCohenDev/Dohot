@@ -1,10 +1,9 @@
 import React, { useState, useRef } from 'react';
 import {
-  View, Text, ScrollView, StyleSheet, Pressable, Alert,
-  TextInput, KeyboardAvoidingView, Platform,
+  View, Text, StyleSheet, Pressable, Alert, TextInput,
 } from 'react-native';
-import { Header, FixedBottom, ProgressBar } from '@/components/layout';
-import { Button } from '@/components/primitives';
+import { Header, ProgressBar, KeyboardAwareFormLayout } from '@/components/layout';
+import { Button, type KeyboardAwareScrollViewHandle } from '@/components/primitives';
 import { Icons } from '@/components/icons';
 import { lightColors, fonts } from '@/theme/tokens';
 import { useWizard, type WizardQuoteItem } from '@/context/WizardContext';
@@ -31,7 +30,7 @@ export function QuoteItemsStep({ colors = lightColors, onNext, onBack }: QuoteIt
   const wizard = useWizard();
   const { progress, stepNum, stepOf, goNext, goBack } = useWizardStep();
   const { triggerExit } = useWizardExit();
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<KeyboardAwareScrollViewHandle>(null);
 
   const [items, setItems] = useState<WizardQuoteItem[]>(wizard.state.quoteItems);
   const [notes, setNotes] = useState(wizard.state.quoteNotes);
@@ -95,7 +94,7 @@ export function QuoteItemsStep({ colors = lightColors, onNext, onBack }: QuoteIt
     });
     setEditingKey(item.key);
     setErrors({});
-    scrollRef.current?.scrollTo({ y: 0, animated: true });
+    scrollRef.current?.scrollToPosition(0, 0, true);
   };
 
   const handleDelete = (key: string) => {
@@ -123,36 +122,43 @@ export function QuoteItemsStep({ colors = lightColors, onNext, onBack }: QuoteIt
   const isEditing = editingKey !== null;
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <View style={[styles.root, { backgroundColor: colors.bg }]}>
-        <Header
-          step={stepNum}
-          ofSteps={stepOf}
-          onBack={onBack ?? goBack}
+    <KeyboardAwareFormLayout
+      ref={scrollRef}
+      colors={colors}
+      header={
+        <>
+          <Header
+            step={stepNum}
+            ofSteps={stepOf}
+            onBack={onBack ?? goBack}
+            colors={colors}
+            action={
+              <Pressable
+                onPress={triggerExit}
+                style={[styles.exitBtn, { backgroundColor: colors.bgElev, borderColor: colors.line }]}
+                hitSlop={6}
+              >
+                <Icons.home size={20} color={colors.ink2} />
+              </Pressable>
+            }
+          />
+          <ProgressBar value={progress} colors={colors} />
+        </>
+      }
+      contentContainerStyle={styles.content}
+      bottomAction={
+        <Button
+          kind="primary"
+          size="lg"
+          full
+          onPress={handleNext}
+          iconRight={<Icons.back size={20} color={colors.bg} />}
           colors={colors}
-          action={
-            <Pressable
-              onPress={triggerExit}
-              style={[styles.exitBtn, { backgroundColor: colors.bgElev, borderColor: colors.line }]}
-              hitSlop={6}
-            >
-              <Icons.home size={20} color={colors.ink2} />
-            </Pressable>
-          }
-        />
-        <ProgressBar value={progress} colors={colors} />
-
-        <ScrollView
-          ref={scrollRef}
-          style={styles.scroll}
-          contentContainerStyle={styles.content}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
         >
+          המשך לתצוגה מקדימה
+        </Button>
+      }
+    >
           {/* Title */}
           <View style={styles.titleBlock}>
             <Text style={[styles.title, { color: colors.ink1, fontFamily: fonts.serif }]}>
@@ -406,28 +412,11 @@ export function QuoteItemsStep({ colors = lightColors, onNext, onBack }: QuoteIt
               />
             </View>
           </View>
-        </ScrollView>
-
-        <FixedBottom colors={colors}>
-          <Button
-            kind="primary"
-            size="lg"
-            full
-            onPress={handleNext}
-            iconRight={<Icons.back size={20} color={colors.bg} />}
-            colors={colors}
-          >
-            המשך לתצוגה מקדימה
-          </Button>
-        </FixedBottom>
-      </View>
-    </KeyboardAvoidingView>
+    </KeyboardAwareFormLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
-  scroll: { flex: 1 },
   content: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 140, gap: 16 },
 
   titleBlock: { gap: 6 },

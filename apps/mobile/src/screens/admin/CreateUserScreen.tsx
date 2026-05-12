@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, Alert, Pressable,
 } from 'react-native';
-import { Header, FixedBottom } from '@/components/layout';
-import { Button, Field, Card, KeyboardAwareScrollView } from '@/components/primitives';
+import { Header, KeyboardAwareFormLayout } from '@/components/layout';
+import { Button, Field, Card } from '@/components/primitives';
 import { Icons } from '@/components/icons';
 import { lightColors, fonts } from '@/theme/tokens';
 import { adminCreateUser } from '@/services/adminApi';
@@ -78,19 +78,32 @@ export function CreateUserScreen({ colors = lightColors, onDone, onBack }: Creat
   };
 
   return (
-    <View style={[styles.root, { backgroundColor: colors.bg }]}>
-      <Header
-        onBack={onBack}
-        large
-        title="הוסף טכנאי"
-        subtitle="יצירת חשבון משתמש חדש"
-        colors={colors}
-      />
-
-      <KeyboardAwareScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.content}
-      >
+    <KeyboardAwareFormLayout
+      colors={colors}
+      header={
+        <Header
+          onBack={onBack}
+          large
+          title="הוסף טכנאי"
+          subtitle="יצירת חשבון משתמש חדש"
+          colors={colors}
+        />
+      }
+      contentContainerStyle={styles.content}
+      bottomAction={
+        <Button
+          kind="primary"
+          size="lg"
+          full
+          onPress={handleSave}
+          disabled={saving}
+          iconRight={<Icons.back size={20} color={colors.bg} />}
+          colors={colors}
+        >
+          {saving ? 'יוצר...' : 'צור משתמש'}
+        </Button>
+      }
+    >
         {/* Personal */}
         <Field
           label="שם מלא"
@@ -210,29 +223,12 @@ export function CreateUserScreen({ colors = lightColors, onDone, onBack }: Creat
             </Text>
           </View>
         </Card>
-      </KeyboardAwareScrollView>
-
-      <FixedBottom colors={colors}>
-        <Button
-          kind="primary"
-          size="lg"
-          full
-          onPress={handleSave}
-          disabled={saving}
-          iconRight={<Icons.back size={20} color={colors.bg} />}
-          colors={colors}
-        >
-          {saving ? 'יוצר...' : 'צור משתמש'}
-        </Button>
-      </FixedBottom>
-    </View>
+    </KeyboardAwareFormLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
-  scroll: { flex: 1 },
-  content: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 120, gap: 14 },
+  content: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 140, gap: 14 },
   twoCol: { flexDirection: 'row-reverse', gap: 12 },
   half: { flex: 1 },
   sectionLabel: { fontSize: 13, fontWeight: '700', marginBottom: 10, letterSpacing: -0.1, textAlign: 'right' },

@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  View, Text, Pressable, ScrollView, StyleSheet, ActivityIndicator, Keyboard,
+  View, Text, Pressable, StyleSheet, ActivityIndicator, Keyboard,
 } from 'react-native';
-import { Header, FixedBottom, ProgressBar } from '@/components/layout';
+import { Header, ProgressBar, KeyboardAwareFormLayout } from '@/components/layout';
 import { Button, Field } from '@/components/primitives';
 import { Avatar } from '@/components/shared';
 import { Icons } from '@/components/icons';
@@ -156,30 +156,42 @@ export function CustomerStep({
   };
 
   return (
-    <View style={[styles.root, { backgroundColor: colors.bg }]}>
-      <Header
-        step={stepNum}
-        ofSteps={stepOf}
-        onBack={onBack ?? goBack}
-        colors={colors}
-        action={
-          <Pressable
-            onPress={triggerExit}
-            style={[styles.exitBtn, { backgroundColor: colors.bgElev, borderColor: colors.line }]}
-            hitSlop={6}
-          >
-            <Icons.home size={20} color={colors.ink2} />
-          </Pressable>
-        }
-      />
-      <ProgressBar value={progress} colors={colors} />
-
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="always"
-      >
+    <KeyboardAwareFormLayout
+      colors={colors}
+      header={
+        <>
+          <Header
+            step={stepNum}
+            ofSteps={stepOf}
+            onBack={onBack ?? goBack}
+            colors={colors}
+            action={
+              <Pressable
+                onPress={triggerExit}
+                style={[styles.exitBtn, { backgroundColor: colors.bgElev, borderColor: colors.line }]}
+                hitSlop={6}
+              >
+                <Icons.home size={20} color={colors.ink2} />
+              </Pressable>
+            }
+          />
+          <ProgressBar value={progress} colors={colors} />
+        </>
+      }
+      contentContainerStyle={styles.content}
+      bottomAction={
+        <Button
+          kind="primary"
+          size="lg"
+          full
+          onPress={handleNext}
+          iconRight={<Icons.back size={20} color={colors.bg} />}
+          colors={colors}
+        >
+          {config.customerNextLabel}
+        </Button>
+      }
+    >
         <View style={styles.titleBlock}>
           <Text style={[styles.title, { color: colors.ink1, fontFamily: fonts.serif }]}>
             למי המסמך?
@@ -368,31 +380,15 @@ export function CustomerStep({
             ))}
           </View>
         </View>
-      </ScrollView>
-
-      <FixedBottom colors={colors}>
-        <Button
-          kind="primary"
-          size="lg"
-          full
-          onPress={handleNext}
-          iconRight={<Icons.back size={20} color={colors.bg} />}
-          colors={colors}
-        >
-          {config.customerNextLabel}
-        </Button>
-      </FixedBottom>
-    </View>
+      </KeyboardAwareFormLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
   exitBtn: {
     width: 44, height: 44, borderRadius: 999, borderWidth: 1,
     alignItems: 'center', justifyContent: 'center',
   },
-  scroll: { flex: 1 },
   content: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 140, gap: 14 },
   titleBlock: { gap: 6, marginBottom: 8 },
   title: { fontSize: 30, fontWeight: '500', lineHeight: 33, letterSpacing: -0.6, textAlign: 'right' },

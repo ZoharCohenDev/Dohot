@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, TextInput, ScrollView, StyleSheet, Pressable, ActivityIndicator,
-  KeyboardAvoidingView, Platform,
+  View, Text, TextInput, StyleSheet, Pressable, ActivityIndicator,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Header, ProgressBar } from '@/components/layout';
+import { Header, ProgressBar, KeyboardAwareFormLayout } from '@/components/layout';
 import { Button } from '@/components/primitives';
 import { Icons } from '@/components/icons';
 import { lightColors, fonts } from '@/theme/tokens';
@@ -30,7 +28,6 @@ export function TranscriptReviewScreen({
 }: TranscriptReviewScreenProps) {
   const wizard = useWizard();
   const { triggerExit } = useWizardExit();
-  const insets = useSafeAreaInsets();
   const [transcript, setTranscript] = useState(wizard.currentIssue.description);
   const [notes, setNotes] = useState('');
 
@@ -86,34 +83,57 @@ export function TranscriptReviewScreen({
   })();
 
   return (
-    <KeyboardAvoidingView
-      style={[styles.root, { backgroundColor: colors.bg }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <Header
-        step={4}
-        ofSteps={5}
-        onBack={onBack}
-        colors={colors}
-        action={
-          <Pressable
-            onPress={triggerExit}
-            style={[styles.exitBtn, { backgroundColor: colors.bgElev, borderColor: colors.line }]}
-            hitSlop={6}
+    <KeyboardAwareFormLayout
+      colors={colors}
+      header={
+        <>
+          <Header
+            step={4}
+            ofSteps={5}
+            onBack={onBack}
+            colors={colors}
+            action={
+              <Pressable
+                onPress={triggerExit}
+                style={[styles.exitBtn, { backgroundColor: colors.bgElev, borderColor: colors.line }]}
+                hitSlop={6}
+              >
+                <Icons.home size={20} color={colors.ink2} />
+              </Pressable>
+            }
+          />
+          <ProgressBar value={4 / 5} colors={colors} />
+        </>
+      }
+      contentContainerStyle={styles.content}
+      bottomAction={
+        <View style={styles.actionStack}>
+          <Button
+            kind="primary"
+            size="lg"
+            full
+            disabled={isTranscribing}
+            onPress={handleSend}
+            iconRight={<Icons.sparkle size={18} color={colors.bg} />}
+            colors={colors}
           >
-            <Icons.home size={20} color={colors.ink2} />
-          </Pressable>
-        }
-      />
-      <ProgressBar value={4 / 5} colors={colors} />
-
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-        automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
-      >
+            {isTranscribing ? 'מתמלל…' : onAddIssue ? 'סיים ושלח ל-AI' : 'שלח ל-AI'}
+          </Button>
+          {onAddIssue && (
+            <Button
+              kind="ghost"
+              size="lg"
+              full
+              disabled={isTranscribing}
+              onPress={handleAddIssue}
+              colors={colors}
+            >
+              + הוסף תקלה
+            </Button>
+          )}
+        </View>
+      }
+    >
         {/* Title */}
         <View style={styles.titleBlock}>
           <View style={[styles.aiTag, { backgroundColor: colors.aiBg }]}>
@@ -201,56 +221,17 @@ export function TranscriptReviewScreen({
             </Text>
           </View>
         )}
-      </ScrollView>
-
-      {/* Action bar — regular flex child so KeyboardAvoidingView lifts it
-          above the keyboard. Absolute positioning breaks keyboard avoidance. */}
-      <View
-        style={[
-          styles.actionBar,
-          {
-            backgroundColor: colors.bg,
-            borderTopColor: colors.line,
-            paddingBottom: Math.max(insets.bottom, 16),
-          },
-        ]}
-      >
-        <Button
-          kind="primary"
-          size="lg"
-          full
-          disabled={isTranscribing}
-          onPress={handleSend}
-          iconRight={<Icons.sparkle size={18} color={colors.bg} />}
-          colors={colors}
-        >
-          {isTranscribing ? 'מתמלל…' : onAddIssue ? 'סיים ושלח ל-AI' : 'שלח ל-AI'}
-        </Button>
-        {onAddIssue && (
-          <Button
-            kind="ghost"
-            size="lg"
-            full
-            disabled={isTranscribing}
-            onPress={handleAddIssue}
-            colors={colors}
-          >
-            + הוסף תקלה
-          </Button>
-        )}
-      </View>
-    </KeyboardAvoidingView>
+    </KeyboardAwareFormLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
   exitBtn: {
     width: 44, height: 44, borderRadius: 999, borderWidth: 1,
     alignItems: 'center', justifyContent: 'center',
   },
-  scroll: { flex: 1 },
-  content: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 80, gap: 16 },
+  content: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 140, gap: 16 },
+  actionStack: { gap: 10 },
 
   titleBlock: { gap: 8 },
   aiTag: {
@@ -317,11 +298,4 @@ const styles = StyleSheet.create({
     borderRadius: 14,
   },
   infoText: { flex: 1, fontSize: 13, lineHeight: 20, textAlign: 'right' },
-
-  actionBar: {
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    gap: 10,
-    borderTopWidth: StyleSheet.hairlineWidth,
-  },
 });

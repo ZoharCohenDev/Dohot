@@ -21,14 +21,40 @@ const tabs: Array<{ id: TabId; label: string; Icon: (p: { size?: number; stroke?
   { id: 'me', label: 'אני', Icon: Icons.user },
 ];
 
+// Bar geometry — exported so screens can reserve the exact space above it.
+const NAV_HEIGHT = 72;
+const NAV_BOTTOM_GAP = 8;       // gap between bar and safe-area bottom
+const NAV_BOTTOM_MIN = 16;      // minimum gap on devices without a safe area
+const NAV_HORIZONTAL_INSET = 12;
+const CONTENT_BUFFER = 24;      // visual buffer between content and the bar
+
+/**
+ * Padding needed under scrollable content so the last item is not clipped by
+ * the floating BottomNav on any device (notched iPhones, gesture-nav Android,
+ * older devices). Use this on the `contentContainerStyle.paddingBottom` of any
+ * screen that renders a BottomNav.
+ */
+export function useBottomNavSpacing(): number {
+  const insets = useSafeAreaInsets();
+  const navBottomOffset = Math.max(insets.bottom + NAV_BOTTOM_GAP, NAV_BOTTOM_MIN);
+  return NAV_HEIGHT + navBottomOffset + CONTENT_BUFFER;
+}
+
 export function BottomNav({ active = 'home', onTab, colors = lightColors }: BottomNavProps) {
   const insets = useSafeAreaInsets();
+  const navBottomOffset = Math.max(insets.bottom + NAV_BOTTOM_GAP, NAV_BOTTOM_MIN);
 
   return (
     <View
       style={[
         styles.nav,
-        { backgroundColor: colors.bgElev, bottom: Math.max(insets.bottom + 8, 16) },
+        {
+          backgroundColor: colors.bgElev,
+          bottom: navBottomOffset,
+          // Match border tint to the active palette so a dark hairline doesn't
+          // appear as a faint asymmetry on the dark-mode bar.
+          borderColor: colors.line,
+        },
         shadows.lg,
       ]}
     >
@@ -80,9 +106,12 @@ export function BottomNav({ active = 'home', onTab, colors = lightColors }: Bott
 const styles = StyleSheet.create({
   nav: {
     position: 'absolute',
-    left: 12,
-    right: 12,
-    height: 72,
+    // Logical start/end so the bar stays symmetrically inset regardless of
+    // the runtime RTL/`doLeftAndRightSwapInRTL` state — physical `left/right`
+    // can flip on some Android builds and shift the bar visually.
+    start: NAV_HORIZONTAL_INSET,
+    end: NAV_HORIZONTAL_INSET,
+    height: NAV_HEIGHT,
     borderRadius: radii.xl,
     flexDirection: 'row-reverse',
     alignItems: 'center',
@@ -91,7 +120,6 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
     paddingTop: 6,
     borderWidth: 1,
-    borderColor: 'rgba(27,25,22,0.06)',
   },
   tabBtn: {
     flex: 1,

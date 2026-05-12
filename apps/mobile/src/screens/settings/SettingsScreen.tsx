@@ -2,12 +2,12 @@ import React from 'react';
 import {
   View, Pressable, ScrollView, Modal, TextInput,
   StyleSheet, Alert, PanResponder, ActivityIndicator, Image,
-  KeyboardAvoidingView, Platform, Linking,
+  Linking,
 } from 'react-native';
 import Svg, { Path as SvgPath } from 'react-native-svg';
 import { SvgXml } from 'react-native-svg';
-import { Header, BottomNav, type TabId } from '@/components/layout';
-import { Card, Toggle, Button, ScaledText } from '@/components/primitives';
+import { Header, BottomNav, useBottomNavSpacing, type TabId } from '@/components/layout';
+import { Card, Toggle, Button, ScaledText, KeyboardAwareScrollView } from '@/components/primitives';
 import { Avatar } from '@/components/shared';
 import { Icons } from '@/components/icons';
 import { lightColors, fonts } from '@/theme/tokens';
@@ -41,10 +41,7 @@ interface SheetProps {
 function BottomSheet({ visible, onClose, title, colors, children, scrollable = true }: SheetProps) {
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <KeyboardAvoidingView
-        style={styles.overlay}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
+      <View style={styles.overlay}>
         <Pressable style={styles.backdrop} onPress={onClose} />
         <View style={[styles.sheet, { backgroundColor: colors.bg }]}>
           <View style={[styles.sheetHandle, { backgroundColor: colors.line }]} />
@@ -55,19 +52,18 @@ function BottomSheet({ visible, onClose, title, colors, children, scrollable = t
             </Pressable>
           </View>
           {scrollable ? (
-            <ScrollView
+            <KeyboardAwareScrollView
               contentContainerStyle={styles.sheetContent}
-              keyboardShouldPersistTaps="handled"
-              automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
-              showsVerticalScrollIndicator={false}
+              extraScrollHeight={140}
+              extraHeight={140}
             >
               {children}
-            </ScrollView>
+            </KeyboardAwareScrollView>
           ) : (
             <View style={styles.sheetContent}>{children}</View>
           )}
         </View>
-      </KeyboardAvoidingView>
+      </View>
     </Modal>
   );
 }
@@ -984,6 +980,7 @@ export function SettingsScreen({ dark = false, colors = lightColors, onNavigate,
   const { businessProfile, daysUntilExpiration, isSubscriptionExpired, isSubscriptionWarning } = useAuth();
   const { fontSizePref } = useSettings();
   const [openModal, setModal] = React.useState<ModalKey>(null);
+  const navSpacing = useBottomNavSpacing();
 
   const displayName = businessProfile?.full_name || businessProfile?.business_name || 'משתמש';
   const businessName = businessProfile?.business_name || '';
@@ -1021,7 +1018,7 @@ export function SettingsScreen({ dark = false, colors = lightColors, onNavigate,
     <View style={[styles.root, { backgroundColor: colors.bg }]}>
       <Header large title="ההגדרות שלי" colors={colors} />
 
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.scroll} contentContainerStyle={[styles.content, { paddingBottom: navSpacing }]} showsVerticalScrollIndicator={false}>
         {/* Profile card */}
         <Card padding={20} colors={colors} style={{ marginBottom: 18 }}>
           <Pressable style={styles.profileRow} onPress={() => setModal('business')}>
@@ -1156,7 +1153,7 @@ const styles = StyleSheet.create({
   // BottomSheet
   overlay: { flex: 1, justifyContent: 'flex-end' },
   backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)' },
-  sheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingBottom: 34 },
+  sheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingBottom: 34, maxHeight: '90%' },
   sheetHandle: { width: 36, height: 4, borderRadius: 2, alignSelf: 'center', marginTop: 10, marginBottom: 4 },
   sheetHeader: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 14 },
   sheetTitle: { fontSize: 18, fontWeight: '700' },

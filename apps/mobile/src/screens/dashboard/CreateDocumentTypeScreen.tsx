@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BottomNav, type TabId } from '@/components/layout';
+import { BottomNav, useBottomNavSpacing, type TabId } from '@/components/layout';
 import { Icons } from '@/components/icons';
 import { lightColors, fonts, shadows } from '@/theme/tokens';
 import { DOCUMENT_TYPES } from '@/config/documentTypes';
@@ -46,12 +46,13 @@ export function CreateDocumentTypeScreen({
   onNavigate,
 }: CreateDocumentTypeScreenProps) {
   const insets = useSafeAreaInsets();
+  const navSpacing = useBottomNavSpacing();
 
   return (
     <View style={[styles.root, { backgroundColor: colors.bg }]}>
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={[styles.content, { paddingTop: insets.top + 20 }]}
+        contentContainerStyle={[styles.content, { paddingTop: insets.top + 20, paddingBottom: navSpacing }]}
         showsVerticalScrollIndicator={false}
       >
         {/* Header text */}

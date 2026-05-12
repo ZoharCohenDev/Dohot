@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
 import {
-  View, Text, ScrollView, StyleSheet, Pressable, TextInput, Alert,
-  KeyboardAvoidingView, Platform, Modal,
+  View, Text, StyleSheet, Pressable, TextInput, Alert, Modal,
 } from 'react-native';
-import { Header, FixedBottom, ProgressBar } from '@/components/layout';
-import { Button } from '@/components/primitives';
+import { Header, ProgressBar, KeyboardAwareFormLayout } from '@/components/layout';
+import { Button, KeyboardAwareScrollView } from '@/components/primitives';
 import { Icons } from '@/components/icons';
 import { lightColors, fonts } from '@/theme/tokens';
 import { useWizard, type WaResident } from '@/context/WizardContext';
@@ -57,10 +56,7 @@ function ResidentFormModal({
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <KeyboardAvoidingView
-        style={styles.modalOverlay}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
+      <View style={styles.modalOverlay}>
         <View style={[styles.modalSheet, { backgroundColor: colors.bg }]}>
           <View style={[styles.modalHandle, { backgroundColor: colors.line }]} />
 
@@ -73,10 +69,10 @@ function ResidentFormModal({
             </Pressable>
           </View>
 
-          <ScrollView
+          <KeyboardAwareScrollView
             contentContainerStyle={styles.modalContent}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
+            extraScrollHeight={140}
+            extraHeight={140}
           >
             <Field
               label="שם מלא *"
@@ -123,7 +119,7 @@ function ResidentFormModal({
               multiline
               colors={colors}
             />
-          </ScrollView>
+          </KeyboardAwareScrollView>
 
           <View style={[styles.modalActions, { borderTopColor: colors.line }]}>
             <Button kind="primary" size="lg" full onPress={handleSave} colors={colors}>
@@ -131,7 +127,7 @@ function ResidentFormModal({
             </Button>
           </View>
         </View>
-      </KeyboardAvoidingView>
+      </View>
     </Modal>
   );
 }
@@ -221,31 +217,42 @@ export function WaResidentsStep({ colors = lightColors, onNext, onBack }: WaResi
   };
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <View style={[styles.root, { backgroundColor: colors.bg }]}>
-        <Header
-          step={stepNum}
-          ofSteps={stepOf}
-          onBack={onBack ?? goBack}
+    <KeyboardAwareFormLayout
+      colors={colors}
+      header={
+        <>
+          <Header
+            step={stepNum}
+            ofSteps={stepOf}
+            onBack={onBack ?? goBack}
+            colors={colors}
+            action={
+              <Pressable
+                onPress={triggerExit}
+                style={[styles.exitBtn, { backgroundColor: colors.bgElev, borderColor: colors.line }]}
+                hitSlop={6}
+              >
+                <Icons.home size={20} color={colors.ink2} />
+              </Pressable>
+            }
+          />
+          <ProgressBar value={progress} colors={colors} />
+        </>
+      }
+      contentContainerStyle={styles.content}
+      bottomAction={
+        <Button
+          kind="primary"
+          size="lg"
+          full
+          onPress={handleNext}
+          iconRight={<Icons.back size={20} color={colors.bg} />}
           colors={colors}
-          action={
-            <Pressable
-              onPress={triggerExit}
-              style={[styles.exitBtn, { backgroundColor: colors.bgElev, borderColor: colors.line }]}
-              hitSlop={6}
-            >
-              <Icons.home size={20} color={colors.ink2} />
-            </Pressable>
-          }
-        />
-        <ProgressBar value={progress} colors={colors} />
-
-        <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={styles.content}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
         >
+          המשך לפירוט עבודות
+        </Button>
+      }
+    >
           <Text style={[styles.title, { color: colors.ink1, fontFamily: fonts.serif }]}>
             דיירים / משתתפים בהסכם
           </Text>
@@ -321,21 +328,6 @@ export function WaResidentsStep({ colors = lightColors, onNext, onBack }: WaResi
               </Text>
             </View>
           )}
-        </ScrollView>
-
-        <FixedBottom colors={colors}>
-          <Button
-            kind="primary"
-            size="lg"
-            full
-            onPress={handleNext}
-            iconRight={<Icons.back size={20} color={colors.bg} />}
-            colors={colors}
-          >
-            המשך לפירוט עבודות
-          </Button>
-        </FixedBottom>
-      </View>
 
       <ResidentFormModal
         visible={modalVisible}
@@ -344,13 +336,11 @@ export function WaResidentsStep({ colors = lightColors, onNext, onBack }: WaResi
         onClose={() => setModalVisible(false)}
         colors={colors}
       />
-    </KeyboardAvoidingView>
+    </KeyboardAwareFormLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
-  scroll: { flex: 1 },
   content: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 140, gap: 14 },
   title: { fontSize: 30, fontWeight: '500', lineHeight: 33, letterSpacing: -0.6, textAlign: 'right' },
   subtitle: { fontSize: 14, textAlign: 'right' },

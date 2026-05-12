@@ -4,7 +4,7 @@ import {
   StyleSheet, Alert, Linking,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BottomNav, type TabId } from '@/components/layout';
+import { BottomNav, useBottomNavSpacing, type TabId } from '@/components/layout';
 import { ScaledText } from '@/components/primitives';
 import { Avatar } from '@/components/shared';
 import { Icons } from '@/components/icons';
@@ -133,6 +133,7 @@ function QuoteCard({
 
 export function DashboardScreen({ colors = lightColors, onNavigate, onCreateType }: DashboardScreenProps) {
   const insets = useSafeAreaInsets();
+  const navSpacing = useBottomNavSpacing();
   const { businessProfile, daysUntilExpiration, isSubscriptionExpired, isSubscriptionWarning } = useAuth();
   const { stats } = useDashboard();
   const { items, loading, error, toggleFollowUp, deleteQuote } = useQuoteFollowUp();
@@ -168,7 +169,7 @@ export function DashboardScreen({ colors = lightColors, onNavigate, onCreateType
         data={items}
         keyExtractor={(item) => item.id}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.content, { paddingTop: insets.top + 12 }]}
+        contentContainerStyle={[styles.content, { paddingTop: insets.top + 12, paddingBottom: navSpacing }]}
         ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
         ListHeaderComponent={() => (
           <>

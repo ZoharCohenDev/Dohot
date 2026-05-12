@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Pressable, FlatList, ActivityIndicator, StyleSheet, Alert } from 'react-native';
-import { Header, BottomNav, type TabId } from '@/components/layout';
+import { Header, BottomNav, useBottomNavSpacing, type TabId } from '@/components/layout';
 import { Pill, ScaledText } from '@/components/primitives';
 import { Icons } from '@/components/icons';
 import { lightColors, fonts } from '@/theme/tokens';
@@ -60,6 +60,7 @@ function relativeDate(iso: string): string {
 export function DocumentsScreen({ colors = lightColors, onNavigate }: DocumentsScreenProps) {
   const [activeTab, setActiveTab] = React.useState(0);
   const { documents, loading, error, refetch } = useDocuments(TABS[activeTab]?.type);
+  const navSpacing = useBottomNavSpacing();
 
   const handleLongPressDelete = (docId: string, docTitle: string) => {
     Alert.alert(
@@ -140,7 +141,7 @@ export function DocumentsScreen({ colors = lightColors, onNavigate }: DocumentsS
             data={documents}
             keyExtractor={(item) => item.id}
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.listContent}
+            contentContainerStyle={[styles.listContent, { paddingBottom: navSpacing }]}
             renderItem={({ item }) => {
               const { Icon, iconColor, iconBg } = docTypeStyle(item.type, colors);
               const { color: statusColor, bg: statusBg } = docStatusStyle(item.status, colors);

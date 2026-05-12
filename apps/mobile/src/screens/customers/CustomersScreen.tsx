@@ -3,7 +3,7 @@ import {
   View, Text, Pressable, TextInput, FlatList,
   ActivityIndicator, StyleSheet, Alert, Linking,
 } from 'react-native';
-import { Header, BottomNav, type TabId } from '@/components/layout';
+import { Header, BottomNav, useBottomNavSpacing, type TabId } from '@/components/layout';
 import { ScaledText } from '@/components/primitives';
 import { Avatar } from '@/components/shared';
 import { Icons } from '@/components/icons';
@@ -131,6 +131,7 @@ export function CustomersScreen({ colors = lightColors, onNavigate }: CustomersS
   }, [searchQuery]);
 
   const { customers, total, loading, error, refetch } = useCustomers(debouncedSearch);
+  const navSpacing = useBottomNavSpacing();
 
   const handleLongPress = (customer: CustomerWithStats) => {
     const hasDocuments = customer.documentCount > 0;
@@ -215,7 +216,7 @@ export function CustomersScreen({ colors = lightColors, onNavigate }: CustomersS
             data={customers}
             keyExtractor={(item) => item.id}
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.listContent}
+            contentContainerStyle={[styles.listContent, { paddingBottom: navSpacing }]}
             ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
             renderItem={({ item }) => (
               <CustomerCard

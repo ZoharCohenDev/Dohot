@@ -1,9 +1,8 @@
 import React from 'react';
 import {
-  View, Text, ScrollView, StyleSheet, Pressable, TextInput, Alert,
-  KeyboardAvoidingView, Platform,
+  View, Text, StyleSheet, Pressable, TextInput, Alert,
 } from 'react-native';
-import { Header, FixedBottom, ProgressBar } from '@/components/layout';
+import { Header, ProgressBar, KeyboardAwareFormLayout } from '@/components/layout';
 import { Button } from '@/components/primitives';
 import { Icons } from '@/components/icons';
 import { lightColors, fonts } from '@/theme/tokens';
@@ -91,32 +90,42 @@ export function WaItemsStep({ colors = lightColors, onNext, onBack }: WaItemsSte
   };
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <View style={[styles.root, { backgroundColor: colors.bg }]}>
-        <Header
-          step={stepNum}
-          ofSteps={stepOf}
-          onBack={onBack ?? goBack}
+    <KeyboardAwareFormLayout
+      colors={colors}
+      header={
+        <>
+          <Header
+            step={stepNum}
+            ofSteps={stepOf}
+            onBack={onBack ?? goBack}
+            colors={colors}
+            action={
+              <Pressable
+                onPress={triggerExit}
+                style={[styles.exitBtn, { backgroundColor: colors.bgElev, borderColor: colors.line }]}
+                hitSlop={6}
+              >
+                <Icons.home size={20} color={colors.ink2} />
+              </Pressable>
+            }
+          />
+          <ProgressBar value={progress} colors={colors} />
+        </>
+      }
+      contentContainerStyle={styles.content}
+      bottomAction={
+        <Button
+          kind="primary"
+          size="lg"
+          full
+          onPress={handleNext}
+          iconRight={<Icons.back size={20} color={colors.bg} />}
           colors={colors}
-          action={
-            <Pressable
-              onPress={triggerExit}
-              style={[styles.exitBtn, { backgroundColor: colors.bgElev, borderColor: colors.line }]}
-              hitSlop={6}
-            >
-              <Icons.home size={20} color={colors.ink2} />
-            </Pressable>
-          }
-        />
-        <ProgressBar value={progress} colors={colors} />
-
-        <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={styles.content}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
         >
+          המשך למחיר כולל
+        </Button>
+      }
+    >
           <Text style={[styles.title, { color: colors.ink1, fontFamily: fonts.serif }]}>
             פירוט העבודות
           </Text>
@@ -204,28 +213,11 @@ export function WaItemsStep({ colors = lightColors, onNext, onBack }: WaItemsSte
               הפריטים יופיעו בהסכם בפירוט ממוספר. מחיר כולל יוזן בשלב הבא.
             </Text>
           </View>
-        </ScrollView>
-
-        <FixedBottom colors={colors}>
-          <Button
-            kind="primary"
-            size="lg"
-            full
-            onPress={handleNext}
-            iconRight={<Icons.back size={20} color={colors.bg} />}
-            colors={colors}
-          >
-            המשך למחיר כולל
-          </Button>
-        </FixedBottom>
-      </View>
-    </KeyboardAvoidingView>
+    </KeyboardAwareFormLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
-  scroll: { flex: 1 },
   content: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 140, gap: 14 },
   title: { fontSize: 30, fontWeight: '500', lineHeight: 33, letterSpacing: -0.6, textAlign: 'right' },
   subtitle: { fontSize: 14, textAlign: 'right' },

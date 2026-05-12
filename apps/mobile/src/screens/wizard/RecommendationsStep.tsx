@@ -1,10 +1,10 @@
 import React from 'react';
 import {
-  View, Text, Pressable, ScrollView, StyleSheet, Modal,
-  TextInput, Alert, KeyboardAvoidingView, Platform,
+  View, Text, Pressable, StyleSheet, Modal,
+  TextInput, Alert,
 } from 'react-native';
-import { Header, FixedBottom, ProgressBar } from '@/components/layout';
-import { Button, Card, Pill } from '@/components/primitives';
+import { Header, ProgressBar, KeyboardAwareFormLayout } from '@/components/layout';
+import { Button, Card, Pill, KeyboardAwareScrollView } from '@/components/primitives';
 import { Icons } from '@/components/icons';
 import { lightColors, fonts } from '@/theme/tokens';
 import type { Recommendation } from '@dohot/shared';
@@ -98,10 +98,7 @@ function RecEditModal({ editState, colors, onSave, onClose }: RecEditModalProps)
 
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onClose}>
-      <KeyboardAvoidingView
-        style={styles.editOverlay}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
+      <View style={styles.editOverlay}>
         <Pressable style={styles.editBackdrop} onPress={onClose} />
         <View style={[styles.editSheet, { backgroundColor: colors.bg }]}>
           <View style={[styles.editHandle, { backgroundColor: colors.line }]} />
@@ -109,12 +106,11 @@ function RecEditModal({ editState, colors, onSave, onClose }: RecEditModalProps)
             {editState.recIdx === null ? 'הוספת המלצה' : 'עריכת המלצה'}
           </Text>
 
-          <ScrollView
-            keyboardShouldPersistTaps="handled"
-            automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
-            showsVerticalScrollIndicator={false}
+          <KeyboardAwareScrollView
             contentContainerStyle={styles.editScrollContent}
             bounces={false}
+            extraScrollHeight={140}
+            extraHeight={140}
           >
             {/* Priority chips */}
             <Text style={[styles.editLabel, { color: colors.ink2, fontFamily: fonts.sans }]}>עדיפות</Text>
@@ -189,14 +185,14 @@ function RecEditModal({ editState, colors, onSave, onClose }: RecEditModalProps)
                 placeholderTextColor={colors.ink4}
               />
             </View>
-          </ScrollView>
+          </KeyboardAwareScrollView>
 
           <View style={styles.editActions}>
             <Button kind="ghost" size="md" onPress={onClose} colors={colors} style={{ flex: 1 }}>ביטול</Button>
             <Button kind="primary" size="md" onPress={handleSave} colors={colors} style={{ flex: 1 }}>שמור</Button>
           </View>
         </View>
-      </KeyboardAvoidingView>
+      </View>
     </Modal>
   );
 }
@@ -262,33 +258,42 @@ export function RecommendationsStep({ colors = lightColors, onNext, onBack, isSa
   };
 
   return (
-    <KeyboardAvoidingView
-      style={[styles.root, { backgroundColor: colors.bg }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    <KeyboardAwareFormLayout
+      colors={colors}
+      header={
+        <>
+          <Header
+            step={5}
+            ofSteps={5}
+            colors={colors}
+            action={
+              <Pressable
+                onPress={triggerExit}
+                style={[styles.exitBtn, { backgroundColor: colors.bgElev, borderColor: colors.line }]}
+                hitSlop={6}
+              >
+                <Icons.home size={20} color={colors.ink2} />
+              </Pressable>
+            }
+          />
+          <ProgressBar value={1} colors={colors} />
+        </>
+      }
+      contentContainerStyle={styles.content}
+      bottomAction={
+        <Button
+          kind="primary"
+          size="lg"
+          full
+          disabled={isSaving}
+          onPress={handleNext}
+          iconRight={<Icons.back size={20} color={colors.bg} />}
+          colors={colors}
+        >
+          {isSaving ? 'שומר…' : 'הצג תצוגה מקדימה'}
+        </Button>
+      }
     >
-      <Header
-        step={5}
-        ofSteps={5}
-        colors={colors}
-        action={
-          <Pressable
-            onPress={triggerExit}
-            style={[styles.exitBtn, { backgroundColor: colors.bgElev, borderColor: colors.line }]}
-            hitSlop={6}
-          >
-            <Icons.home size={20} color={colors.ink2} />
-          </Pressable>
-        }
-      />
-      <ProgressBar value={1} colors={colors} />
-
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-        automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
-      >
         <View style={styles.aiLabel}>
           <Icons.sparkle size={14} color={colors.ai2} />
           <Text style={[styles.aiLabelText, { color: colors.ai2, fontFamily: fonts.sans }]}>
@@ -378,21 +383,6 @@ export function RecommendationsStep({ colors = lightColors, onNext, onBack, isSa
             </View>
           );
         })}
-      </ScrollView>
-
-      <FixedBottom colors={colors}>
-        <Button
-          kind="primary"
-          size="lg"
-          full
-          disabled={isSaving}
-          onPress={handleNext}
-          iconRight={<Icons.back size={20} color={colors.bg} />}
-          colors={colors}
-        >
-          {isSaving ? 'שומר…' : 'הצג תצוגה מקדימה'}
-        </Button>
-      </FixedBottom>
 
       {editState && (
         <RecEditModal
@@ -402,17 +392,15 @@ export function RecommendationsStep({ colors = lightColors, onNext, onBack, isSa
           onClose={() => setEditState(null)}
         />
       )}
-    </KeyboardAvoidingView>
+    </KeyboardAwareFormLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
   exitBtn: {
     width: 44, height: 44, borderRadius: 999, borderWidth: 1,
     alignItems: 'center', justifyContent: 'center',
   },
-  scroll: { flex: 1 },
   content: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 140, gap: 14 },
   aiLabel: { flexDirection: 'row-reverse', alignItems: 'center', gap: 8 },
   aiLabelText: { fontSize: 11, fontWeight: '700', letterSpacing: 1, textAlign: 'right' },
@@ -459,6 +447,7 @@ const styles = StyleSheet.create({
   editSheet: {
     borderTopLeftRadius: 24, borderTopRightRadius: 24,
     paddingTop: 12, paddingHorizontal: 20,
+    maxHeight: '90%',
   },
   editScrollContent: { gap: 10, paddingBottom: 8 },
   editHandle: { width: 36, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: 8 },

@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, Alert, Pressable,
 } from 'react-native';
-import { Header, FixedBottom } from '@/components/layout';
-import { Button, Field, Card, KeyboardAwareScrollView } from '@/components/primitives';
+import { Header, KeyboardAwareFormLayout } from '@/components/layout';
+import { Button, Field, Card } from '@/components/primitives';
 import { Icons } from '@/components/icons';
 import { lightColors, fonts } from '@/theme/tokens';
 import { adminUpdateUser, type AdminUser } from '@/services/adminApi';
@@ -101,19 +101,32 @@ export function EditUserScreen({ user, colors = lightColors, onDone, onBack }: E
   };
 
   return (
-    <View style={[styles.root, { backgroundColor: colors.bg }]}>
-      <Header
-        onBack={onBack}
-        large
-        title="עריכת משתמש"
-        subtitle={`@${user.username}`}
-        colors={colors}
-      />
-
-      <KeyboardAwareScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.content}
-      >
+    <KeyboardAwareFormLayout
+      colors={colors}
+      header={
+        <Header
+          onBack={onBack}
+          large
+          title="עריכת משתמש"
+          subtitle={`@${user.username}`}
+          colors={colors}
+        />
+      }
+      contentContainerStyle={styles.content}
+      bottomAction={
+        <Button
+          kind="primary"
+          size="lg"
+          full
+          onPress={handleSave}
+          disabled={saving}
+          iconRight={<Icons.back size={20} color={colors.bg} />}
+          colors={colors}
+        >
+          {saving ? 'שומר...' : 'שמור שינויים'}
+        </Button>
+      }
+    >
         {/* Active/Disabled banner */}
         {!isActive && (
           <View style={[styles.disabledBanner, { backgroundColor: colors.dangerBg }]}>
@@ -249,29 +262,12 @@ export function EditUserScreen({ user, colors = lightColors, onDone, onBack }: E
             </Pressable>
           </View>
         </Card>
-      </KeyboardAwareScrollView>
-
-      <FixedBottom colors={colors}>
-        <Button
-          kind="primary"
-          size="lg"
-          full
-          onPress={handleSave}
-          disabled={saving}
-          iconRight={<Icons.back size={20} color={colors.bg} />}
-          colors={colors}
-        >
-          {saving ? 'שומר...' : 'שמור שינויים'}
-        </Button>
-      </FixedBottom>
-    </View>
+    </KeyboardAwareFormLayout>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
-  scroll: { flex: 1 },
-  content: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 120, gap: 14 },
+  content: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 140, gap: 14 },
   twoCol: { flexDirection: 'row-reverse', gap: 12 },
   half: { flex: 1 },
   sectionLabel: { fontSize: 13, fontWeight: '700', marginBottom: 10, letterSpacing: -0.1, textAlign: 'right' },
