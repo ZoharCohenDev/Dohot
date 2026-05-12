@@ -42,8 +42,10 @@ export type KeyboardAwareScrollViewHandle = LibKeyboardAwareScrollView;
  * Behaviour defaults baked in:
  *   enableOnAndroid           — turn on the library's Android scrolling
  *   enableAutomaticScroll     — auto-scroll focused input above keyboard
- *   extraScrollHeight=120     — keep room above the keyboard for visual ease
- *   extraHeight=120           — gap between focused input and keyboard
+ *   extraScrollHeight=160     — clears the keyboard PLUS the visible FixedBottom
+ *                               bar (≈100px tall) so the focused input is never
+ *                               hidden behind either.
+ *   extraHeight=160           — same buffer used internally by the library.
  *   keyboardShouldPersistTaps — 'handled' so taps in inputs don't dismiss
  *   enableResetScrollToCoords=false — don't snap back on blur, feels janky
  */
@@ -58,8 +60,8 @@ export const KeyboardAwareScrollView = React.forwardRef<
     style,
     enableOnAndroid = true,
     enableAutomaticScroll = true,
-    extraScrollHeight = 120,
-    extraHeight = 120,
+    extraScrollHeight = 160,
+    extraHeight = 160,
     keyboardShouldPersistTaps = 'handled',
     enableResetScrollToCoords = false,
     keyboardOpeningTime = 250,

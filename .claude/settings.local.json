@@ -34,7 +34,8 @@
       "Bash(git add *)",
       "Bash(git commit *)",
       "Bash(git push *)",
-      "Bash(python -c \"import sys,json; pkg=json.load\\(sys.stdin\\); deps={**pkg.get\\('dependencies',{}\\), **pkg.get\\('devDependencies',{}\\)}; [print\\(f'{k}: {v}'\\) for k in sorted\\(deps\\) if 'keyboard' in k.lower\\(\\) or 'scroll' in k.lower\\(\\) or 'aware' in k.lower\\(\\)]\")"
+      "Bash(python -c \"import sys,json; pkg=json.load\\(sys.stdin\\); deps={**pkg.get\\('dependencies',{}\\), **pkg.get\\('devDependencies',{}\\)}; [print\\(f'{k}: {v}'\\) for k in sorted\\(deps\\) if 'keyboard' in k.lower\\(\\) or 'scroll' in k.lower\\(\\) or 'aware' in k.lower\\(\\)]\")",
+      "Bash(npx eslint *)"
     ]
   }
 }

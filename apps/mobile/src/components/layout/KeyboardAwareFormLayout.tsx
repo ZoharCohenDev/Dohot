@@ -23,12 +23,14 @@ interface KeyboardAwareFormLayoutProps {
 // Sizing of the FixedBottom bar (single primary button):
 //   button height (Button kind=primary size=lg): 60
 //   container paddingTop:                         10
-//   container paddingBottom: max(insets.bottom,16)+16
+//   container paddingBottom: max(insets.bottom,24)+16
 //   visual buffer between last field and bar:     24
 // Form scroll content must reserve that much paddingBottom so the last field
-// can always scroll fully above the bar.
+// can always scroll fully above the bar. Keep `FIXED_BOTTOM_SAFE_MIN` in sync
+// with `SAFE_BOTTOM_MIN` in FixedBottom.tsx.
 const FIXED_BOTTOM_BUTTON_HEIGHT = 60;
 const FIXED_BOTTOM_PADDING_TOP = 10;
+const FIXED_BOTTOM_SAFE_MIN = 24;
 const FIXED_BOTTOM_EXTRA_BOTTOM = 16;
 const FIXED_BOTTOM_VISUAL_BUFFER = 24;
 
@@ -65,7 +67,7 @@ export const KeyboardAwareFormLayout = React.forwardRef<
   const fixedBottomHeight =
     FIXED_BOTTOM_BUTTON_HEIGHT +
     FIXED_BOTTOM_PADDING_TOP +
-    Math.max(insets.bottom, 16) +
+    Math.max(insets.bottom, FIXED_BOTTOM_SAFE_MIN) +
     FIXED_BOTTOM_EXTRA_BOTTOM;
 
   const reservedBottomPadding = bottomAction
