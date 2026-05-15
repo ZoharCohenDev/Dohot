@@ -61,11 +61,11 @@ export function FixedBottom({ children, colors = lightColors }: FixedBottomProps
   const resolvedKeyboardHeight =
     keyboardHeight > 0 ? keyboardHeight : Platform.OS === 'android' ? 300 : 0;
 
-  const bottomOffset = keyboardOpen ? resolvedKeyboardHeight : 0;
+  const bottomOffset = keyboardOpen ? resolvedKeyboardHeight + 50 : 0;
 
   const verticalPadding = keyboardOpen
     ? 8
-    : Math.max(insets.bottom, SAFE_BOTTOM_MIN) + PADDING_BOTTOM_EXTRA;
+    : Math.max(insets.bottom, SAFE_BOTTOM_MIN) + 36;
 
   return (
     <View style={[styles.container, { bottom: bottomOffset, paddingBottom: verticalPadding }]}>

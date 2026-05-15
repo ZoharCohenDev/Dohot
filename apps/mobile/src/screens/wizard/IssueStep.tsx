@@ -47,9 +47,10 @@ export function IssueStep({ colors = lightColors, onNext, onBack }: IssueStepPro
 
   const handleNext = () => {
     if (!canProceed) return;
-    const label = selectedId === 'other' && customText.trim()
-      ? customText.trim()
-      : (selectedIssue?.label ?? selectedId);
+    const label =
+      selectedId === 'other' && customText.trim()
+        ? customText.trim()
+        : (selectedIssue?.label ?? selectedId);
     wizard.setIssueData(selectedId, label);
     wizard.setIssueNote(issueNote);
     wizard.setAttendees(attendees);
@@ -70,7 +71,10 @@ export function IssueStep({ colors = lightColors, onNext, onBack }: IssueStepPro
             action={
               <Pressable
                 onPress={triggerExit}
-                style={[styles.exitBtn, { backgroundColor: colors.bgElev, borderColor: colors.line }]}
+                style={[
+                  styles.exitBtn,
+                  { backgroundColor: colors.bgElev, borderColor: colors.line },
+                ]}
                 hitSlop={6}
               >
                 <Icons.home size={20} color={colors.ink2} />
@@ -95,104 +99,131 @@ export function IssueStep({ colors = lightColors, onNext, onBack }: IssueStepPro
         </Button>
       }
     >
-        <Text style={[styles.title, { color: colors.ink1, fontFamily: fonts.serif }]}>
-          סוג התקלה
-        </Text>
-        <Text style={[styles.subtitle, { color: colors.ink3, fontFamily: fonts.sans }]}>
-          בחר את הסוג המתאים — נתאים לך תבנית
-        </Text>
+      <Text style={[styles.title, { color: colors.ink1, fontFamily: fonts.serif }]}>סוג התקלה</Text>
+      <Text style={[styles.subtitle, { color: colors.ink3, fontFamily: fonts.sans }]}>
+        בחר את הסוג המתאים — נתאים לך תבנית
+      </Text>
 
-        <View style={styles.grid}>
-          {issues.map((issue) => {
-            const on = selectedId === issue.id;
-            const IssueIcon = ICON_MAP[issue.icon] ?? Icons.more;
-            return (
-              <Pressable
-                key={issue.id}
-                onPress={() => setSelectedId(issue.id)}
-                style={[
-                  styles.tile,
-                  {
-                    backgroundColor: on ? issue.bg : colors.bgElev,
-                    borderWidth: on ? 1.5 : 1,
-                    borderColor: on ? issue.color : colors.line,
-                  },
-                ]}
-              >
-                <View style={[styles.tileIcon, { backgroundColor: on ? '#fff' : issue.bg }]}>
-                  <IssueIcon size={22} color={issue.color} />
+      <View style={styles.grid}>
+        {issues.map((issue) => {
+          const on = selectedId === issue.id;
+          const IssueIcon = ICON_MAP[issue.icon] ?? Icons.more;
+          return (
+            <Pressable
+              key={issue.id}
+              onPress={() => setSelectedId(issue.id)}
+              style={[
+                styles.tile,
+                {
+                  backgroundColor: on ? issue.bg : colors.bgElev,
+                  borderWidth: on ? 1.5 : 1,
+                  borderColor: on ? issue.color : colors.line,
+                },
+              ]}
+            >
+              <View style={[styles.tileIcon, { backgroundColor: on ? '#fff' : issue.bg }]}>
+                <IssueIcon size={22} color={issue.color} />
+              </View>
+              <View>
+                <Text
+                  style={[
+                    styles.tileLabel,
+                    { color: on ? issue.color : colors.ink1, fontFamily: fonts.sans },
+                  ]}
+                >
+                  {issue.label}
+                </Text>
+                <Text
+                  style={[
+                    styles.tileDesc,
+                    {
+                      color: on ? issue.color : colors.ink3,
+                      fontFamily: fonts.sans,
+                      opacity: on ? 0.85 : 1,
+                    },
+                  ]}
+                >
+                  {issue.desc}
+                </Text>
+              </View>
+              {on && (
+                <View style={[styles.checkBadge, { backgroundColor: issue.color }]}>
+                  <Icons.check size={14} color="#fff" stroke={3} />
                 </View>
-                <View>
-                  <Text style={[styles.tileLabel, { color: on ? issue.color : colors.ink1, fontFamily: fonts.sans }]}>
-                    {issue.label}
-                  </Text>
-                  <Text style={[styles.tileDesc, { color: on ? issue.color : colors.ink3, fontFamily: fonts.sans, opacity: on ? 0.85 : 1 }]}>
-                    {issue.desc}
-                  </Text>
-                </View>
-                {on && (
-                  <View style={[styles.checkBadge, { backgroundColor: issue.color }]}>
-                    <Icons.check size={14} color="#fff" stroke={3} />
-                  </View>
-                )}
-              </Pressable>
-            );
-          })}
+              )}
+            </Pressable>
+          );
+        })}
+      </View>
+
+      {/* Custom input when "other" is selected */}
+      {selectedId === 'other' && (
+        <View
+          style={[
+            styles.customInputWrap,
+            { borderColor: colors.line, backgroundColor: colors.bgElev },
+          ]}
+        >
+          <Icons.edit size={18} color={colors.ink3} />
+          <TextInput
+            style={[styles.customInput, { color: colors.ink1, fontFamily: fonts.sans }]}
+            placeholder="תאר את הבעיה…"
+            placeholderTextColor={colors.ink4}
+            value={customText}
+            onChangeText={setCustomText}
+            textAlign="right"
+          />
         </View>
+      )}
 
-        {/* Custom input when "other" is selected */}
-        {selectedId === 'other' && (
-          <View style={[styles.customInputWrap, { borderColor: colors.line, backgroundColor: colors.bgElev }]}>
-            <Icons.edit size={18} color={colors.ink3} />
-            <TextInput
-              style={[styles.customInput, { color: colors.ink1, fontFamily: fonts.sans }]}
-              placeholder="תאר את הבעיה…"
-              placeholderTextColor={colors.ink4}
-              value={customText}
-              onChangeText={setCustomText}
-              textAlign="right"
-            />
-          </View>
-        )}
+      <Field
+        label="הערות נוספות (אופציונלי)"
+        placeholder="מיקום, נסיבות, משך הבעיה…"
+        icon={<Icons.edit size={20} color={colors.ink3} />}
+        value={issueNote}
+        onChangeText={setIssueNote}
+        multiline
+        colors={colors}
+      />
 
-        <Field
-          label="הערות נוספות (אופציונלי)"
-          placeholder="מיקום, נסיבות, משך הבעיה…"
-          icon={<Icons.edit size={20} color={colors.ink3} />}
-          value={issueNote}
-          onChangeText={setIssueNote}
-          multiline
-          colors={colors}
-        />
+      {/* Attendees field */}
+      <Field
+        label="נוכחים בביקור (אופציונלי)"
+        placeholder="שמות הנוכחים בעת הביקור…"
+        icon={<Icons.customers size={20} color={colors.ink3} />}
+        value={attendees}
+        onChangeText={setAttendeesLocal}
+        colors={colors}
+      />
 
-        {/* Attendees field */}
-        <Field
-          label="נוכחים בביקור (אופציונלי)"
-          placeholder="שמות הנוכחים בעת הביקור…"
-          icon={<Icons.customers size={20} color={colors.ink3} />}
-          value={attendees}
-          onChangeText={setAttendeesLocal}
-          colors={colors}
-        />
-
-        <View style={[styles.tip, { backgroundColor: colors.bgSunken }]}>
-          <Icons.sparkle size={18} color={colors.ai2} />
-          <Text style={[styles.tipText, { color: colors.ink2, fontFamily: fonts.sans }]}>
-            <Text style={[styles.tipBold, { color: colors.ai2 }]}>טיפ:</Text>{' '}
-            ניתן להוסיף פרטים נוספים בשלב ההקלטה
-          </Text>
-        </View>
+      <View style={[styles.tip, { backgroundColor: colors.bgSunken }]}>
+        <Icons.sparkle size={18} color={colors.ai2} />
+        <Text style={[styles.tipText, { color: colors.ink2, fontFamily: fonts.sans }]}>
+          <Text style={[styles.tipBold, { color: colors.ai2 }]}>טיפ:</Text> ניתן להוסיף פרטים נוספים
+          בשלב ההקלטה
+        </Text>
+      </View>
     </KeyboardAwareFormLayout>
   );
 }
 
 const styles = StyleSheet.create({
   content: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 140, gap: 14 },
-  title: { fontSize: 30, fontWeight: '500', lineHeight: 33, letterSpacing: -0.6, textAlign: 'right' },
+  title: {
+    fontSize: 30,
+    fontWeight: '500',
+    lineHeight: 33,
+    letterSpacing: -0.6,
+    textAlign: 'right',
+  },
   subtitle: { fontSize: 14, textAlign: 'right' },
   exitBtn: {
-    width: 44, height: 44, borderRadius: 999, borderWidth: 1,
-    alignItems: 'center', justifyContent: 'center',
+    width: 44,
+    height: 44,
+    borderRadius: 999,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   grid: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 10 },
   tile: {
@@ -203,7 +234,13 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     position: 'relative',
   },
-  tileIcon: { width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  tileIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   tileLabel: { fontSize: 15, fontWeight: '700', textAlign: 'right' },
   tileDesc: { fontSize: 11, marginTop: 2, textAlign: 'right' },
   checkBadge: {
@@ -226,7 +263,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   customInput: { flex: 1, fontSize: 15 },
-  tip: { flexDirection: 'row-reverse', alignItems: 'center', gap: 10, padding: 14, borderRadius: 14 },
+  tip: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 10,
+    padding: 14,
+    borderRadius: 14,
+  },
   tipText: { fontSize: 13, flex: 1, textAlign: 'right' },
   tipBold: { fontWeight: '700' },
 });

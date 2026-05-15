@@ -1,7 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import {
-  View, Text, Pressable, StyleSheet, ActivityIndicator, Keyboard,
-} from 'react-native';
+import { View, Text, Pressable, StyleSheet, ActivityIndicator, Keyboard } from 'react-native';
 import { Header, ProgressBar, KeyboardAwareFormLayout } from '@/components/layout';
 import { Button, Field } from '@/components/primitives';
 import { Avatar } from '@/components/shared';
@@ -22,7 +20,8 @@ interface CustomerStepProps {
 }
 
 const PROPERTY_TYPES: Array<{
-  label: string; value: PropertyType;
+  label: string;
+  value: PropertyType;
   Icon: React.ComponentType<{ size: number; color: string }>;
 }> = [
   { label: 'דירה', value: 'apartment', Icon: Icons.building },
@@ -42,15 +41,15 @@ function validatePhone(v: string) {
 }
 
 function formatCustomerAddress(c: Customer): string {
-  const parts = [
-    [c.street, c.house_number].filter(Boolean).join(' '),
-    c.city,
-  ].filter(Boolean);
+  const parts = [[c.street, c.house_number].filter(Boolean).join(' '), c.city].filter(Boolean);
   return parts.join(', ') || c.address || '';
 }
 
 export function CustomerStep({
-  colors = lightColors, onNext, onBack, professionalId,
+  colors = lightColors,
+  onNext,
+  onBack,
+  professionalId,
 }: CustomerStepProps) {
   const wizard = useWizard();
   const { progress, stepNum, stepOf, goNext, goBack, config } = useWizardStep();
@@ -104,7 +103,9 @@ export function CustomerStep({
         setLoadingSuggestions(false);
       }
     }, 300);
-    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
   }, [name, profId]);
 
   const selectCustomer = (c: Customer) => {
@@ -158,7 +159,6 @@ export function CustomerStep({
   return (
     <KeyboardAwareFormLayout
       colors={colors}
-      
       header={
         <>
           <Header
@@ -169,7 +169,10 @@ export function CustomerStep({
             action={
               <Pressable
                 onPress={triggerExit}
-                style={[styles.exitBtn, { backgroundColor: colors.bgElev, borderColor: colors.line }]}
+                style={[
+                  styles.exitBtn,
+                  { backgroundColor: colors.bgElev, borderColor: colors.line },
+                ]}
                 hitSlop={6}
               >
                 <Icons.home size={20} color={colors.ink2} />
@@ -193,212 +196,271 @@ export function CustomerStep({
         </Button>
       }
     >
-        <View style={styles.titleBlock}>
-          <Text style={[styles.title, { color: colors.ink1, fontFamily: fonts.serif }]}>
-            למי המסמך?
-          </Text>
-          <Text style={[styles.subtitle, { color: colors.ink3, fontFamily: fonts.sans }]}>
-            פרטי הלקוח יופיעו בכותרת המסמך
-          </Text>
-        </View>
+      <View style={styles.titleBlock}>
+        <Text style={[styles.title, { color: colors.ink1, fontFamily: fonts.serif }]}>
+          למי המסמך?
+        </Text>
+        <Text style={[styles.subtitle, { color: colors.ink3, fontFamily: fonts.sans }]}>
+          פרטי הלקוח יופיעו בכותרת המסמך
+        </Text>
+      </View>
 
-        {/* ── Name + autocomplete ── */}
-        <View>
+      {/* ── Name + autocomplete ── */}
+      <View>
+        <Field
+          label="שם לקוח"
+          placeholder="חפש לקוח קיים או הזן שם חדש…"
+          icon={<Icons.user size={20} color={errors.name ? colors.danger : colors.ink3} />}
+          value={name}
+          onChangeText={(t) => {
+            setName(t);
+            if (errors.name && t.trim()) setErrors((e) => ({ ...e, name: '' }));
+          }}
+          error={!!errors.name}
+          colors={colors}
+        />
+        {!!errors.name && (
+          <Text style={[styles.fieldError, { color: colors.danger }]}>{errors.name}</Text>
+        )}
+
+        {/* Suggestions dropdown */}
+        {showSuggestions && (
+          <View
+            style={[
+              styles.suggestCard,
+              { backgroundColor: colors.bgElev, borderColor: colors.line },
+            ]}
+          >
+            {loadingSuggestions ? (
+              <View style={styles.suggestLoader}>
+                <ActivityIndicator size="small" color={colors.ink4} />
+              </View>
+            ) : (
+              suggestions.map((c, i) => (
+                <Pressable
+                  key={c.id}
+                  onPress={() => selectCustomer(c)}
+                  style={[
+                    styles.suggestRow,
+                    i < suggestions.length - 1
+                      ? { borderBottomWidth: 1, borderBottomColor: colors.line }
+                      : undefined,
+                  ]}
+                >
+                  <Avatar name={c.name} size={36} colors={colors} />
+                  <View style={styles.suggestInfo}>
+                    <Text
+                      style={[styles.suggestName, { color: colors.ink1, fontFamily: fonts.sans }]}
+                    >
+                      {c.name}
+                    </Text>
+                    {!!formatCustomerAddress(c) && (
+                      <Text
+                        style={[styles.suggestAddr, { color: colors.ink3, fontFamily: fonts.sans }]}
+                      >
+                        {formatCustomerAddress(c)}
+                      </Text>
+                    )}
+                  </View>
+                  <Icons.chevL size={16} color={colors.ink4} />
+                </Pressable>
+              ))
+            )}
+          </View>
+        )}
+      </View>
+
+      {/* ── Phone ── */}
+      <View>
+        <Field
+          label="טלפון"
+          placeholder="050-0000000"
+          icon={<Icons.phone size={20} color={errors.phone ? colors.danger : colors.ink3} />}
+          value={phone}
+          onChangeText={(t) => {
+            setPhone(t);
+            if (errors.phone) setErrors((e) => ({ ...e, phone: '' }));
+          }}
+          keyboardType="phone-pad"
+          error={!!errors.phone}
+          colors={colors}
+        />
+        {!!errors.phone && (
+          <Text style={[styles.fieldError, { color: colors.danger }]}>{errors.phone}</Text>
+        )}
+      </View>
+
+      {/* ── City ── */}
+      <View>
+        <Field
+          label="עיר"
+          placeholder="תל אביב, ירושלים…"
+          icon={<Icons.building size={20} color={errors.city ? colors.danger : colors.ink3} />}
+          value={city}
+          onChangeText={(t) => {
+            setCity(t);
+            if (errors.city) setErrors((e) => ({ ...e, city: '' }));
+          }}
+          error={!!errors.city}
+          colors={colors}
+        />
+        {!!errors.city && (
+          <Text style={[styles.fieldError, { color: colors.danger }]}>{errors.city}</Text>
+        )}
+      </View>
+
+      {/* ── Street + House number ── */}
+      <View style={styles.twoCol}>
+        <View style={styles.streetField}>
           <Field
-            label="שם לקוח"
-            placeholder="חפש לקוח קיים או הזן שם חדש…"
-            icon={<Icons.user size={20} color={errors.name ? colors.danger : colors.ink3} />}
-            value={name}
+            label="רחוב"
+            placeholder="שם הרחוב"
+            icon={<Icons.pin2 size={20} color={errors.street ? colors.danger : colors.ink3} />}
+            value={street}
             onChangeText={(t) => {
-              setName(t);
-              if (errors.name && t.trim()) setErrors((e) => ({ ...e, name: '' }));
+              setStreet(t);
+              if (errors.street) setErrors((e) => ({ ...e, street: '' }));
             }}
-            error={!!errors.name}
+            error={!!errors.street}
             colors={colors}
           />
-          {!!errors.name && <Text style={[styles.fieldError, { color: colors.danger }]}>{errors.name}</Text>}
-
-          {/* Suggestions dropdown */}
-          {showSuggestions && (
-            <View style={[styles.suggestCard, { backgroundColor: colors.bgElev, borderColor: colors.line }]}>
-              {loadingSuggestions ? (
-                <View style={styles.suggestLoader}>
-                  <ActivityIndicator size="small" color={colors.ink4} />
-                </View>
-              ) : (
-                suggestions.map((c, i) => (
-                  <Pressable
-                    key={c.id}
-                    onPress={() => selectCustomer(c)}
-                    style={[
-                      styles.suggestRow,
-                      i < suggestions.length - 1 ? { borderBottomWidth: 1, borderBottomColor: colors.line } : undefined,
-                    ]}
-                  >
-                    <Avatar name={c.name} size={36} colors={colors} />
-                    <View style={styles.suggestInfo}>
-                      <Text style={[styles.suggestName, { color: colors.ink1, fontFamily: fonts.sans }]}>
-                        {c.name}
-                      </Text>
-                      {!!formatCustomerAddress(c) && (
-                        <Text style={[styles.suggestAddr, { color: colors.ink3, fontFamily: fonts.sans }]}>
-                          {formatCustomerAddress(c)}
-                        </Text>
-                      )}
-                    </View>
-                    <Icons.chevL size={16} color={colors.ink4} />
-                  </Pressable>
-                ))
-              )}
-            </View>
+          {!!errors.street && (
+            <Text style={[styles.fieldError, { color: colors.danger }]}>{errors.street}</Text>
           )}
         </View>
-
-        {/* ── Phone ── */}
-        <View>
+        <View style={styles.numField}>
           <Field
-            label="טלפון"
-            placeholder="050-0000000"
-            icon={<Icons.phone size={20} color={errors.phone ? colors.danger : colors.ink3} />}
-            value={phone}
-            onChangeText={(t) => { setPhone(t); if (errors.phone) setErrors((e) => ({ ...e, phone: '' })); }}
-            keyboardType="phone-pad"
-            error={!!errors.phone}
+            label="מספר"
+            placeholder="5"
+            icon={<Icons.edit size={20} color={errors.houseNumber ? colors.danger : colors.ink3} />}
+            value={houseNumber}
+            onChangeText={(t) => {
+              setHouseNumber(t);
+              if (errors.houseNumber) setErrors((e) => ({ ...e, houseNumber: '' }));
+            }}
+            error={!!errors.houseNumber}
             colors={colors}
           />
-          {!!errors.phone && <Text style={[styles.fieldError, { color: colors.danger }]}>{errors.phone}</Text>}
+          {!!errors.houseNumber && (
+            <Text style={[styles.fieldError, { color: colors.danger }]}>{errors.houseNumber}</Text>
+          )}
         </View>
+      </View>
 
-        {/* ── City ── */}
-        <View>
+      {/* ── Apartment + Floor (optional) ── */}
+      <View style={styles.twoCol}>
+        <View style={styles.halfField}>
           <Field
-            label="עיר"
-            placeholder="תל אביב, ירושלים…"
-            icon={<Icons.building size={20} color={errors.city ? colors.danger : colors.ink3} />}
-            value={city}
-            onChangeText={(t) => { setCity(t); if (errors.city) setErrors((e) => ({ ...e, city: '' })); }}
-            error={!!errors.city}
+            label="דירה (אופציונלי)"
+            placeholder="3"
+            icon={<Icons.home size={20} color={colors.ink3} />}
+            value={apartment}
+            onChangeText={setApartment}
             colors={colors}
           />
-          {!!errors.city && <Text style={[styles.fieldError, { color: colors.danger }]}>{errors.city}</Text>}
         </View>
-
-        {/* ── Street + House number ── */}
-        <View style={styles.twoCol}>
-          <View style={styles.streetField}>
-            <Field
-              label="רחוב"
-              placeholder="שם הרחוב"
-              icon={<Icons.pin2 size={20} color={errors.street ? colors.danger : colors.ink3} />}
-              value={street}
-              onChangeText={(t) => { setStreet(t); if (errors.street) setErrors((e) => ({ ...e, street: '' })); }}
-              error={!!errors.street}
-              colors={colors}
-            />
-            {!!errors.street && <Text style={[styles.fieldError, { color: colors.danger }]}>{errors.street}</Text>}
-          </View>
-          <View style={styles.numField}>
-            <Field
-              label="מספר"
-              placeholder="5"
-              icon={<Icons.edit size={20} color={errors.houseNumber ? colors.danger : colors.ink3} />}
-              value={houseNumber}
-              onChangeText={(t) => { setHouseNumber(t); if (errors.houseNumber) setErrors((e) => ({ ...e, houseNumber: '' })); }}
-              error={!!errors.houseNumber}
-              colors={colors}
-            />
-            {!!errors.houseNumber && <Text style={[styles.fieldError, { color: colors.danger }]}>{errors.houseNumber}</Text>}
-          </View>
-        </View>
-
-        {/* ── Apartment + Floor (optional) ── */}
-        <View style={styles.twoCol}>
-          <View style={styles.halfField}>
-            <Field
-              label="דירה (אופציונלי)"
-              placeholder="3"
-              icon={<Icons.home size={20} color={colors.ink3} />}
-              value={apartment}
-              onChangeText={setApartment}
-              colors={colors}
-            />
-          </View>
-          <View style={styles.halfField}>
-            <Field
-              label="קומה (אופציונלי)"
-              placeholder="2"
-              icon={<Icons.building size={20} color={colors.ink3} />}
-              value={floor}
-              onChangeText={setFloor}
-              colors={colors}
-            />
-          </View>
-        </View>
-
-        {/* ── Email (optional) ── */}
-        <View>
+        <View style={styles.halfField}>
           <Field
-            label="אימייל (אופציונלי)"
-            placeholder="example@email.com"
-            icon={<Icons.mail size={20} color={errors.email ? colors.danger : colors.ink3} />}
-            value={email}
-            onChangeText={(t) => { setEmail(t); if (errors.email) setErrors((e) => ({ ...e, email: '' })); }}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            error={!!errors.email}
+            label="קומה (אופציונלי)"
+            placeholder="2"
+            icon={<Icons.building size={20} color={colors.ink3} />}
+            value={floor}
+            onChangeText={setFloor}
             colors={colors}
           />
-          {!!errors.email && <Text style={[styles.fieldError, { color: colors.danger }]}>{errors.email}</Text>}
         </View>
+      </View>
 
-        {/* ── Property type ── */}
-        <View>
-          <Text style={[styles.fieldLabel, { color: colors.ink2, fontFamily: fonts.sans }]}>
-            סוג הנכס
-          </Text>
-          <View style={styles.propertyGrid}>
-            {PROPERTY_TYPES.map((pt) => (
-              <Pressable
-                key={pt.value}
-                onPress={() => setPropertyType(pt.value)}
+      {/* ── Email (optional) ── */}
+      <View>
+        <Field
+          label="אימייל (אופציונלי)"
+          placeholder="example@email.com"
+          icon={<Icons.mail size={20} color={errors.email ? colors.danger : colors.ink3} />}
+          value={email}
+          onChangeText={(t) => {
+            setEmail(t);
+            if (errors.email) setErrors((e) => ({ ...e, email: '' }));
+          }}
+          keyboardType="email-address"
+          autoCapitalize="none"
+          error={!!errors.email}
+          colors={colors}
+        />
+        {!!errors.email && (
+          <Text style={[styles.fieldError, { color: colors.danger }]}>{errors.email}</Text>
+        )}
+      </View>
+
+      {/* ── Property type ── */}
+      <View>
+        <Text style={[styles.fieldLabel, { color: colors.ink2, fontFamily: fonts.sans }]}>
+          סוג הנכס
+        </Text>
+        <View style={styles.propertyGrid}>
+          {PROPERTY_TYPES.map((pt) => (
+            <Pressable
+              key={pt.value}
+              onPress={() => setPropertyType(pt.value)}
+              style={[
+                styles.propertyTile,
+                {
+                  backgroundColor: propertyType === pt.value ? colors.ink1 : colors.bgElev,
+                  borderWidth: propertyType === pt.value ? 0 : 1,
+                  borderColor: colors.line,
+                },
+              ]}
+            >
+              <pt.Icon size={20} color={propertyType === pt.value ? colors.bg : colors.ink1} />
+              <Text
                 style={[
-                  styles.propertyTile,
+                  styles.propertyLabel,
                   {
-                    backgroundColor: propertyType === pt.value ? colors.ink1 : colors.bgElev,
-                    borderWidth: propertyType === pt.value ? 0 : 1,
-                    borderColor: colors.line,
+                    color: propertyType === pt.value ? colors.bg : colors.ink1,
+                    fontFamily: fonts.sans,
                   },
                 ]}
               >
-                <pt.Icon size={20} color={propertyType === pt.value ? colors.bg : colors.ink1} />
-                <Text style={[
-                  styles.propertyLabel,
-                  { color: propertyType === pt.value ? colors.bg : colors.ink1, fontFamily: fonts.sans },
-                ]}>
-                  {pt.label}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
+                {pt.label}
+              </Text>
+            </Pressable>
+          ))}
         </View>
-      </KeyboardAwareFormLayout>
+      </View>
+    </KeyboardAwareFormLayout>
   );
 }
 
 const styles = StyleSheet.create({
   exitBtn: {
-    width: 44, height: 44, borderRadius: 999, borderWidth: 1,
-    alignItems: 'center', justifyContent: 'center',
+    width: 44,
+    height: 44,
+    borderRadius: 999,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   content: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 140, gap: 14 },
   titleBlock: { gap: 6, marginBottom: 8 },
-  title: { fontSize: 30, fontWeight: '500', lineHeight: 33, letterSpacing: -0.6, textAlign: 'right' },
+  title: {
+    fontSize: 30,
+    fontWeight: '500',
+    lineHeight: 33,
+    letterSpacing: -0.6,
+    textAlign: 'right',
+  },
   subtitle: { fontSize: 14, textAlign: 'right' },
   twoCol: { flexDirection: 'row-reverse', gap: 10 },
   streetField: { flex: 2 },
   numField: { flex: 1 },
   halfField: { flex: 1 },
-  fieldLabel: { fontSize: 13, fontWeight: '600', paddingHorizontal: 4, marginBottom: 8, textAlign: 'right' },
+  fieldLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    paddingHorizontal: 4,
+    marginBottom: 8,
+    textAlign: 'right',
+  },
   fieldError: { fontSize: 12, marginTop: 4, paddingHorizontal: 4, fontFamily: fonts.sans },
   suggestCard: {
     marginTop: 4,

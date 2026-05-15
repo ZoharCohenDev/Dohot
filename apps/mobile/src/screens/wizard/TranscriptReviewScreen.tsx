@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import {
-  View, Text, TextInput, StyleSheet, Pressable, ActivityIndicator,
-} from 'react-native';
+import { View, Text, TextInput, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
 import { Header, ProgressBar, KeyboardAwareFormLayout } from '@/components/layout';
 import { Button } from '@/components/primitives';
 import { Icons } from '@/components/icons';
@@ -36,7 +34,7 @@ export function TranscriptReviewScreen({
     if (wizard.currentIssue.description && !transcript) {
       setTranscript(wizard.currentIssue.description);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wizard.currentIssue.description]);
 
   const hasAudio = !!wizard.state.recordedAudioUri;
@@ -95,7 +93,10 @@ export function TranscriptReviewScreen({
             action={
               <Pressable
                 onPress={triggerExit}
-                style={[styles.exitBtn, { backgroundColor: colors.bgElev, borderColor: colors.line }]}
+                style={[
+                  styles.exitBtn,
+                  { backgroundColor: colors.bgElev, borderColor: colors.line },
+                ]}
                 hitSlop={6}
               >
                 <Icons.home size={20} color={colors.ink2} />
@@ -134,101 +135,105 @@ export function TranscriptReviewScreen({
         </View>
       }
     >
-        {/* Title */}
-        <View style={styles.titleBlock}>
-          <View style={[styles.aiTag, { backgroundColor: colors.aiBg }]}>
-            <Icons.sparkle size={11} color={colors.ai2} />
-            <Text style={[styles.aiTagText, { color: colors.ai2, fontFamily: fonts.sans }]}>
-              לפני עיבוד AI
-            </Text>
-          </View>
-          <Text style={[styles.title, { color: colors.ink1, fontFamily: fonts.serif }]}>
-            תמלול קולי
+      {/* Title */}
+      <View style={styles.titleBlock}>
+        <View style={[styles.aiTag, { backgroundColor: colors.aiBg }]}>
+          <Icons.sparkle size={11} color={colors.ai2} />
+          <Text style={[styles.aiTagText, { color: colors.ai2, fontFamily: fonts.sans }]}>
+            לפני עיבוד AI
           </Text>
-          <Text style={[styles.subtitle, { color: colors.ink3, fontFamily: fonts.sans }]}>
-            בדוק ותיקן את הטקסט לפני שליחה ל-AI
+        </View>
+        <Text style={[styles.title, { color: colors.ink1, fontFamily: fonts.serif }]}>
+          תמלול קולי
+        </Text>
+        <Text style={[styles.subtitle, { color: colors.ink3, fontFamily: fonts.sans }]}>
+          בדוק ותקן את הטקסט לפני שליחה ל-AI
+        </Text>
+      </View>
+
+      {/* Status banner (failed / no-audio) */}
+      {statusBanner}
+
+      {/* Transcript card */}
+      <View style={[styles.card, { backgroundColor: colors.bgElev, borderColor: colors.line }]}>
+        <View style={styles.cardHeader}>
+          <Icons.waveform size={16} color={colors.ai2} />
+          <Text style={[styles.cardLabel, { color: colors.ink2, fontFamily: fonts.sans }]}>
+            מה דיברת
           </Text>
         </View>
 
-        {/* Status banner (failed / no-audio) */}
-        {statusBanner}
+        {isTranscribing ? (
+          <View style={styles.transcribingState}>
+            <ActivityIndicator color={colors.ai2} />
+            <Text style={[styles.transcribingText, { color: colors.ink3, fontFamily: fonts.sans }]}>
+              מתמלל את ההקלטה…
+            </Text>
+          </View>
+        ) : (
+          <TextInput
+            value={transcript}
+            onChangeText={setTranscript}
+            multiline
+            style={[styles.transcriptInput, { color: colors.ink1, fontFamily: fonts.sans }]}
+            textAlignVertical="top"
+            textAlign="right"
+            placeholder={
+              transcriptionFailed
+                ? 'הקלד את תוכן ההקלטה ידנית…'
+                : 'לא זוהה טקסט — ניתן להקליד ידנית'
+            }
+            placeholderTextColor={colors.ink4}
+          />
+        )}
+      </View>
 
-        {/* Transcript card */}
+      {/* Notes / manual recommendations card */}
+      {!isTranscribing && (
         <View style={[styles.card, { backgroundColor: colors.bgElev, borderColor: colors.line }]}>
           <View style={styles.cardHeader}>
-            <Icons.waveform size={16} color={colors.ai2} />
+            <Icons.edit size={16} color={colors.ink3} />
             <Text style={[styles.cardLabel, { color: colors.ink2, fontFamily: fonts.sans }]}>
-              מה דיברת
+              המלצות ראשוניות
+            </Text>
+            <Text style={[styles.optionalTag, { color: colors.ink4, fontFamily: fonts.sans }]}>
+              אופציונלי
             </Text>
           </View>
-
-          {isTranscribing ? (
-            <View style={styles.transcribingState}>
-              <ActivityIndicator color={colors.ai2} />
-              <Text style={[styles.transcribingText, { color: colors.ink3, fontFamily: fonts.sans }]}>
-                מתמלל את ההקלטה…
-              </Text>
-            </View>
-          ) : (
-            <TextInput
-              value={transcript}
-              onChangeText={setTranscript}
-              multiline
-              style={[styles.transcriptInput, { color: colors.ink1, fontFamily: fonts.sans }]}
-              textAlignVertical="top"
-              textAlign="right"
-              placeholder={
-                transcriptionFailed
-                  ? 'הקלד את תוכן ההקלטה ידנית…'
-                  : 'לא זוהה טקסט — ניתן להקליד ידנית'
-              }
-              placeholderTextColor={colors.ink4}
-            />
-          )}
+          <TextInput
+            value={notes}
+            onChangeText={setNotes}
+            multiline
+            style={[styles.notesInput, { color: colors.ink1, fontFamily: fonts.sans }]}
+            textAlignVertical="top"
+            textAlign="right"
+            placeholder="הוסף המלצות, הערות או פרטים שברצונך שה-AI יכלול בדוח…"
+            placeholderTextColor={colors.ink4}
+          />
         </View>
+      )}
 
-        {/* Notes / manual recommendations card */}
-        {!isTranscribing && (
-          <View style={[styles.card, { backgroundColor: colors.bgElev, borderColor: colors.line }]}>
-            <View style={styles.cardHeader}>
-              <Icons.edit size={16} color={colors.ink3} />
-              <Text style={[styles.cardLabel, { color: colors.ink2, fontFamily: fonts.sans }]}>
-                המלצות ראשוניות
-              </Text>
-              <Text style={[styles.optionalTag, { color: colors.ink4, fontFamily: fonts.sans }]}>
-                אופציונלי
-              </Text>
-            </View>
-            <TextInput
-              value={notes}
-              onChangeText={setNotes}
-              multiline
-              style={[styles.notesInput, { color: colors.ink1, fontFamily: fonts.sans }]}
-              textAlignVertical="top"
-              textAlign="right"
-              placeholder="הוסף המלצות, הערות או פרטים שברצונך שה-AI יכלול בדוח…"
-              placeholderTextColor={colors.ink4}
-            />
-          </View>
-        )}
-
-        {/* Info row */}
-        {!isTranscribing && (
-          <View style={[styles.infoRow, { backgroundColor: colors.aiBg }]}>
-            <Icons.sparkle size={14} color={colors.ai2} />
-            <Text style={[styles.infoText, { color: colors.ai2, fontFamily: fonts.sans }]}>
-              ה-AI יקרא את הכל ויבנה דוח מקצועי ורשימת המלצות
-            </Text>
-          </View>
-        )}
+      {/* Info row */}
+      {!isTranscribing && (
+        <View style={[styles.infoRow, { backgroundColor: colors.aiBg }]}>
+          <Icons.sparkle size={14} color={colors.ai2} />
+          <Text style={[styles.infoText, { color: colors.ai2, fontFamily: fonts.sans }]}>
+            ה-AI יקרא את הכל ויבנה דוח מקצועי ורשימת המלצות
+          </Text>
+        </View>
+      )}
     </KeyboardAwareFormLayout>
   );
 }
 
 const styles = StyleSheet.create({
   exitBtn: {
-    width: 44, height: 44, borderRadius: 999, borderWidth: 1,
-    alignItems: 'center', justifyContent: 'center',
+    width: 44,
+    height: 44,
+    borderRadius: 999,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   content: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 140, gap: 16 },
   actionStack: { gap: 10 },
@@ -244,7 +249,13 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   aiTagText: { fontSize: 12, fontWeight: '700' },
-  title: { fontSize: 30, fontWeight: '500', lineHeight: 33, letterSpacing: -0.6, textAlign: 'right' },
+  title: {
+    fontSize: 30,
+    fontWeight: '500',
+    lineHeight: 33,
+    letterSpacing: -0.6,
+    textAlign: 'right',
+  },
   subtitle: { fontSize: 14, textAlign: 'right' },
 
   banner: {

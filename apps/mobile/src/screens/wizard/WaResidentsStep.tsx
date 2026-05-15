@@ -1,7 +1,5 @@
 import React, { useState } from 'react';
-import {
-  View, Text, StyleSheet, Pressable, TextInput, Alert, Modal,
-} from 'react-native';
+import { View, Text, StyleSheet, Pressable, TextInput, Alert, Modal, Keyboard } from 'react-native';
 import { Header, ProgressBar, KeyboardAwareFormLayout } from '@/components/layout';
 import { Button, KeyboardAwareScrollView } from '@/components/primitives';
 import { Icons } from '@/components/icons';
@@ -38,13 +36,28 @@ function ResidentFormModal({
   colors: typeof lightColors;
 }) {
   const [form, setForm] = useState(initial);
+  const [keyboardOpen, setKeyboardOpen] = React.useState(false);
+
+  React.useEffect(() => {
+    const show = Keyboard.addListener('keyboardDidShow', () => {
+      setKeyboardOpen(true);
+    });
+
+    const hide = Keyboard.addListener('keyboardDidHide', () => {
+      setKeyboardOpen(false);
+    });
+
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
 
   React.useEffect(() => {
     if (visible) setForm(initial);
   }, [visible]);
 
-  const set = (key: keyof typeof form) => (val: string) =>
-    setForm(f => ({ ...f, [key]: val }));
+  const set = (key: keyof typeof form) => (val: string) => setForm((f) => ({ ...f, [key]: val }));
 
   const handleSave = () => {
     if (!form.fullName.trim()) {
@@ -71,8 +84,11 @@ function ResidentFormModal({
 
           <KeyboardAwareScrollView
             contentContainerStyle={styles.modalContent}
-            extraScrollHeight={140}
-            extraHeight={140}
+            enableOnAndroid
+            enableAutomaticScroll
+            extraScrollHeight={320}
+            extraHeight={320}
+            keyboardOpeningTime={0}
           >
             <Field
               label="שם מלא *"
@@ -121,7 +137,13 @@ function ResidentFormModal({
             />
           </KeyboardAwareScrollView>
 
-          <View style={[styles.modalActions, { borderTopColor: colors.line }]}>
+          <View
+            style={[
+              styles.modalActions,
+              { borderTopColor: colors.line },
+              keyboardOpen && { marginBottom: 320 },
+            ]}
+          >
             <Button kind="primary" size="lg" full onPress={handleSave} colors={colors}>
               שמור דייר
             </Button>
@@ -133,7 +155,13 @@ function ResidentFormModal({
 }
 
 function Field({
-  label, value, onChangeText, placeholder, keyboardType, multiline, colors,
+  label,
+  value,
+  onChangeText,
+  placeholder,
+  keyboardType,
+  multiline,
+  colors,
 }: {
   label: string;
   value: string;
@@ -145,8 +173,16 @@ function Field({
 }) {
   return (
     <View style={styles.fieldWrap}>
-      <Text style={[styles.fieldLabel, { color: colors.ink3, fontFamily: fonts.sans }]}>{label}</Text>
-      <View style={[styles.fieldInput, { borderColor: colors.line, backgroundColor: colors.bgElev }, multiline && styles.fieldInputMulti]}>
+      <Text style={[styles.fieldLabel, { color: colors.ink3, fontFamily: fonts.sans }]}>
+        {label}
+      </Text>
+      <View
+        style={[
+          styles.fieldInput,
+          { borderColor: colors.line, backgroundColor: colors.bgElev },
+          multiline && styles.fieldInputMulti,
+        ]}
+      >
         <TextInput
           style={[styles.fieldText, { color: colors.ink1, fontFamily: fonts.sans }]}
           value={value}
@@ -183,15 +219,19 @@ export function WaResidentsStep({ colors = lightColors, onNext, onBack }: WaResi
     const r = residents[idx];
     if (!r) return;
     setEditingIndex(idx);
-    setEditInitial({ fullName: r.fullName, phone: r.phone, apartment: r.apartment, floor: r.floor, notes: r.notes });
+    setEditInitial({
+      fullName: r.fullName,
+      phone: r.phone,
+      apartment: r.apartment,
+      floor: r.floor,
+      notes: r.notes,
+    });
     setModalVisible(true);
   };
 
   const handleSaveResident = (data: Omit<WaResident, 'id'>) => {
     if (editingIndex !== null) {
-      const updated = residents.map((r, i) =>
-        i === editingIndex ? { ...r, ...data } : r,
-      );
+      const updated = residents.map((r, i) => (i === editingIndex ? { ...r, ...data } : r));
       wizard.setWaResidents(updated);
     } else {
       const id = `${Date.now()}`;
@@ -229,7 +269,10 @@ export function WaResidentsStep({ colors = lightColors, onNext, onBack }: WaResi
             action={
               <Pressable
                 onPress={triggerExit}
-                style={[styles.exitBtn, { backgroundColor: colors.bgElev, borderColor: colors.line }]}
+                style={[
+                  styles.exitBtn,
+                  { backgroundColor: colors.bgElev, borderColor: colors.line },
+                ]}
                 hitSlop={6}
               >
                 <Icons.home size={20} color={colors.ink2} />
@@ -253,81 +296,92 @@ export function WaResidentsStep({ colors = lightColors, onNext, onBack }: WaResi
         </Button>
       }
     >
-          <Text style={[styles.title, { color: colors.ink1, fontFamily: fonts.serif }]}>
-            דיירים / משתתפים בהסכם
-          </Text>
-          <Text style={[styles.subtitle, { color: colors.ink3, fontFamily: fonts.sans }]}>
-            הוסף את כל הדיירים המשתתפים בהסכם
-          </Text>
+      <Text style={[styles.title, { color: colors.ink1, fontFamily: fonts.serif }]}>
+        דיירים / משתתפים בהסכם
+      </Text>
+      <Text style={[styles.subtitle, { color: colors.ink3, fontFamily: fonts.sans }]}>
+        הוסף את כל הדיירים המשתתפים בהסכם
+      </Text>
 
-          {/* Residents list */}
-          {residents.length > 0 && (
-            <View style={[styles.list, { borderColor: colors.line, backgroundColor: colors.bgElev }]}>
-              {residents.map((resident, idx) => (
-                <View
-                  key={resident.id}
-                  style={[
-                    styles.residentRow,
-                    idx < residents.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.line },
-                  ]}
+      {/* Residents list */}
+      {residents.length > 0 && (
+        <View style={[styles.list, { borderColor: colors.line, backgroundColor: colors.bgElev }]}>
+          {residents.map((resident, idx) => (
+            <View
+              key={resident.id}
+              style={[
+                styles.residentRow,
+                idx < residents.length - 1 && {
+                  borderBottomWidth: 1,
+                  borderBottomColor: colors.line,
+                },
+              ]}
+            >
+              <View style={[styles.residentNum, { backgroundColor: colors.bgSunken }]}>
+                <Text
+                  style={[styles.residentNumText, { color: colors.ink3, fontFamily: fonts.sans }]}
                 >
-                  <View style={[styles.residentNum, { backgroundColor: colors.bgSunken }]}>
-                    <Text style={[styles.residentNumText, { color: colors.ink3, fontFamily: fonts.sans }]}>
-                      {idx + 1}
-                    </Text>
-                  </View>
-                  <View style={styles.residentInfo}>
-                    <Text style={[styles.residentName, { color: colors.ink1, fontFamily: fonts.sans }]}>
-                      {resident.fullName}
-                    </Text>
-                    <Text style={[styles.residentMeta, { color: colors.ink3, fontFamily: fonts.sans }]}>
-                      {[
-                        resident.phone,
-                        resident.apartment && `דירה ${resident.apartment}`,
-                        resident.floor && `קומה ${resident.floor}`,
-                      ].filter(Boolean).join(' · ')}
-                    </Text>
-                    {!!resident.notes && (
-                      <Text style={[styles.residentNotes, { color: colors.ink4, fontFamily: fonts.sans }]}>
-                        {resident.notes}
-                      </Text>
-                    )}
-                  </View>
-                  <View style={styles.residentActions}>
-                    <Pressable onPress={() => openEdit(idx)} hitSlop={8}>
-                      <Icons.edit size={18} color={colors.ink3} />
-                    </Pressable>
-                    <Pressable onPress={() => handleDelete(idx)} hitSlop={8}>
-                      <Icons.trash size={18} color={colors.danger} />
-                    </Pressable>
-                  </View>
-                </View>
-              ))}
+                  {idx + 1}
+                </Text>
+              </View>
+              <View style={styles.residentInfo}>
+                <Text style={[styles.residentName, { color: colors.ink1, fontFamily: fonts.sans }]}>
+                  {resident.fullName}
+                </Text>
+                <Text style={[styles.residentMeta, { color: colors.ink3, fontFamily: fonts.sans }]}>
+                  {[
+                    resident.phone,
+                    resident.apartment && `דירה ${resident.apartment}`,
+                    resident.floor && `קומה ${resident.floor}`,
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')}
+                </Text>
+                {!!resident.notes && (
+                  <Text
+                    style={[styles.residentNotes, { color: colors.ink4, fontFamily: fonts.sans }]}
+                  >
+                    {resident.notes}
+                  </Text>
+                )}
+              </View>
+              <View style={styles.residentActions}>
+                <Pressable onPress={() => openEdit(idx)} hitSlop={8}>
+                  <Icons.edit size={18} color={colors.ink3} />
+                </Pressable>
+                <Pressable onPress={() => handleDelete(idx)} hitSlop={8}>
+                  <Icons.trash size={18} color={colors.danger} />
+                </Pressable>
+              </View>
             </View>
-          )}
+          ))}
+        </View>
+      )}
 
-          {/* Add resident button */}
-          <Pressable
-            onPress={openAdd}
-            style={[styles.addBtn, { borderColor: colors.line, backgroundColor: colors.bgElev }]}
-          >
-            <Icons.plus size={18} color={colors.ai2} />
-            <Text style={[styles.addBtnText, { color: colors.ai2, fontFamily: fonts.sans }]}>
-              הוסף דייר
-            </Text>
-          </Pressable>
+      {/* Add resident button */}
+      <Pressable
+        onPress={openAdd}
+        style={[styles.addBtn, { borderColor: colors.line, backgroundColor: colors.bgElev }]}
+      >
+        <Icons.plus size={18} color={colors.ai2} />
+        <Text style={[styles.addBtnText, { color: colors.ai2, fontFamily: fonts.sans }]}>
+          הוסף דייר
+        </Text>
+      </Pressable>
 
-          {residents.length === 0 && (
-            <View style={[styles.emptyState, { backgroundColor: colors.bgElev, borderColor: colors.line }]}>
-              <Icons.customers size={28} color={colors.ink4} />
-              <Text style={[styles.emptyTitle, { color: colors.ink2, fontFamily: fonts.sans }]}>
-                אין דיירים עדיין
-              </Text>
-              <Text style={[styles.emptyText, { color: colors.ink4, fontFamily: fonts.sans }]}>
-                הוסף דיירים משתתפים בהסכם
-              </Text>
-            </View>
-          )}
+      {residents.length === 0 && (
+        <View
+          style={[styles.emptyState, { backgroundColor: colors.bgElev, borderColor: colors.line }]}
+        >
+          <Icons.customers size={28} color={colors.ink4} />
+          <Text style={[styles.emptyTitle, { color: colors.ink2, fontFamily: fonts.sans }]}>
+            אין דיירים עדיין
+          </Text>
+          <Text style={[styles.emptyText, { color: colors.ink4, fontFamily: fonts.sans }]}>
+            הוסף דיירים משתתפים בהסכם
+          </Text>
+        </View>
+      )}
 
       <ResidentFormModal
         visible={modalVisible}
@@ -342,11 +396,21 @@ export function WaResidentsStep({ colors = lightColors, onNext, onBack }: WaResi
 
 const styles = StyleSheet.create({
   content: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 140, gap: 14 },
-  title: { fontSize: 30, fontWeight: '500', lineHeight: 33, letterSpacing: -0.6, textAlign: 'right' },
+  title: {
+    fontSize: 30,
+    fontWeight: '500',
+    lineHeight: 33,
+    letterSpacing: -0.6,
+    textAlign: 'right',
+  },
   subtitle: { fontSize: 14, textAlign: 'right' },
   exitBtn: {
-    width: 44, height: 44, borderRadius: 999, borderWidth: 1,
-    alignItems: 'center', justifyContent: 'center',
+    width: 44,
+    height: 44,
+    borderRadius: 999,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   list: { borderRadius: 16, borderWidth: 1, overflow: 'hidden' },
@@ -358,8 +422,13 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   residentNum: {
-    width: 24, height: 24, borderRadius: 7,
-    alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1,
+    width: 24,
+    height: 24,
+    borderRadius: 7,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+    marginTop: 1,
   },
   residentNumText: { fontSize: 11, fontWeight: '700' },
   residentInfo: { flex: 1 },
@@ -381,8 +450,12 @@ const styles = StyleSheet.create({
   addBtnText: { fontSize: 14, fontWeight: '700' },
 
   emptyState: {
-    borderRadius: 18, borderWidth: 1, borderStyle: 'dashed',
-    paddingVertical: 36, alignItems: 'center', gap: 8,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    paddingVertical: 36,
+    alignItems: 'center',
+    gap: 8,
   },
   emptyTitle: { fontSize: 15, fontWeight: '700', marginTop: 4 },
   emptyText: { fontSize: 13 },
@@ -390,13 +463,18 @@ const styles = StyleSheet.create({
   // Modal
   modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' },
   modalSheet: {
-    borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     maxHeight: '90%',
-    paddingBottom: 12,
+    paddingBottom: 50,
   },
   modalHandle: {
-    width: 36, height: 4, borderRadius: 2,
-    alignSelf: 'center', marginTop: 10, marginBottom: 4,
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginTop: 10,
+    marginBottom: 4,
   },
   modalHeader: {
     flexDirection: 'row-reverse',
