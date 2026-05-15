@@ -309,6 +309,23 @@ export function RecommendationsStep({
 
   const [issueStates, setIssueStates] = React.useState(() => issues.map(initIssueState));
   const [editState, setEditState] = React.useState<EditState | null>(null);
+  const [editingSummaryIdx, setEditingSummaryIdx] = React.useState<number | null>(null);
+  const [summaryEditText, setSummaryEditText] = React.useState('');
+
+  const openSummaryEdit = (issueIdx: number) => {
+    setSummaryEditText(issueStates[issueIdx]?.summary ?? '');
+    setEditingSummaryIdx(issueIdx);
+  };
+
+  const saveSummaryEdit = () => {
+    if (editingSummaryIdx === null) return;
+    setIssueStates((prev) =>
+      prev.map((is, i) =>
+        i === editingSummaryIdx ? { ...is, summary: summaryEditText.trim() } : is
+      )
+    );
+    setEditingSummaryIdx(null);
+  };
 
   const openEdit = (issueIdx: number, recIdx: number) => {
     const rec = issueStates[issueIdx]?.recs[recIdx];
@@ -439,10 +456,57 @@ export function RecommendationsStep({
                   >
                     סיכום הממצאים
                   </Text>
+                  <Pressable
+                    onPress={() => openSummaryEdit(issueIdx)}
+                    hitSlop={8}
+                    style={[styles.recActionBtn, { backgroundColor: colors.bgSunken }]}
+                  >
+                    <Icons.edit size={15} color={colors.ink3} />
+                  </Pressable>
                 </View>
-                <Text style={[styles.summaryText, { color: colors.ink2, fontFamily: fonts.sans }]}>
-                  {is.summary}
-                </Text>
+                {editingSummaryIdx === issueIdx ? (
+                  <View style={styles.summaryEditContainer}>
+                    <TextInput
+                      value={summaryEditText}
+                      onChangeText={setSummaryEditText}
+                      style={[
+                        styles.summaryEditInput,
+                        {
+                          color: colors.ink1,
+                          fontFamily: fonts.sans,
+                          borderColor: colors.lineStrong,
+                          backgroundColor: colors.bgElev,
+                        },
+                      ]}
+                      multiline
+                      textAlign="right"
+                      textAlignVertical="top"
+                      autoFocus
+                    />
+                    <View style={styles.summaryEditActions}>
+                      <Pressable
+                        onPress={() => setEditingSummaryIdx(null)}
+                        style={[styles.summaryEditBtn, { backgroundColor: colors.bgElev }]}
+                      >
+                        <Text style={[{ color: colors.ink2, fontFamily: fonts.sans, fontSize: 13, fontWeight: '600' }]}>
+                          ביטול
+                        </Text>
+                      </Pressable>
+                      <Pressable
+                        onPress={saveSummaryEdit}
+                        style={[styles.summaryEditBtn, { backgroundColor: colors.ink1 }]}
+                      >
+                        <Text style={[{ color: colors.bg, fontFamily: fonts.sans, fontSize: 13, fontWeight: '600' }]}>
+                          שמור
+                        </Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                ) : (
+                  <Text style={[styles.summaryText, { color: colors.ink2, fontFamily: fonts.sans }]}>
+                    {is.summary}
+                  </Text>
+                )}
               </Card>
             )}
 
@@ -573,6 +637,23 @@ const styles = StyleSheet.create({
   },
   summaryTitle: { fontSize: 13, fontWeight: '700', textAlign: 'right' },
   summaryText: { fontSize: 14, lineHeight: 23, textAlign: 'right' },
+  summaryEditContainer: { gap: 10 },
+  summaryEditInput: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+    fontSize: 14,
+    lineHeight: 22,
+    minHeight: 100,
+  },
+  summaryEditActions: { flexDirection: 'row-reverse', gap: 8 },
+  summaryEditBtn: {
+    flex: 1,
+    height: 40,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 
   recList: { gap: 10 },
   recRow: { flexDirection: 'row-reverse', alignItems: 'flex-start', gap: 12 },
