@@ -158,6 +158,7 @@ export function CustomerStep({
   return (
     <KeyboardAwareFormLayout
       colors={colors}
+      
       header={
         <>
           <Header

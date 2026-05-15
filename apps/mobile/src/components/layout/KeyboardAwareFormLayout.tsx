@@ -17,7 +17,7 @@ interface KeyboardAwareFormLayoutProps {
   /** Overall background — defaults to lightColors.bg. */
   colors?: typeof lightColors;
   /** Extra props forwarded to the scroll view (rare — keep defaults when possible). */
-  scrollProps?: React.ComponentProps<typeof KeyboardAwareScrollView>;
+  scrollProps?: Omit<React.ComponentProps<typeof KeyboardAwareScrollView>, 'children'>;
 }
 
 // Sizing of the FixedBottom bar (single primary button):

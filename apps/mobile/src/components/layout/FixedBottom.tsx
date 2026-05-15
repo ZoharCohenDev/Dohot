@@ -43,7 +43,10 @@ export function FixedBottom({ children, colors = lightColors }: FixedBottomProps
     // Android only fires keyboardDid* — button appears once keyboard is fully up.
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
     const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
-    const onShow = (e: KeyboardEvent) => setKeyboardHeight(e.endCoordinates?.height ?? 0);
+    const onShow = (e: KeyboardEvent) => {
+      const height = e.endCoordinates?.height ?? 0;
+      setKeyboardHeight(height || (Platform.OS === 'android' ? 320 : 0));
+    };
     const onHide = () => setKeyboardHeight(0);
     const showSub = Keyboard.addListener(showEvent, onShow);
     const hideSub = Keyboard.addListener(hideEvent, onHide);
@@ -54,12 +57,11 @@ export function FixedBottom({ children, colors = lightColors }: FixedBottomProps
   }, []);
 
   const keyboardOpen = keyboardHeight > 0;
+  
+  const resolvedKeyboardHeight =
+    keyboardHeight > 0 ? keyboardHeight : Platform.OS === 'android' ? 300 : 0;
 
-  const bottomOffset = keyboardOpen
-    ? Platform.OS === 'ios'
-      ? keyboardHeight
-      : Math.max(keyboardHeight - Math.max(insets.bottom, SAFE_BOTTOM_MIN), 0)
-    : 0;
+  const bottomOffset = keyboardOpen ? resolvedKeyboardHeight : 0;
 
   const verticalPadding = keyboardOpen
     ? 8

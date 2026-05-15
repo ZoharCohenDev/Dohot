@@ -74,7 +74,7 @@ function BottomSheet({ visible, onClose, title, colors, children, scrollable = t
           {scrollable ? (
             <KeyboardAwareScrollView
               contentContainerStyle={styles.sheetContent}
-              extraScrollHeight={400}
+              extraScrollHeight={320}
               extraHeight={140}
             >
               {children}
