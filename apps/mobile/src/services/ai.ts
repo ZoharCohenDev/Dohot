@@ -1,7 +1,11 @@
 import { supabase } from '@/lib/supabase';
 import type { Recommendation } from '@dohot/shared';
 
-const SERVER_URL = (process.env['EXPO_PUBLIC_API_URL'] ?? 'http://localhost:3000').replace(/\/$/, '');
+const SERVER_URL = process.env['EXPO_PUBLIC_API_URL']?.replace(/\/$/, '');
+
+if (!SERVER_URL) {
+  throw new Error('Missing EXPO_PUBLIC_API_URL environment variable');
+}
 
 export interface CleanReportResult {
   professionalText: string;

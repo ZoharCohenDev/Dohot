@@ -1,5 +1,5 @@
 import React from 'react';
-import { I18nManager, Pressable, Animated, StyleSheet } from 'react-native';
+import { Pressable, Animated, StyleSheet } from 'react-native';
 import { lightColors, durations } from '@/theme/tokens';
 
 interface ToggleProps {
@@ -12,11 +12,10 @@ interface ToggleProps {
 const TRAVEL = 20;
 
 export function Toggle({ on, onChange, colors = lightColors }: ToggleProps) {
-  // In RTL: thumb starts at RIGHT (flex-start = RTL leading side).
-  // OFF = 0 (thumb at right/start in RTL), ON = -TRAVEL (moves left = toward end in RTL).
-  // In LTR: thumb starts at LEFT (flex-start = LTR leading side).
-  // OFF = 0 (thumb at left), ON = +TRAVEL (moves right).
-  const onValue = I18nManager.isRTL ? -TRAVEL : TRAVEL;
+  // alignSelf: 'flex-start' places the thumb at the physical LEFT of the track
+  // on both LTR and RTL (cross-axis of a column container does not flip with RTL
+  // in the New Architecture). OFF = 0 (thumb left), ON = +TRAVEL (thumb right).
+  const onValue = TRAVEL;
   const translateX = React.useRef(new Animated.Value(on ? onValue : 0)).current;
 
   React.useEffect(() => {

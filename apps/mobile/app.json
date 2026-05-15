@@ -2,7 +2,7 @@
   "expo": {
     "name": "Dohot",
     "slug": "dohot",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "scheme": "dohot",
@@ -15,17 +15,19 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.ronitwito.dohot",
-      "buildNumber": "1",
+      "buildNumber": "2",
       "infoPlist": {
         "NSMicrophoneUsageDescription": "הקלטת קול ליצירת דוחות",
         "NSCameraUsageDescription": "צילום תמונות לדוח",
         "NSPhotoLibraryUsageDescription": "בחירת תמונות מהגלריה",
         "CFBundleDevelopmentRegion": "he",
-        "CFBundleLocalizations": ["he"]
+        "CFBundleLocalizations": [
+          "he"
+        ]
       }
     },
     "android": {
-      "versionCode": 1,
+      "versionCode": 2,
       "supportsRtl": true,
       "softwareKeyboardLayoutMode": "resize",
       "adaptiveIcon": {
@@ -66,9 +68,7 @@
       "expo-audio"
     ],
     "newArchEnabled": true,
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
+    "runtimeVersion": "1.0.1",
     "updates": {
       "fallbackToCacheTimeout": 0
     },
@@ -78,9 +78,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "710428e0-793a-4de3-b482-f80e40140697"
+        "projectId": "02af1aa6-b613-41a9-bc37-217b5830f41a"
       }
     },
-    "owner": "ronitwito"
+    "owner": "zoharcohendev"
   }
 }

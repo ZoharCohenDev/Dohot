@@ -1,7 +1,15 @@
 import React from 'react';
 import {
-  View, Pressable, ScrollView, Modal, TextInput,
-  StyleSheet, Alert, PanResponder, ActivityIndicator, Image,
+  View,
+  Pressable,
+  ScrollView,
+  Modal,
+  TextInput,
+  StyleSheet,
+  Alert,
+  PanResponder,
+  ActivityIndicator,
+  Image,
   Linking,
 } from 'react-native';
 import Svg, { Path as SvgPath } from 'react-native-svg';
@@ -17,8 +25,18 @@ import { signOut } from '@/services/auth';
 import { pickAndUploadImage } from '@/services/storage';
 import { encodeSignatureSvg } from '@/services/profile';
 import type { Certification, Profession } from '@dohot/shared';
+import { useWizard } from '@/context/WizardContext';
 
-type ModalKey = 'business' | 'signature' | 'certs' | 'disclaimer' | 'fontsize' | 'billing' | 'upgrade' | 'profession' | null;
+type ModalKey =
+  | 'business'
+  | 'signature'
+  | 'certs'
+  | 'disclaimer'
+  | 'fontsize'
+  | 'billing'
+  | 'upgrade'
+  | 'profession'
+  | null;
 
 interface SettingsScreenProps {
   dark?: boolean;
@@ -46,7 +64,9 @@ function BottomSheet({ visible, onClose, title, colors, children, scrollable = t
         <View style={[styles.sheet, { backgroundColor: colors.bg }]}>
           <View style={[styles.sheetHandle, { backgroundColor: colors.line }]} />
           <View style={styles.sheetHeader}>
-            <ScaledText style={[styles.sheetTitle, { color: colors.ink1, fontFamily: fonts.sans }]}>{title}</ScaledText>
+            <ScaledText style={[styles.sheetTitle, { color: colors.ink1, fontFamily: fonts.sans }]}>
+              {title}
+            </ScaledText>
             <Pressable onPress={onClose} hitSlop={12}>
               <Icons.close size={20} color={colors.ink2} />
             </Pressable>
@@ -54,7 +74,7 @@ function BottomSheet({ visible, onClose, title, colors, children, scrollable = t
           {scrollable ? (
             <KeyboardAwareScrollView
               contentContainerStyle={styles.sheetContent}
-              extraScrollHeight={140}
+              extraScrollHeight={400}
               extraHeight={140}
             >
               {children}
@@ -141,7 +161,10 @@ function BusinessModal({ visible, onClose, colors }: BizModalProps) {
     <BottomSheet visible={visible} onClose={onClose} title="פרטי העסק" colors={colors}>
       {/* Logo */}
       <View style={styles.logoRow}>
-        <Pressable onPress={handleUploadLogo} style={[styles.logoBox, { backgroundColor: colors.bgSunken, borderColor: colors.line }]}>
+        <Pressable
+          onPress={handleUploadLogo}
+          style={[styles.logoBox, { backgroundColor: colors.bgSunken, borderColor: colors.line }]}
+        >
           {uploadingLogo ? (
             <ActivityIndicator color={colors.ink3} />
           ) : logoUrl ? (
@@ -151,23 +174,78 @@ function BusinessModal({ visible, onClose, colors }: BizModalProps) {
           )}
         </Pressable>
         <View style={{ flex: 1 }}>
-          <ScaledText style={[styles.logoLabel, { color: colors.ink1, fontFamily: fonts.sans }]}>לוגו העסק</ScaledText>
-          <ScaledText style={[styles.logoSub, { color: colors.ink3, fontFamily: fonts.sans }]}>יופיע בכל המסמכים</ScaledText>
+          <ScaledText style={[styles.logoLabel, { color: colors.ink1, fontFamily: fonts.sans }]}>
+            לוגו העסק
+          </ScaledText>
+          <ScaledText style={[styles.logoSub, { color: colors.ink3, fontFamily: fonts.sans }]}>
+            יופיע בכל המסמכים
+          </ScaledText>
           <Pressable onPress={handleUploadLogo} style={{ marginTop: 6 }}>
-            <ScaledText style={[styles.linkText, { color: colors.accent, fontFamily: fonts.sans }]}>החלף תמונה</ScaledText>
+            <ScaledText style={[styles.linkText, { color: colors.accent, fontFamily: fonts.sans }]}>
+              החלף תמונה
+            </ScaledText>
           </Pressable>
         </View>
       </View>
 
-      <InputField label="שם מלא" value={fullName} onChangeText={setFullName} colors={colors} placeholder="ישראל ישראלי" />
-      <InputField label="שם העסק" value={bizName} onChangeText={setBizName} colors={colors} placeholder="גילוי נזילות בע״מ" />
-      <InputField label="טלפון" value={phone} onChangeText={setPhone} colors={colors} placeholder="050-0000000" keyboardType="phone-pad" />
-      <InputField label="ח.פ / עוסק" value={license} onChangeText={setLicense} colors={colors} placeholder="000000000" keyboardType="number-pad" />
-      <InputField label="אודותינו" value={bio} onChangeText={setBio} colors={colors} placeholder="שנות ניסיון, אזור שירות, גישה מקצועית…" multiline rows={3} />
-      <InputField label="הכשרה" value={trainingNote} onChangeText={setTrainingNote} colors={colors} placeholder="הכשרות, רישיונות, תעודות מקצועיות…" multiline rows={3} />
+      <InputField
+        label="שם מלא"
+        value={fullName}
+        onChangeText={setFullName}
+        colors={colors}
+        placeholder="ישראל ישראלי"
+      />
+      <InputField
+        label="שם העסק"
+        value={bizName}
+        onChangeText={setBizName}
+        colors={colors}
+        placeholder="גילוי נזילות בע״מ"
+      />
+      <InputField
+        label="טלפון"
+        value={phone}
+        onChangeText={setPhone}
+        colors={colors}
+        placeholder="050-0000000"
+        keyboardType="phone-pad"
+      />
+      <InputField
+        label="ח.פ / עוסק"
+        value={license}
+        onChangeText={setLicense}
+        colors={colors}
+        placeholder="000000000"
+        keyboardType="number-pad"
+      />
+      <InputField
+        label="אודותינו"
+        value={bio}
+        onChangeText={setBio}
+        colors={colors}
+        placeholder="שנות ניסיון, אזור שירות, גישה מקצועית…"
+        multiline
+        rows={3}
+      />
+      <InputField
+        label="הכשרה"
+        value={trainingNote}
+        onChangeText={setTrainingNote}
+        colors={colors}
+        placeholder="הכשרות, רישיונות, תעודות מקצועיות…"
+        multiline
+        rows={3}
+      />
 
-      <Button kind="primary" size="lg" full onPress={handleSave} disabled={saving} colors={colors}
-        iconRight={saving ? <ActivityIndicator size="small" color={colors.bg} /> : undefined}>
+      <Button
+        kind="primary"
+        size="lg"
+        full
+        onPress={handleSave}
+        disabled={saving}
+        colors={colors}
+        iconRight={saving ? <ActivityIndicator size="small" color={colors.bg} /> : undefined}
+      >
         {saving ? 'שומר…' : 'שמור שינויים'}
       </Button>
     </BottomSheet>
@@ -176,19 +254,20 @@ function BusinessModal({ visible, onClose, colors }: BizModalProps) {
 
 // ─── SignaturePreview ─────────────────────────────────────────────────────────
 
-function SignaturePreview({ uri, height }: { uri: string; height: number; colors?: typeof lightColors }) {
+function SignaturePreview({
+  uri,
+  height,
+}: {
+  uri: string;
+  height: number;
+  colors?: typeof lightColors;
+}) {
   if (uri.startsWith('data:image/svg+xml;base64,')) {
     const base64 = uri.replace('data:image/svg+xml;base64,', '');
     const xml = atob(base64);
     return <SvgXml xml={xml} width="100%" height={height} />;
   }
-  return (
-    <Image
-      source={{ uri }}
-      style={[styles.currentSigImg, { height }]}
-      resizeMode="contain"
-    />
-  );
+  return <Image source={{ uri }} style={[styles.currentSigImg, { height }]} resizeMode="contain" />;
 }
 
 // ─── SignatureModal ───────────────────────────────────────────────────────────
@@ -214,31 +293,38 @@ function SignatureModal({ visible, onClose, colors }: SigModalProps) {
     if (pts.length < 2) return '';
     const first = pts[0]!;
     const rest = pts.slice(1);
-    return `M${first.x.toFixed(1)} ${first.y.toFixed(1)} ` + rest.map(p => `L${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ');
+    return (
+      `M${first.x.toFixed(1)} ${first.y.toFixed(1)} ` +
+      rest.map((p) => `L${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ')
+    );
   };
 
-  const panResponder = React.useMemo(() => PanResponder.create({
-    onStartShouldSetPanResponder: () => true,
-    onStartShouldSetPanResponderCapture: () => true,
-    onMoveShouldSetPanResponder: () => true,
-    onPanResponderGrant: (e) => {
-      pointsRef.current = [{ x: e.nativeEvent.locationX, y: e.nativeEvent.locationY }];
-      setActivePath(toD(pointsRef.current));
-    },
-    onPanResponderMove: (e) => {
-      pointsRef.current.push({ x: e.nativeEvent.locationX, y: e.nativeEvent.locationY });
-      setActivePath(toD(pointsRef.current));
-    },
-    onPanResponderRelease: () => {
-      const d = toD(pointsRef.current);
-      if (d) {
-        allPathsRef.current = [...allPathsRef.current, d];
-        setDisplayPaths([...allPathsRef.current]);
-      }
-      setActivePath('');
-      pointsRef.current = [];
-    },
-  }), []); // refs only — no deps needed
+  const panResponder = React.useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onStartShouldSetPanResponderCapture: () => true,
+        onMoveShouldSetPanResponder: () => true,
+        onPanResponderGrant: (e) => {
+          pointsRef.current = [{ x: e.nativeEvent.locationX, y: e.nativeEvent.locationY }];
+          setActivePath(toD(pointsRef.current));
+        },
+        onPanResponderMove: (e) => {
+          pointsRef.current.push({ x: e.nativeEvent.locationX, y: e.nativeEvent.locationY });
+          setActivePath(toD(pointsRef.current));
+        },
+        onPanResponderRelease: () => {
+          const d = toD(pointsRef.current);
+          if (d) {
+            allPathsRef.current = [...allPathsRef.current, d];
+            setDisplayPaths([...allPathsRef.current]);
+          }
+          setActivePath('');
+          pointsRef.current = [];
+        },
+      }),
+    []
+  ); // refs only — no deps needed
 
   const clearDrawing = () => {
     allPathsRef.current = [];
@@ -261,7 +347,10 @@ function SignatureModal({ visible, onClose, colors }: SigModalProps) {
     setSaving(true);
     try {
       const pathEls = allPathsRef.current
-        .map(d => `<path d="${d}" fill="none" stroke="#1B1916" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`)
+        .map(
+          (d) =>
+            `<path d="${d}" fill="none" stroke="#1B1916" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`
+        )
         .join('\n');
       const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${canvasWidth} ${CANVAS_H}" width="${canvasWidth}" height="${CANVAS_H}">\n${pathEls}\n</svg>`;
       const dataUri = encodeSignatureSvg(svgContent);
@@ -278,7 +367,10 @@ function SignatureModal({ visible, onClose, colors }: SigModalProps) {
     if (!session?.user) return;
     setSaving(true);
     try {
-      const url = await pickAndUploadImage(session.user.id, 'signatures', { aspect: [3, 1], quality: 0.9 });
+      const url = await pickAndUploadImage(session.user.id, 'signatures', {
+        aspect: [3, 1],
+        quality: 0.9,
+      });
       if (url) {
         await updateProfile({ signature_url: url });
         onClose();
@@ -291,12 +383,27 @@ function SignatureModal({ visible, onClose, colors }: SigModalProps) {
   };
 
   return (
-    <BottomSheet visible={visible} onClose={onClose} title="חתימה דיגיטלית" colors={colors} scrollable={false}>
+    <BottomSheet
+      visible={visible}
+      onClose={onClose}
+      title="חתימה דיגיטלית"
+      colors={colors}
+      scrollable={false}
+    >
       <View style={styles.sheetContent}>
         {/* Current signature preview */}
         {businessProfile?.signature_url && (
-          <View style={[styles.currentSigBox, { backgroundColor: colors.bgSunken, borderColor: colors.line }]}>
-            <ScaledText style={[styles.currentSigLabel, { color: colors.ink3, fontFamily: fonts.sans }]}>חתימה נוכחית</ScaledText>
+          <View
+            style={[
+              styles.currentSigBox,
+              { backgroundColor: colors.bgSunken, borderColor: colors.line },
+            ]}
+          >
+            <ScaledText
+              style={[styles.currentSigLabel, { color: colors.ink3, fontFamily: fonts.sans }]}
+            >
+              חתימה נוכחית
+            </ScaledText>
             <SignaturePreview uri={businessProfile.signature_url} height={60} colors={colors} />
           </View>
         )}
@@ -304,9 +411,17 @@ function SignatureModal({ visible, onClose, colors }: SigModalProps) {
         {/* Tabs */}
         <View style={[styles.tabRow, { backgroundColor: colors.bgSunken }]}>
           {(['draw', 'upload'] as const).map((t) => (
-            <Pressable key={t} onPress={() => setTab(t)}
-              style={[styles.tabPill, t === tab && { backgroundColor: colors.bgElev }]}>
-              <ScaledText style={[styles.tabPillText, { color: t === tab ? colors.ink1 : colors.ink3, fontFamily: fonts.sans }]}>
+            <Pressable
+              key={t}
+              onPress={() => setTab(t)}
+              style={[styles.tabPill, t === tab && { backgroundColor: colors.bgElev }]}
+            >
+              <ScaledText
+                style={[
+                  styles.tabPillText,
+                  { color: t === tab ? colors.ink1 : colors.ink3, fontFamily: fonts.sans },
+                ]}
+              >
                 {t === 'draw' ? 'צייר' : 'העלאה'}
               </ScaledText>
             </Pressable>
@@ -315,27 +430,59 @@ function SignatureModal({ visible, onClose, colors }: SigModalProps) {
 
         {tab === 'draw' ? (
           <>
-            <View style={[styles.sigCanvas, { borderColor: colors.line }]}
+            <View
+              style={[styles.sigCanvas, { borderColor: colors.line }]}
               onLayout={(e) => setCanvasWidth(e.nativeEvent.layout.width)}
-              {...panResponder.panHandlers}>
+              {...panResponder.panHandlers}
+            >
               <Svg width={canvasWidth} height={CANVAS_H}>
                 {displayPaths.map((d, i) => (
-                  <SvgPath key={i} d={d} fill="none" stroke={colors.ink1} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
+                  <SvgPath
+                    key={i}
+                    d={d}
+                    fill="none"
+                    stroke={colors.ink1}
+                    strokeWidth={2.5}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
                 ))}
-                {activePath ? <SvgPath d={activePath} fill="none" stroke={colors.ink1} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" /> : null}
+                {activePath ? (
+                  <SvgPath
+                    d={activePath}
+                    fill="none"
+                    stroke={colors.ink1}
+                    strokeWidth={2.5}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                ) : null}
                 {displayPaths.length === 0 && !activePath && (
                   <SvgPath d="M 30 110 L 290 110" stroke={colors.line} strokeWidth={1} />
                 )}
               </Svg>
               {displayPaths.length === 0 && !activePath && (
-                <ScaledText style={[styles.sigHint, { color: colors.ink4, fontFamily: fonts.sans }]}>חתום כאן</ScaledText>
+                <ScaledText
+                  style={[styles.sigHint, { color: colors.ink4, fontFamily: fonts.sans }]}
+                >
+                  חתום כאן
+                </ScaledText>
               )}
             </View>
             <Pressable onPress={clearDrawing} style={styles.clearLink}>
-              <ScaledText style={[styles.linkText, { color: colors.ink3, fontFamily: fonts.sans }]}>נקה</ScaledText>
+              <ScaledText style={[styles.linkText, { color: colors.ink3, fontFamily: fonts.sans }]}>
+                נקה
+              </ScaledText>
             </Pressable>
-            <Button kind="primary" size="lg" full onPress={handleSaveDraw} disabled={saving} colors={colors}
-              iconRight={saving ? <ActivityIndicator size="small" color={colors.bg} /> : undefined}>
+            <Button
+              kind="primary"
+              size="lg"
+              full
+              onPress={handleSaveDraw}
+              disabled={saving}
+              colors={colors}
+              iconRight={saving ? <ActivityIndicator size="small" color={colors.bg} /> : undefined}
+            >
               {saving ? 'שומר…' : 'שמור חתימה'}
             </Button>
           </>
@@ -344,8 +491,15 @@ function SignatureModal({ visible, onClose, colors }: SigModalProps) {
             <ScaledText style={[styles.uploadHint, { color: colors.ink3, fontFamily: fonts.sans }]}>
               בחר תמונה של חתימה מהגלריה (רוחב 3:1 מומלץ)
             </ScaledText>
-            <Button kind="primary" size="lg" full onPress={handleUpload} disabled={saving} colors={colors}
-              iconRight={saving ? <ActivityIndicator size="small" color={colors.bg} /> : undefined}>
+            <Button
+              kind="primary"
+              size="lg"
+              full
+              onPress={handleUpload}
+              disabled={saving}
+              colors={colors}
+              iconRight={saving ? <ActivityIndicator size="small" color={colors.bg} /> : undefined}
+            >
               {saving ? 'מעלה…' : 'בחר מגלריה'}
             </Button>
           </>
@@ -417,7 +571,7 @@ function CertificationsModal({ visible, onClose, colors }: CertsModalProps) {
         (localUri) => {
           setNewImageLocalUri(localUri);
           setUploadingNewImg(false);
-        },
+        }
       );
       if (url) setNewImageUrl(url);
     } catch (e) {
@@ -436,10 +590,10 @@ function CertificationsModal({ visible, onClose, colors }: CertsModalProps) {
         session.user.id,
         'cert-images',
         { aspect: [1, 1], quality: 0.9 },
-        (localUri) => setLocalUriMap((prev) => ({ ...prev, [idx]: localUri })),
+        (localUri) => setLocalUriMap((prev) => ({ ...prev, [idx]: localUri }))
       );
       if (!url) return;
-      const updated = certs.map((c, i) => i === idx ? { ...c, image_url: url } : c);
+      const updated = certs.map((c, i) => (i === idx ? { ...c, image_url: url } : c));
       await updateProfile({ certifications: updated });
       setCerts(updated);
     } catch (e) {
@@ -490,11 +644,15 @@ function CertificationsModal({ visible, onClose, colors }: CertsModalProps) {
 
   return (
     <BottomSheet visible={visible} onClose={onClose} title="תעודות והסמכות" colors={colors}>
-
       {/* ── General note ── */}
       {editingNote ? (
         <View style={styles.certForm}>
-          <View style={[styles.textAreaWrap, { backgroundColor: colors.bgElev, borderColor: colors.lineStrong }]}>
+          <View
+            style={[
+              styles.textAreaWrap,
+              { backgroundColor: colors.bgElev, borderColor: colors.lineStrong },
+            ]}
+          >
             <TextInput
               value={note}
               onChangeText={setNote}
@@ -509,9 +667,26 @@ function CertificationsModal({ visible, onClose, colors }: CertsModalProps) {
             />
           </View>
           <View style={styles.formActions}>
-            <Button kind="ghost" size="md" onPress={() => setEditingNote(false)} colors={colors} style={{ flex: 1 }}>ביטול</Button>
-            <Button kind="primary" size="md" onPress={handleSaveNote} disabled={savingNote} colors={colors} style={{ flex: 1 }}
-              iconRight={savingNote ? <ActivityIndicator size="small" color={colors.bg} /> : undefined}>
+            <Button
+              kind="ghost"
+              size="md"
+              onPress={() => setEditingNote(false)}
+              colors={colors}
+              style={{ flex: 1 }}
+            >
+              ביטול
+            </Button>
+            <Button
+              kind="primary"
+              size="md"
+              onPress={handleSaveNote}
+              disabled={savingNote}
+              colors={colors}
+              style={{ flex: 1 }}
+              iconRight={
+                savingNote ? <ActivityIndicator size="small" color={colors.bg} /> : undefined
+              }
+            >
               {savingNote ? '…' : 'שמור'}
             </Button>
           </View>
@@ -519,16 +694,32 @@ function CertificationsModal({ visible, onClose, colors }: CertsModalProps) {
       ) : (
         <Pressable
           onPress={() => setEditingNote(true)}
-          style={[styles.certNoteBox, { backgroundColor: colors.bgSunken, borderColor: colors.line }]}
+          style={[
+            styles.certNoteBox,
+            { backgroundColor: colors.bgSunken, borderColor: colors.line },
+          ]}
         >
           <View style={{ flex: 1 }}>
             {note ? (
               <>
-                <ScaledText style={[styles.certNoteLabel, { color: colors.ink4, fontFamily: fonts.sans }]}>הערה כללית</ScaledText>
-                <ScaledText style={[styles.certNoteText, { color: colors.ink1, fontFamily: fonts.sans }]} numberOfLines={3}>{note}</ScaledText>
+                <ScaledText
+                  style={[styles.certNoteLabel, { color: colors.ink4, fontFamily: fonts.sans }]}
+                >
+                  הערה כללית
+                </ScaledText>
+                <ScaledText
+                  style={[styles.certNoteText, { color: colors.ink1, fontFamily: fonts.sans }]}
+                  numberOfLines={3}
+                >
+                  {note}
+                </ScaledText>
               </>
             ) : (
-              <ScaledText style={[styles.certNoteEmpty, { color: colors.ink3, fontFamily: fonts.sans  }]}>הוסף הערה כללית…</ScaledText>
+              <ScaledText
+                style={[styles.certNoteEmpty, { color: colors.ink3, fontFamily: fonts.sans }]}
+              >
+                הוסף הערה כללית…
+              </ScaledText>
             )}
           </View>
           <Icons.edit size={15} color={colors.ink4} />
@@ -536,50 +727,79 @@ function CertificationsModal({ visible, onClose, colors }: CertsModalProps) {
       )}
 
       {/* ── Cert list ── */}
-      {!showForm && (certs.length === 0 ? (
-        <View style={styles.emptyState}>
-          <Icons.badge size={36} color={colors.ink4} />
-          <ScaledText style={[styles.emptyText, { color: colors.ink3, fontFamily: fonts.sans }]}>אין תעודות עדיין</ScaledText>
-        </View>
-      ) : (
-        <View style={styles.certList}>
-          {certs.map((cert, i) => {
-            const thumbUri = localUriMap[i] ?? cert.image_url ?? null;
-            return (
-            <Pressable key={i} style={[styles.certRow, { backgroundColor: colors.bgSunken }]}
-              onPress={() => thumbUri ? setPreviewUri(thumbUri) : null}
-            >
-              {/* Cert image thumbnail — tap to upload/replace */}
-              <View style={[styles.certThumb, {
-                backgroundColor: thumbUri ? 'transparent' : colors.bgElev,
-                borderColor: colors.line,
-              }]}>
-                {thumbUri ? (
-                  <Image
-                    source={{ uri: thumbUri }}
-                    style={{ width: 56, height: 56 }}
-                    resizeMode="cover"
-                  />
-                ) : (
-                  <Icons.image size={16} color={colors.ink4} />
-                )}
-                <Pressable onPress={() => handleUploadCertImg(i)} style={StyleSheet.absoluteFill} />
-              </View>
+      {!showForm &&
+        (certs.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Icons.badge size={36} color={colors.ink4} />
+            <ScaledText style={[styles.emptyText, { color: colors.ink3, fontFamily: fonts.sans }]}>
+              אין תעודות עדיין
+            </ScaledText>
+          </View>
+        ) : (
+          <View style={styles.certList}>
+            {certs.map((cert, i) => {
+              const thumbUri = localUriMap[i] ?? cert.image_url ?? null;
+              return (
+                <Pressable
+                  key={i}
+                  style={[styles.certRow, { backgroundColor: colors.bgSunken }]}
+                  onPress={() => (thumbUri ? setPreviewUri(thumbUri) : null)}
+                >
+                  {/* Cert image thumbnail — tap to upload/replace */}
+                  <View
+                    style={[
+                      styles.certThumb,
+                      {
+                        backgroundColor: thumbUri ? 'transparent' : colors.bgElev,
+                        borderColor: colors.line,
+                      },
+                    ]}
+                  >
+                    {thumbUri ? (
+                      <Image
+                        source={{ uri: thumbUri }}
+                        style={{ width: 56, height: 56 }}
+                        resizeMode="cover"
+                      />
+                    ) : (
+                      <Icons.image size={16} color={colors.ink4} />
+                    )}
+                    <Pressable
+                      onPress={() => handleUploadCertImg(i)}
+                      style={StyleSheet.absoluteFill}
+                    />
+                  </View>
 
-              <View style={{ flex: 1 }}>
-                <ScaledText style={[styles.certName, { color: colors.ink1, fontFamily: fonts.sans }]}>{cert.name}</ScaledText>
-                {cert.year ? <ScaledText style={[styles.certYear, { color: colors.ink3, fontFamily: fonts.sans }]}>{cert.year}</ScaledText> : null}
-              </View>
-              <Pressable onPress={() => handleDelete(i)} hitSlop={8}>
-                <Icons.trash size={18} color={colors.danger} />
-              </Pressable>
-            </Pressable>
-          );})}
-        </View>
-      ))}
+                  <View style={{ flex: 1 }}>
+                    <ScaledText
+                      style={[styles.certName, { color: colors.ink1, fontFamily: fonts.sans }]}
+                    >
+                      {cert.name}
+                    </ScaledText>
+                    {cert.year ? (
+                      <ScaledText
+                        style={[styles.certYear, { color: colors.ink3, fontFamily: fonts.sans }]}
+                      >
+                        {cert.year}
+                      </ScaledText>
+                    ) : null}
+                  </View>
+                  <Pressable onPress={() => handleDelete(i)} hitSlop={8}>
+                    <Icons.trash size={18} color={colors.danger} />
+                  </Pressable>
+                </Pressable>
+              );
+            })}
+          </View>
+        ))}
 
       {/* ── Image preview modal ── */}
-      <Modal visible={!!previewUri} transparent animationType="fade" onRequestClose={() => setPreviewUri(null)}>
+      <Modal
+        visible={!!previewUri}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPreviewUri(null)}
+      >
         <Pressable style={styles.certPreviewOverlay} onPress={() => setPreviewUri(null)}>
           {previewUri && (
             <Image
@@ -594,16 +814,36 @@ function CertificationsModal({ visible, onClose, colors }: CertsModalProps) {
       {/* ── Add form ── */}
       {showForm ? (
         <View style={styles.certForm}>
-          <InputField label="שם התעודה" value={newName} onChangeText={setNewName} colors={colors} placeholder="הסמכת גילוי נזילות" />
-          <InputField label="שנה" value={newYear} onChangeText={setNewYear} colors={colors} placeholder="2024" keyboardType="number-pad" />
+          <InputField
+            label="שם התעודה"
+            value={newName}
+            onChangeText={setNewName}
+            colors={colors}
+            placeholder="הסמכת גילוי נזילות"
+          />
+          <InputField
+            label="שנה"
+            value={newYear}
+            onChangeText={setNewYear}
+            colors={colors}
+            placeholder="2024"
+            keyboardType="number-pad"
+          />
 
           <View style={styles.inputWrap}>
-            <ScaledText style={[styles.fieldLabel, { color: colors.ink2, fontFamily: fonts.sans }]}>תמונה / סריקה (אופציונלי)</ScaledText>
-            <View style={[styles.certImgUpload, {
-              backgroundColor: colors.bgElev,
-              borderColor: colors.lineStrong,
-              borderStyle: (newImageLocalUri ?? newImageUrl) ? 'solid' : 'dashed',
-            }]}>
+            <ScaledText style={[styles.fieldLabel, { color: colors.ink2, fontFamily: fonts.sans }]}>
+              תמונה / סריקה (אופציונלי)
+            </ScaledText>
+            <View
+              style={[
+                styles.certImgUpload,
+                {
+                  backgroundColor: colors.bgElev,
+                  borderColor: colors.lineStrong,
+                  borderStyle: (newImageLocalUri ?? newImageUrl) ? 'solid' : 'dashed',
+                },
+              ]}
+            >
               {uploadingNewImg ? (
                 <ActivityIndicator color={colors.ink3} />
               ) : (newImageLocalUri ?? newImageUrl) ? (
@@ -614,13 +854,19 @@ function CertificationsModal({ visible, onClose, colors }: CertsModalProps) {
                     resizeMode="cover"
                   />
                   <View style={styles.certImgReplaceHint}>
-                    <ScaledText style={{ color: '#fff', fontSize: 11, fontFamily: fonts.sans }}>החלף תמונה</ScaledText>
+                    <ScaledText style={{ color: '#fff', fontSize: 11, fontFamily: fonts.sans }}>
+                      החלף תמונה
+                    </ScaledText>
                   </View>
                 </>
               ) : (
                 <View style={{ alignItems: 'center', gap: 6 }}>
                   <Icons.image size={26} color={colors.ink3} />
-                  <ScaledText style={[{ color: colors.ink3, fontFamily: fonts.sans, fontSize: 12 }]}>בחר מגלריה</ScaledText>
+                  <ScaledText
+                    style={[{ color: colors.ink3, fontFamily: fonts.sans, fontSize: 12 }]}
+                  >
+                    בחר מגלריה
+                  </ScaledText>
                 </View>
               )}
               <Pressable onPress={handleUploadNewImg} style={StyleSheet.absoluteFill} />
@@ -628,15 +874,40 @@ function CertificationsModal({ visible, onClose, colors }: CertsModalProps) {
           </View>
 
           <View style={styles.formActions}>
-            <Button kind="ghost" size="md" onPress={() => { setShowForm(false); setNewImageUrl(null); }} colors={colors} style={{ flex: 1 }}>ביטול</Button>
-            <Button kind="primary" size="md" onPress={handleAdd} disabled={saving} colors={colors} style={{ flex: 1 }}
-              iconRight={saving ? <ActivityIndicator size="small" color={colors.bg} /> : undefined}>
+            <Button
+              kind="ghost"
+              size="md"
+              onPress={() => {
+                setShowForm(false);
+                setNewImageUrl(null);
+              }}
+              colors={colors}
+              style={{ flex: 1 }}
+            >
+              ביטול
+            </Button>
+            <Button
+              kind="primary"
+              size="md"
+              onPress={handleAdd}
+              disabled={saving}
+              colors={colors}
+              style={{ flex: 1 }}
+              iconRight={saving ? <ActivityIndicator size="small" color={colors.bg} /> : undefined}
+            >
               {saving ? '…' : 'הוסף'}
             </Button>
           </View>
         </View>
       ) : (
-        <Button kind="ghost" size="md" full icon={<Icons.plus size={18} color={colors.ink1} />} onPress={() => setShowForm(true)} colors={colors}>
+        <Button
+          kind="ghost"
+          size="md"
+          full
+          icon={<Icons.plus size={18} color={colors.ink1} />}
+          onPress={() => setShowForm(true)}
+          colors={colors}
+        >
           הוסף תעודה
         </Button>
       )}
@@ -678,7 +949,12 @@ function DisclaimerModal({ visible, onClose, colors }: DisclaimerModalProps) {
       <ScaledText style={[styles.fieldLabel, { color: colors.ink2, fontFamily: fonts.sans }]}>
         תוצג בתחתית כל מסמך
       </ScaledText>
-      <View style={[styles.textAreaWrap, { backgroundColor: colors.bgElev, borderColor: colors.lineStrong }]}>
+      <View
+        style={[
+          styles.textAreaWrap,
+          { backgroundColor: colors.bgElev, borderColor: colors.lineStrong },
+        ]}
+      >
         <TextInput
           value={text}
           onChangeText={setText}
@@ -691,8 +967,15 @@ function DisclaimerModal({ visible, onClose, colors }: DisclaimerModalProps) {
           textAlignVertical="top"
         />
       </View>
-      <Button kind="primary" size="lg" full onPress={handleSave} disabled={saving} colors={colors}
-        iconRight={saving ? <ActivityIndicator size="small" color={colors.bg} /> : undefined}>
+      <Button
+        kind="primary"
+        size="lg"
+        full
+        onPress={handleSave}
+        disabled={saving}
+        colors={colors}
+        iconRight={saving ? <ActivityIndicator size="small" color={colors.bg} /> : undefined}
+      >
         {saving ? 'שומר…' : 'שמור'}
       </Button>
     </BottomSheet>
@@ -718,11 +1001,29 @@ function FontSizeModal({ visible, onClose, colors }: FontSizeModalProps) {
   return (
     <BottomSheet visible={visible} onClose={onClose} title="גודל טקסט" colors={colors}>
       {FONT_OPTIONS.map((opt) => (
-        <Pressable key={opt.key} onPress={() => { setFontSizePref(opt.key); onClose(); }}
-          style={[styles.optionRow, { borderColor: colors.line, backgroundColor: opt.key === fontSizePref ? colors.bgSunken : colors.bgElev }]}>
+        <Pressable
+          key={opt.key}
+          onPress={() => {
+            setFontSizePref(opt.key);
+            onClose();
+          }}
+          style={[
+            styles.optionRow,
+            {
+              borderColor: colors.line,
+              backgroundColor: opt.key === fontSizePref ? colors.bgSunken : colors.bgElev,
+            },
+          ]}
+        >
           <View style={{ flex: 1 }}>
-            <ScaledText style={[styles.optionLabel, { color: colors.ink1, fontFamily: fonts.sans }]}>{opt.label}</ScaledText>
-            <ScaledText style={[styles.optionDesc, { color: colors.ink3, fontFamily: fonts.sans }]}>{opt.desc}</ScaledText>
+            <ScaledText
+              style={[styles.optionLabel, { color: colors.ink1, fontFamily: fonts.sans }]}
+            >
+              {opt.label}
+            </ScaledText>
+            <ScaledText style={[styles.optionDesc, { color: colors.ink3, fontFamily: fonts.sans }]}>
+              {opt.desc}
+            </ScaledText>
           </View>
           {opt.key === fontSizePref && <Icons.check size={20} color={colors.ai2} />}
         </Pressable>
@@ -734,23 +1035,34 @@ function FontSizeModal({ visible, onClose, colors }: FontSizeModalProps) {
 // ─── ProfessionModal ──────────────────────────────────────────────────────────
 
 const PROFESSIONS: { value: Profession; label: string; desc: string }[] = [
-  { value: 'leak_detection',    label: 'גילוי נזילות',   desc: 'איתור ותיקון נזילות' },
-  { value: 'plumber',           label: 'אינסטלאי',        desc: 'עבודות אינסטלציה וצנרת' },
-  { value: 'electrician',       label: 'חשמלאי',          desc: 'עבודות חשמל ותאורה' },
-  { value: 'renovation',        label: 'שיפוצניק',        desc: 'שיפוצים ובנייה' },
-  { value: 'ac',                label: 'מיזוג אוויר',     desc: 'התקנה ותחזוקת מיזוג' },
-  { value: 'roofing',           label: 'עבודות גג',       desc: 'גגות ואיטום' },
-  { value: 'waterproofing',     label: 'איטום',            desc: 'איטום ועמידות מים' },
-  { value: 'general_technician',label: 'טכנאי כללי',      desc: 'תחומים מגוונים' },
+  { value: 'leak_detection', label: 'גילוי נזילות', desc: 'איתור ותיקון נזילות' },
+  { value: 'plumber', label: 'אינסטלאי', desc: 'עבודות אינסטלציה וצנרת' },
+  { value: 'electrician', label: 'חשמלאי', desc: 'עבודות חשמל ותאורה' },
+  { value: 'renovation', label: 'שיפוצניק', desc: 'שיפוצים ובנייה' },
+  { value: 'ac', label: 'מיזוג אוויר', desc: 'התקנה ותחזוקת מיזוג' },
+  { value: 'roofing', label: 'עבודות גג', desc: 'גגות ואיטום' },
+  { value: 'waterproofing', label: 'איטום', desc: 'איטום ועמידות מים' },
+  { value: 'general_technician', label: 'טכנאי כללי', desc: 'תחומים מגוונים' },
 ];
 
-function ProfessionModal({ visible, onClose, colors }: { visible: boolean; onClose: () => void; colors: typeof lightColors }) {
+function ProfessionModal({
+  visible,
+  onClose,
+  colors,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  colors: typeof lightColors;
+}) {
   const { businessProfile, updateProfile } = useAuth();
   const [saving, setSaving] = React.useState(false);
   const current = businessProfile?.profession ?? '';
 
   const handleSelect = async (value: Profession) => {
-    if (value === current) { onClose(); return; }
+    if (value === current) {
+      onClose();
+      return;
+    }
     setSaving(true);
     try {
       await updateProfile({ profession: value });
@@ -782,10 +1094,14 @@ function ProfessionModal({ visible, onClose, colors }: { visible: boolean; onClo
             ]}
           >
             <View style={{ flex: 1 }}>
-              <ScaledText style={[styles.optionLabel, { color: colors.ink1, fontFamily: fonts.sans }]}>
+              <ScaledText
+                style={[styles.optionLabel, { color: colors.ink1, fontFamily: fonts.sans }]}
+              >
                 {p.label}
               </ScaledText>
-              <ScaledText style={[styles.optionDesc, { color: colors.ink3, fontFamily: fonts.sans }]}>
+              <ScaledText
+                style={[styles.optionDesc, { color: colors.ink3, fontFamily: fonts.sans }]}
+              >
                 {p.desc}
               </ScaledText>
             </View>
@@ -799,7 +1115,15 @@ function ProfessionModal({ visible, onClose, colors }: { visible: boolean; onClo
 
 // ─── BillingModal ─────────────────────────────────────────────────────────────
 
-function BillingModal({ visible, onClose, colors }: { visible: boolean; onClose: () => void; colors: typeof lightColors }) {
+function BillingModal({
+  visible,
+  onClose,
+  colors,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  colors: typeof lightColors;
+}) {
   const { businessProfile } = useAuth();
   return (
     <BottomSheet visible={visible} onClose={onClose} title="היסטוריית חיובים" colors={colors}>
@@ -807,13 +1131,25 @@ function BillingModal({ visible, onClose, colors }: { visible: boolean; onClose:
         <Icons.history size={40} color={colors.ink4} />
         {businessProfile?.plan === 'free' ? (
           <>
-            <ScaledText style={[styles.emptyText, { color: colors.ink3, fontFamily: fonts.sans }]}>אתה במסלול החינמי</ScaledText>
-            <ScaledText style={[styles.emptySubText, { color: colors.ink4, fontFamily: fonts.sans }]}>שדרג לפרו כדי לצפות בהיסטוריית חיובים</ScaledText>
+            <ScaledText style={[styles.emptyText, { color: colors.ink3, fontFamily: fonts.sans }]}>
+              אתה במסלול החינמי
+            </ScaledText>
+            <ScaledText
+              style={[styles.emptySubText, { color: colors.ink4, fontFamily: fonts.sans }]}
+            >
+              שדרג לפרו כדי לצפות בהיסטוריית חיובים
+            </ScaledText>
           </>
         ) : (
           <>
-            <ScaledText style={[styles.emptyText, { color: colors.ink3, fontFamily: fonts.sans }]}>אין חיובים להצגה</ScaledText>
-            <ScaledText style={[styles.emptySubText, { color: colors.ink4, fontFamily: fonts.sans }]}>החיובים יופיעו כאן לאחר ביצוע תשלום</ScaledText>
+            <ScaledText style={[styles.emptyText, { color: colors.ink3, fontFamily: fonts.sans }]}>
+              אין חיובים להצגה
+            </ScaledText>
+            <ScaledText
+              style={[styles.emptySubText, { color: colors.ink4, fontFamily: fonts.sans }]}
+            >
+              החיובים יופיעו כאן לאחר ביצוע תשלום
+            </ScaledText>
           </>
         )}
       </View>
@@ -831,16 +1167,22 @@ const PRO_FEATURES = [
   'ייצוא נתונים',
 ];
 
-function UpgradeModal({ visible, onClose, colors }: { visible: boolean; onClose: () => void; colors: typeof lightColors }) {
+function UpgradeModal({
+  visible,
+  onClose,
+  colors,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  colors: typeof lightColors;
+}) {
   const { businessProfile } = useAuth();
   const isPro = businessProfile?.plan === 'pro';
 
   const handleUpgrade = () => {
-    Alert.alert(
-      'שדרוג לפרו',
-      'לשדרוג המסלול צרו קשר עם התמיכה: support@dohot.app',
-      [{ text: 'סגור', style: 'cancel' }],
-    );
+    Alert.alert('שדרוג לפרו', 'לשדרוג המסלול צרו קשר עם התמיכה: support@dohot.app', [
+      { text: 'סגור', style: 'cancel' },
+    ]);
   };
 
   return (
@@ -849,7 +1191,11 @@ function UpgradeModal({ visible, onClose, colors }: { visible: boolean; onClose:
         <View style={[styles.planCard, { backgroundColor: colors.aiBg, borderColor: colors.ai2 }]}>
           <View style={styles.planCardHeader}>
             <Icons.shieldCheck size={24} color={colors.ai2} />
-            <ScaledText style={[styles.planCardTitle, { color: colors.ai2, fontFamily: fonts.sans }]}>תכנית פרו פעילה</ScaledText>
+            <ScaledText
+              style={[styles.planCardTitle, { color: colors.ai2, fontFamily: fonts.sans }]}
+            >
+              תכנית פרו פעילה
+            </ScaledText>
           </View>
           <ScaledText style={[styles.planCardSub, { color: colors.ai2, fontFamily: fonts.sans }]}>
             גישה מלאה לכל הפיצ׳רים
@@ -857,23 +1203,48 @@ function UpgradeModal({ visible, onClose, colors }: { visible: boolean; onClose:
         </View>
       ) : (
         <>
-          <View style={[styles.planCard, { backgroundColor: colors.bgSunken, borderColor: colors.line }]}>
-            <ScaledText style={[styles.planCardTitle, { color: colors.ink1, fontFamily: fonts.sans }]}>חינמי</ScaledText>
-            <ScaledText style={[styles.planCardSub, { color: colors.ink3, fontFamily: fonts.sans }]}>10 מסמכים בחודש · ללא לוגו</ScaledText>
+          <View
+            style={[
+              styles.planCard,
+              { backgroundColor: colors.bgSunken, borderColor: colors.line },
+            ]}
+          >
+            <ScaledText
+              style={[styles.planCardTitle, { color: colors.ink1, fontFamily: fonts.sans }]}
+            >
+              חינמי
+            </ScaledText>
+            <ScaledText
+              style={[styles.planCardSub, { color: colors.ink3, fontFamily: fonts.sans }]}
+            >
+              10 מסמכים בחודש · ללא לוגו
+            </ScaledText>
           </View>
 
-          <View style={[styles.planCard, { backgroundColor: colors.aiBg, borderColor: colors.ai2 }]}>
+          <View
+            style={[styles.planCard, { backgroundColor: colors.aiBg, borderColor: colors.ai2 }]}
+          >
             <View style={styles.planCardHeader}>
-              <ScaledText style={[styles.planCardTitle, { color: colors.ai2, fontFamily: fonts.sans }]}>פרו</ScaledText>
+              <ScaledText
+                style={[styles.planCardTitle, { color: colors.ai2, fontFamily: fonts.sans }]}
+              >
+                פרו
+              </ScaledText>
               <View style={[styles.priceTag, { backgroundColor: colors.ai2 }]}>
-                <ScaledText style={[styles.priceText, { color: '#fff', fontFamily: fonts.sans }]}>₪79 / חודש</ScaledText>
+                <ScaledText style={[styles.priceText, { color: '#fff', fontFamily: fonts.sans }]}>
+                  ₪79 / חודש
+                </ScaledText>
               </View>
             </View>
             <View style={styles.featureList}>
               {PRO_FEATURES.map((f) => (
                 <View key={f} style={styles.featureRow}>
                   <Icons.check size={16} color={colors.ai2} />
-                  <ScaledText style={[styles.featureText, { color: colors.ink1, fontFamily: fonts.sans }]}>{f}</ScaledText>
+                  <ScaledText
+                    style={[styles.featureText, { color: colors.ink1, fontFamily: fonts.sans }]}
+                  >
+                    {f}
+                  </ScaledText>
                 </View>
               ))}
             </View>
@@ -901,11 +1272,34 @@ interface InputFieldProps {
   keyboardType?: 'default' | 'phone-pad' | 'number-pad' | 'email-address';
 }
 
-function InputField({ label, value, onChangeText, colors, placeholder, multiline, rows = 3, keyboardType = 'default' }: InputFieldProps) {
+function InputField({
+  label,
+  value,
+  onChangeText,
+  colors,
+  placeholder,
+  multiline,
+  rows = 3,
+  keyboardType = 'default',
+}: InputFieldProps) {
   return (
     <View style={styles.inputWrap}>
-      <ScaledText style={[styles.fieldLabel, { color: colors.ink2, fontFamily: fonts.sans }]}>{label}</ScaledText>
-      <View style={[styles.inputBox, { backgroundColor: colors.bgElev, borderColor: colors.lineStrong, minHeight: multiline ? undefined : 52, alignItems: multiline ? 'flex-start' : 'center', paddingTop: multiline ? 12 : 0, paddingBottom: multiline ? 12 : 0 }]}>
+      <ScaledText style={[styles.fieldLabel, { color: colors.ink2, fontFamily: fonts.sans }]}>
+        {label}
+      </ScaledText>
+      <View
+        style={[
+          styles.inputBox,
+          {
+            backgroundColor: colors.bgElev,
+            borderColor: colors.lineStrong,
+            minHeight: multiline ? undefined : 52,
+            alignItems: multiline ? 'flex-start' : 'center',
+            paddingTop: multiline ? 12 : 0,
+            paddingBottom: multiline ? 12 : 0,
+          },
+        ]}
+      >
         <TextInput
           value={value}
           onChangeText={onChangeText}
@@ -914,7 +1308,11 @@ function InputField({ label, value, onChangeText, colors, placeholder, multiline
           multiline={multiline}
           numberOfLines={multiline ? rows : 1}
           keyboardType={keyboardType}
-          style={[styles.inputText, { color: colors.ink1, fontFamily: fonts.sans }, multiline && styles.multilineText]}
+          style={[
+            styles.inputText,
+            { color: colors.ink1, fontFamily: fonts.sans },
+            multiline && styles.multilineText,
+          ]}
           textAlign="right"
           textAlignVertical={multiline ? 'top' : 'center'}
         />
@@ -937,12 +1335,22 @@ interface SettingRowProps {
 
 function SettingRow({ icon, label, value, right, last, colors, onPress }: SettingRowProps) {
   const inner = (
-    <View style={[styles.settingRow, !last && { borderBottomWidth: 1, borderBottomColor: colors.line }]}>
+    <View
+      style={[styles.settingRow, !last && { borderBottomWidth: 1, borderBottomColor: colors.line }]}
+    >
       <View style={styles.settingIcon}>{icon}</View>
-      <ScaledText style={[styles.settingLabel, { color: colors.ink1, fontFamily: fonts.sans }]}>{label}</ScaledText>
+      <ScaledText style={[styles.settingLabel, { color: colors.ink1, fontFamily: fonts.sans }]}>
+        {label}
+      </ScaledText>
       {right ?? (
         <View style={styles.settingRight}>
-          {value && <ScaledText style={[styles.settingValue, { color: colors.ink3, fontFamily: fonts.sans }]}>{value}</ScaledText>}
+          {value && (
+            <ScaledText
+              style={[styles.settingValue, { color: colors.ink3, fontFamily: fonts.sans }]}
+            >
+              {value}
+            </ScaledText>
+          )}
           <Icons.chevL size={16} color={colors.ink4} />
         </View>
       )}
@@ -957,11 +1365,23 @@ function SettingRow({ icon, label, value, right, last, colors, onPress }: Settin
   );
 }
 
-function SettingGroup({ title, children, colors }: { title: string; children: React.ReactNode; colors: typeof lightColors }) {
+function SettingGroup({
+  title,
+  children,
+  colors,
+}: {
+  title: string;
+  children: React.ReactNode;
+  colors: typeof lightColors;
+}) {
   return (
     <View style={styles.group}>
-      <ScaledText style={[styles.groupTitle, { color: colors.ink3, fontFamily: fonts.sans }]}>{title}</ScaledText>
-      <View style={[styles.groupCard, { backgroundColor: colors.bgElev, borderColor: colors.line }]}>
+      <ScaledText style={[styles.groupTitle, { color: colors.ink3, fontFamily: fonts.sans }]}>
+        {title}
+      </ScaledText>
+      <View
+        style={[styles.groupCard, { backgroundColor: colors.bgElev, borderColor: colors.line }]}
+      >
         {children}
       </View>
     </View>
@@ -976,8 +1396,15 @@ function formatSubscriptionDate(iso: string | null): string {
   return `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}`;
 }
 
-export function SettingsScreen({ dark = false, colors = lightColors, onNavigate, onToggleTheme }: SettingsScreenProps) {
-  const { businessProfile, daysUntilExpiration, isSubscriptionExpired, isSubscriptionWarning } = useAuth();
+export function SettingsScreen({
+  dark = false,
+  colors = lightColors,
+  onNavigate,
+  onToggleTheme,
+}: SettingsScreenProps) {
+  const { businessProfile, daysUntilExpiration, isSubscriptionExpired, isSubscriptionWarning } =
+    useAuth();
+  const wizard = useWizard();
   const { fontSizePref } = useSettings();
   const [openModal, setModal] = React.useState<ModalKey>(null);
   const navSpacing = useBottomNavSpacing();
@@ -992,13 +1419,26 @@ export function SettingsScreen({ dark = false, colors = lightColors, onNavigate,
   const fontLabel = fontSizePref === 'sm' ? 'קטן' : fontSizePref === 'lg' ? 'גדול' : 'רגיל';
 
   const professionLabel: Record<string, string> = {
-    leak_detection: 'גילוי נזילות', plumber: 'אינסטלציה', electrician: 'חשמלאי',
-    renovation: 'שיפוצים', roofing: 'גגות', ac: 'מיזוג אוויר',
-    waterproofing: 'איטום', general_technician: 'טכנאי כללי', other: 'אחר',
+    leak_detection: 'גילוי נזילות',
+    plumber: 'אינסטלציה',
+    electrician: 'חשמלאי',
+    renovation: 'שיפוצים',
+    roofing: 'גגות',
+    ac: 'מיזוג אוויר',
+    waterproofing: 'איטום',
+    general_technician: 'טכנאי כללי',
+    other: 'אחר',
   };
-  const profLabel = professionLabel[businessProfile?.profession ?? ''] ?? businessProfile?.profession ?? '';
-  const subDateLabel = formatSubscriptionDate(businessProfile?.subscription_expiration_date ?? null);
-  const subStatusColor = isSubscriptionExpired ? colors.danger : isSubscriptionWarning ? '#E08A3A' : colors.accent;
+  const profLabel =
+    professionLabel[businessProfile?.profession ?? ''] ?? businessProfile?.profession ?? '';
+  const subDateLabel = formatSubscriptionDate(
+    businessProfile?.subscription_expiration_date ?? null
+  );
+  const subStatusColor = isSubscriptionExpired
+    ? colors.danger
+    : isSubscriptionWarning
+      ? '#E08A3A'
+      : colors.accent;
   const subStatusLabel = isSubscriptionExpired
     ? 'פג תוקף'
     : isSubscriptionWarning
@@ -1010,7 +1450,14 @@ export function SettingsScreen({ dark = false, colors = lightColors, onNavigate,
   const handleLogout = () => {
     Alert.alert('התנתקות', 'האם אתה בטוח שאתה רוצה להתנתק?', [
       { text: 'ביטול', style: 'cancel' },
-      { text: 'התנתק', style: 'destructive', onPress: async () => { await signOut(); } },
+      {
+        text: 'התנתק',
+        style: 'destructive',
+        onPress: async () => {
+          wizard.reset();
+          await signOut();
+        },
+      },
     ]);
   };
 
@@ -1018,18 +1465,36 @@ export function SettingsScreen({ dark = false, colors = lightColors, onNavigate,
     <View style={[styles.root, { backgroundColor: colors.bg }]}>
       <Header large title="ההגדרות שלי" colors={colors} />
 
-      <ScrollView style={styles.scroll} contentContainerStyle={[styles.content, { paddingBottom: navSpacing }]} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[styles.content, { paddingBottom: navSpacing }]}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Profile card */}
         <Card padding={20} colors={colors} style={{ marginBottom: 18 }}>
           <Pressable style={styles.profileRow} onPress={() => setModal('business')}>
             <Avatar name={displayName} size={56} logoUrl={businessProfile?.logo_url} />
             <View style={styles.profileInfo}>
-              <ScaledText style={[styles.profileName, { color: colors.ink1, fontFamily: fonts.sans }]}>{displayName}</ScaledText>
-              {businessName ? <ScaledText style={[styles.profileBiz, { color: colors.ink3, fontFamily: fonts.sans }]}>{businessName}</ScaledText> : null}
+              <ScaledText
+                style={[styles.profileName, { color: colors.ink1, fontFamily: fonts.sans }]}
+              >
+                {displayName}
+              </ScaledText>
+              {businessName ? (
+                <ScaledText
+                  style={[styles.profileBiz, { color: colors.ink3, fontFamily: fonts.sans }]}
+                >
+                  {businessName}
+                </ScaledText>
+              ) : null}
               {plan === 'pro' && (
                 <View style={[styles.proBadge, { backgroundColor: colors.aiBg }]}>
                   <Icons.shieldCheck size={12} color={colors.ai2} />
-                  <ScaledText style={[styles.proBadgeText, { color: colors.ai2, fontFamily: fonts.sans }]}>תכנית פרו</ScaledText>
+                  <ScaledText
+                    style={[styles.proBadgeText, { color: colors.ai2, fontFamily: fonts.sans }]}
+                  >
+                    תכנית פרו
+                  </ScaledText>
                 </View>
               )}
             </View>
@@ -1038,21 +1503,52 @@ export function SettingsScreen({ dark = false, colors = lightColors, onNavigate,
         </Card>
 
         <SettingGroup title="פרופיל ומסמכים" colors={colors}>
-          <SettingRow icon={<Icons.building size={20} color={colors.ink2} />} label="פרטי העסק"
-            value={businessName || 'לא הוגדר'} colors={colors} onPress={() => setModal('business')} />
-          <SettingRow icon={<Icons.signature size={20} color={colors.ink2} />} label="חתימה דיגיטלית"
-            value={hasSig ? 'הוגדרה' : 'לא הוגדרה'} colors={colors} onPress={() => setModal('signature')} />
-          <SettingRow icon={<Icons.badge size={20} color={colors.ink2} />} label="תעודות והסמכות"
-            value={certCount > 0 ? `${certCount} תעודות` : 'ריק'} colors={colors} onPress={() => setModal('certs')} />
-          <SettingRow icon={<Icons.doc size={20} color={colors.ink2} />} label="הסתייגות משפטית"
-            value={hasDisclaimer ? 'הוגדרה' : 'לא הוגדרה'} colors={colors} last onPress={() => setModal('disclaimer')} />
+          <SettingRow
+            icon={<Icons.building size={20} color={colors.ink2} />}
+            label="פרטי העסק"
+            value={businessName || 'לא הוגדר'}
+            colors={colors}
+            onPress={() => setModal('business')}
+          />
+          <SettingRow
+            icon={<Icons.signature size={20} color={colors.ink2} />}
+            label="חתימה דיגיטלית"
+            value={hasSig ? 'הוגדרה' : 'לא הוגדרה'}
+            colors={colors}
+            onPress={() => setModal('signature')}
+          />
+          <SettingRow
+            icon={<Icons.badge size={20} color={colors.ink2} />}
+            label="תעודות והסמכות"
+            value={certCount > 0 ? `${certCount} תעודות` : 'ריק'}
+            colors={colors}
+            onPress={() => setModal('certs')}
+          />
+          <SettingRow
+            icon={<Icons.doc size={20} color={colors.ink2} />}
+            label="הסתייגות משפטית"
+            value={hasDisclaimer ? 'הוגדרה' : 'לא הוגדרה'}
+            colors={colors}
+            last
+            onPress={() => setModal('disclaimer')}
+          />
         </SettingGroup>
 
         <SettingGroup title="מראה" colors={colors}>
-          <SettingRow icon={<Icons.moon size={20} color={colors.ink2} />} label="מצב כהה"
-            right={<Toggle on={dark} onChange={onToggleTheme} colors={colors} />} colors={colors} />
-          <SettingRow icon={<Icons.sun size={20} color={colors.ink2} />} label="גודל טקסט"
-            value={fontLabel} colors={colors} last onPress={() => setModal('fontsize')} />
+          <SettingRow
+            icon={<Icons.moon size={20} color={colors.ink2} />}
+            label="מצב כהה"
+            right={<Toggle on={dark} onChange={onToggleTheme} colors={colors} />}
+            colors={colors}
+          />
+          <SettingRow
+            icon={<Icons.sun size={20} color={colors.ink2} />}
+            label="גודל טקסט"
+            value={fontLabel}
+            colors={colors}
+            last
+            onPress={() => setModal('fontsize')}
+          />
         </SettingGroup>
 
         <SettingGroup title="מנוי ופרופיל" colors={colors}>
@@ -1063,22 +1559,47 @@ export function SettingsScreen({ dark = false, colors = lightColors, onNavigate,
             colors={colors}
             onPress={() => setModal('profession')}
           />
-          <SettingRow icon={<Icons.history size={20} color={colors.ink2} />} label="תוקף מנוי"
-            value={subDateLabel} colors={colors} />
+          <SettingRow
+            icon={<Icons.history size={20} color={colors.ink2} />}
+            label="תוקף מנוי"
+            value={subDateLabel}
+            colors={colors}
+          />
           <SettingRow
             icon={<Icons.shieldCheck size={20} color={subStatusColor} />}
             label="סטטוס מנוי"
             right={
-              <View style={[styles.subStatusBadge, { backgroundColor: isSubscriptionExpired ? colors.dangerBg : isSubscriptionWarning ? '#FEF5EC' : colors.accentBg }]}>
-                <ScaledText style={[styles.subStatusText, { color: subStatusColor, fontFamily: fonts.sans }]}>{subStatusLabel}</ScaledText>
+              <View
+                style={[
+                  styles.subStatusBadge,
+                  {
+                    backgroundColor: isSubscriptionExpired
+                      ? colors.dangerBg
+                      : isSubscriptionWarning
+                        ? '#FEF5EC'
+                        : colors.accentBg,
+                  },
+                ]}
+              >
+                <ScaledText
+                  style={[styles.subStatusText, { color: subStatusColor, fontFamily: fonts.sans }]}
+                >
+                  {subStatusLabel}
+                </ScaledText>
               </View>
             }
             colors={colors}
             last={plan !== 'free' && plan !== 'pro'}
           />
           {(plan === 'free' || plan === 'pro') && (
-            <SettingRow icon={<Icons.star size={20} color={colors.ink2} />} label="תכנית"
-              value={plan === 'pro' ? 'פרו' : 'חינמי'} colors={colors} onPress={() => setModal('upgrade')} last />
+            <SettingRow
+              icon={<Icons.star size={20} color={colors.ink2} />}
+              label="תכנית"
+              value={plan === 'pro' ? 'פרו' : 'חינמי'}
+              colors={colors}
+              onPress={() => setModal('upgrade')}
+              last
+            />
           )}
         </SettingGroup>
 
@@ -1098,25 +1619,64 @@ export function SettingsScreen({ dark = false, colors = lightColors, onNavigate,
           />
         </SettingGroup>
 
-        <Pressable onPress={handleLogout} style={[styles.logoutBtn, { backgroundColor: colors.dangerBg }]}>
+        <Pressable
+          onPress={handleLogout}
+          style={[styles.logoutBtn, { backgroundColor: colors.dangerBg }]}
+        >
           <Icons.logout size={18} color={colors.danger} />
-          <ScaledText style={[styles.logoutText, { color: colors.danger, fontFamily: fonts.sans }]}>התנתק</ScaledText>
+          <ScaledText style={[styles.logoutText, { color: colors.danger, fontFamily: fonts.sans }]}>
+            התנתק
+          </ScaledText>
         </Pressable>
 
-        <ScaledText style={[styles.version, { color: colors.ink4, fontFamily: fonts.sans }]}>דוחות 2.4.1 · נבנה בארץ</ScaledText>
+        <ScaledText style={[styles.version, { color: colors.ink4, fontFamily: fonts.sans }]}>
+          דוחות 2.4.1 · נבנה בארץ
+        </ScaledText>
       </ScrollView>
 
       <BottomNav active="me" onTab={onNavigate} colors={colors} />
 
       {/* Modals */}
-      <BusinessModal visible={openModal === 'business'} onClose={() => setModal(null)} colors={colors} />
-      <SignatureModal visible={openModal === 'signature'} onClose={() => setModal(null)} colors={colors} />
-      <CertificationsModal visible={openModal === 'certs'} onClose={() => setModal(null)} colors={colors} />
-      <DisclaimerModal visible={openModal === 'disclaimer'} onClose={() => setModal(null)} colors={colors} />
-      <FontSizeModal visible={openModal === 'fontsize'} onClose={() => setModal(null)} colors={colors} />
-      <ProfessionModal visible={openModal === 'profession'} onClose={() => setModal(null)} colors={colors} />
-      <BillingModal visible={openModal === 'billing'} onClose={() => setModal(null)} colors={colors} />
-      <UpgradeModal visible={openModal === 'upgrade'} onClose={() => setModal(null)} colors={colors} />
+      <BusinessModal
+        visible={openModal === 'business'}
+        onClose={() => setModal(null)}
+        colors={colors}
+      />
+      <SignatureModal
+        visible={openModal === 'signature'}
+        onClose={() => setModal(null)}
+        colors={colors}
+      />
+      <CertificationsModal
+        visible={openModal === 'certs'}
+        onClose={() => setModal(null)}
+        colors={colors}
+      />
+      <DisclaimerModal
+        visible={openModal === 'disclaimer'}
+        onClose={() => setModal(null)}
+        colors={colors}
+      />
+      <FontSizeModal
+        visible={openModal === 'fontsize'}
+        onClose={() => setModal(null)}
+        colors={colors}
+      />
+      <ProfessionModal
+        visible={openModal === 'profession'}
+        onClose={() => setModal(null)}
+        colors={colors}
+      />
+      <BillingModal
+        visible={openModal === 'billing'}
+        onClose={() => setModal(null)}
+        colors={colors}
+      />
+      <UpgradeModal
+        visible={openModal === 'upgrade'}
+        onClose={() => setModal(null)}
+        colors={colors}
+      />
     </View>
   );
 }
@@ -1132,19 +1692,50 @@ const styles = StyleSheet.create({
   profileInfo: { flex: 1 },
   profileName: { fontWeight: '700', fontSize: 17, textAlign: 'right' },
   profileBiz: { fontSize: 13, marginTop: 2, textAlign: 'right' },
-  proBadge: { flexDirection: 'row-reverse', alignItems: 'center', gap: 5, paddingVertical: 3, paddingHorizontal: 8, borderRadius: 999, marginTop: 6, alignSelf: 'flex-end' },
+  proBadge: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 5,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    borderRadius: 999,
+    marginTop: 6,
+    alignSelf: 'flex-end',
+  },
   proBadgeText: { fontSize: 11, fontWeight: '600' },
 
   group: { marginBottom: 18 },
-  groupTitle: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 8, paddingHorizontal: 4, textAlign: 'right' },
+  groupTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    marginBottom: 8,
+    paddingHorizontal: 4,
+    textAlign: 'right',
+  },
   groupCard: { borderRadius: 18, overflow: 'hidden', borderWidth: 1 },
-  settingRow: { flexDirection: 'row-reverse', alignItems: 'center', gap: 14, paddingVertical: 14, paddingHorizontal: 16 },
+  settingRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+  },
   settingIcon: { flexShrink: 0 },
   settingLabel: { flex: 1, fontSize: 15, fontWeight: '500', textAlign: 'right' },
   settingRight: { flexDirection: 'row-reverse', alignItems: 'center', gap: 6 },
   settingValue: { fontSize: 13 },
 
-  logoutBtn: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'center', height: 56, borderRadius: 16, marginTop: 18, gap: 8 },
+  logoutBtn: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 56,
+    borderRadius: 16,
+    marginTop: 18,
+    gap: 8,
+  },
   logoutText: { fontWeight: '600', fontSize: 15 },
   version: { textAlign: 'center', marginTop: 16, fontSize: 11 },
   subStatusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
@@ -1154,14 +1745,36 @@ const styles = StyleSheet.create({
   overlay: { flex: 1, justifyContent: 'flex-end' },
   backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)' },
   sheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingBottom: 34, maxHeight: '90%' },
-  sheetHandle: { width: 36, height: 4, borderRadius: 2, alignSelf: 'center', marginTop: 10, marginBottom: 4 },
-  sheetHeader: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 14 },
+  sheetHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginTop: 10,
+    marginBottom: 4,
+  },
+  sheetHeader: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+  },
   sheetTitle: { fontSize: 18, fontWeight: '700' },
-  sheetContent: { paddingHorizontal: 20, paddingBottom: 8, gap: 14 },
+  sheetContent: { paddingHorizontal: 20, paddingBottom: 45, gap: 14 },
 
   // Business modal
   logoRow: { flexDirection: 'row-reverse', alignItems: 'center', gap: 14, marginBottom: 6 },
-  logoBox: { width: 72, height: 72, borderRadius: 18, borderWidth: 1, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  logoBox: {
+    width: 72,
+    height: 72,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
   logoImg: { width: 72, height: 72, borderRadius: 18 },
   logoLabel: { fontWeight: '700', fontSize: 15, textAlign: 'right' },
   logoSub: { fontSize: 13, marginTop: 2, textAlign: 'right' },
@@ -1170,7 +1783,12 @@ const styles = StyleSheet.create({
   // Input
   inputWrap: { gap: 6 },
   fieldLabel: { fontSize: 13, fontWeight: '600', paddingHorizontal: 2, textAlign: 'right' },
-  inputBox: { flexDirection: 'row-reverse', paddingHorizontal: 16, borderWidth: 1, borderRadius: 14 },
+  inputBox: {
+    flexDirection: 'row-reverse',
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderRadius: 14,
+  },
   inputText: { flex: 1, fontSize: 15, padding: 0 },
   multilineText: { textAlignVertical: 'top' },
 
@@ -1187,21 +1805,77 @@ const styles = StyleSheet.create({
   uploadHint: { fontSize: 14, textAlign: 'center', paddingVertical: 8 },
 
   // Certifications
-  certNoteBox: { flexDirection: 'row-reverse', alignItems: 'center', gap: 10, borderRadius: 14, borderWidth: 1, padding: 14 },
-  certNoteLabel: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4, textAlign: 'right' },
+  certNoteBox: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 10,
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 14,
+  },
+  certNoteLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 4,
+    textAlign: 'right',
+  },
   certNoteText: { fontSize: 13, lineHeight: 19, textAlign: 'right' },
   certNoteEmpty: { fontSize: 13, fontStyle: 'italic', textAlign: 'right' },
   certList: { gap: 8 },
-  certRow: { flexDirection: 'row-reverse', alignItems: 'center', gap: 12, padding: 12, borderRadius: 14 },
-  certIconBox: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  certThumb: { width: 56, height: 56, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', position: 'relative' },
-  certImgUpload: { aspectRatio: 1, borderRadius: 14, borderWidth: 1, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', position: 'relative' },
-  certImgReplaceHint: { position: 'absolute', bottom: 0, left: 0, right: 0, paddingVertical: 4, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center' },
+  certRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 12,
+    padding: 12,
+    borderRadius: 14,
+  },
+  certIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  certThumb: {
+    width: 56,
+    height: 56,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  certImgUpload: {
+    aspectRatio: 1,
+    borderRadius: 14,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  certImgReplaceHint: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingVertical: 4,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    alignItems: 'center',
+  },
   certName: { fontSize: 14, fontWeight: '600', textAlign: 'right' },
   certYear: { fontSize: 12, marginTop: 2, textAlign: 'right' },
   certForm: { gap: 12 },
   formActions: { flexDirection: 'row', gap: 10 },
-  certPreviewOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.88)', alignItems: 'center', justifyContent: 'center' },
+  certPreviewOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.88)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   certPreviewImg: { width: '90%', height: '70%' },
 
   // Disclaimer
@@ -1209,7 +1883,13 @@ const styles = StyleSheet.create({
   textArea: { fontSize: 15, minHeight: 100 },
 
   // Font size
-  optionRow: { flexDirection: 'row-reverse', alignItems: 'center', padding: 16, borderRadius: 14, borderWidth: 1 },
+  optionRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
   optionLabel: { fontSize: 15, fontWeight: '600', textAlign: 'right' },
   optionDesc: { fontSize: 12, marginTop: 2, textAlign: 'right' },
 
@@ -1220,7 +1900,12 @@ const styles = StyleSheet.create({
 
   // Plan cards
   planCard: { borderRadius: 18, borderWidth: 1, padding: 18, marginBottom: 6 },
-  planCardHeader: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
+  planCardHeader: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
   planCardTitle: { fontSize: 17, fontWeight: '700' },
   planCardSub: { fontSize: 13 },
   priceTag: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },

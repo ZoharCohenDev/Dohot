@@ -1,7 +1,5 @@
 import React, { useState } from 'react';
-import {
-  View, Text, StyleSheet, Pressable, TextInput, Alert,
-} from 'react-native';
+import { View, Text, StyleSheet, Pressable, TextInput, Alert } from 'react-native';
 import { Header, ProgressBar, KeyboardAwareFormLayout } from '@/components/layout';
 import { Button } from '@/components/primitives';
 import { Icons } from '@/components/icons';
@@ -9,6 +7,7 @@ import { lightColors, fonts } from '@/theme/tokens';
 import { useWizard, type WaPaymentTerm } from '@/context/WizardContext';
 import { useWizardStep } from '@/hooks/useWizardStep';
 import { useWizardExit } from '@/hooks/useWizardExit';
+import { useAuth } from '@/context/AuthContext';
 
 interface WaPaymentStepProps {
   colors?: typeof lightColors;
@@ -20,6 +19,7 @@ export function WaPaymentStep({ colors = lightColors, onNext, onBack }: WaPaymen
   const wizard = useWizard();
   const { progress, stepNum, stepOf, goNext, goBack } = useWizardStep();
   const { triggerExit } = useWizardExit();
+  const { businessProfile } = useAuth();
 
   const terms = wizard.state.waPaymentTerms;
   const setTerms = wizard.setWaPaymentTerms;
@@ -44,7 +44,7 @@ export function WaPaymentStep({ colors = lightColors, onNext, onBack }: WaPaymen
   const handleSaveEdit = () => {
     const trimmed = editText.trim();
     if (trimmed) {
-      setTerms(terms.map(t => t.id === editingId ? { ...t, text: trimmed } : t));
+      setTerms(terms.map((t) => (t.id === editingId ? { ...t, text: trimmed } : t)));
     }
     setEditingId(null);
     setEditText('');
@@ -56,14 +56,26 @@ export function WaPaymentStep({ colors = lightColors, onNext, onBack }: WaPaymen
       {
         text: 'מחק',
         style: 'destructive',
-        onPress: () => setTerms(terms.filter(t => t.id !== id)),
+        onPress: () => setTerms(terms.filter((t) => t.id !== id)),
       },
     ]);
   };
 
-  const handleNext = () => {
-    if (onNext) onNext();
-    else goNext();
+  const handleNext = async () => {
+    if (!businessProfile?.id) {
+      Alert.alert('שגיאה', 'לא נמצא פרופיל עסקי. אנא התחבר מחדש.');
+      return;
+    }
+
+    try {
+      await wizard.saveDocument(businessProfile.id, {
+        waPaymentTerms: terms,
+      });
+      if (onNext) onNext();
+      else goNext();
+    } catch {
+      Alert.alert('שגיאה', 'לא ניתן היה לשמור את ההסכם. אנא נסה שוב.');
+    }
   };
 
   return (
@@ -79,7 +91,10 @@ export function WaPaymentStep({ colors = lightColors, onNext, onBack }: WaPaymen
             action={
               <Pressable
                 onPress={triggerExit}
-                style={[styles.exitBtn, { backgroundColor: colors.bgElev, borderColor: colors.line }]}
+                style={[
+                  styles.exitBtn,
+                  { backgroundColor: colors.bgElev, borderColor: colors.line },
+                ]}
                 hitSlop={6}
               >
                 <Icons.home size={20} color={colors.ink2} />
@@ -96,6 +111,7 @@ export function WaPaymentStep({ colors = lightColors, onNext, onBack }: WaPaymen
           size="lg"
           full
           onPress={handleNext}
+          disabled={wizard.saving}
           iconRight={<Icons.back size={20} color={colors.bg} />}
           colors={colors}
         >
@@ -103,117 +119,154 @@ export function WaPaymentStep({ colors = lightColors, onNext, onBack }: WaPaymen
         </Button>
       }
     >
-          <Text style={[styles.title, { color: colors.ink1, fontFamily: fonts.serif }]}>
-            תנאי תשלום
-          </Text>
-          <Text style={[styles.subtitle, { color: colors.ink3, fontFamily: fonts.sans }]}>
-            הוסף את תנאי התשלום להסכם
-          </Text>
+      <Text style={[styles.title, { color: colors.ink1, fontFamily: fonts.serif }]}>
+        תנאי תשלום
+      </Text>
+      <Text style={[styles.subtitle, { color: colors.ink3, fontFamily: fonts.sans }]}>
+        הוסף את תנאי התשלום להסכם
+      </Text>
 
-          {/* Terms list */}
-          <View style={[styles.list, { borderColor: colors.line, backgroundColor: colors.bgElev }]}>
-            {terms.map((term, idx) => (
-              <View
-                key={term.id}
-                style={[
-                  styles.termRow,
-                  idx < terms.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.line },
-                ]}
-              >
-                {editingId === term.id ? (
-                  <View style={styles.editRow}>
-                    <TextInput
-                      style={[styles.editInput, { color: colors.ink1, fontFamily: fonts.sans, borderColor: colors.line, backgroundColor: colors.bg }]}
-                      value={editText}
-                      onChangeText={setEditText}
-                      multiline
-                      textAlign="right"
-                      autoFocus
-                    />
-                    <Pressable
-                      onPress={handleSaveEdit}
-                      style={[styles.saveBtn, { backgroundColor: colors.ink1 }]}
-                      hitSlop={4}
-                    >
-                      <Icons.check size={14} color={colors.bg} stroke={3} />
-                    </Pressable>
-                  </View>
-                ) : (
-                  <View style={styles.displayRow}>
-                    <View style={[styles.termNum, { backgroundColor: colors.bgSunken }]}>
-                      <Text style={[styles.termNumText, { color: colors.ink3, fontFamily: fonts.sans }]}>
-                        {idx + 1}
-                      </Text>
-                    </View>
-                    <Text style={[styles.termText, { color: colors.ink1, fontFamily: fonts.sans }]}>
-                      {term.text}
-                    </Text>
-                    <View style={styles.termActions}>
-                      <Pressable onPress={() => handleStartEdit(term)} hitSlop={8}>
-                        <Icons.edit size={16} color={colors.ink3} />
-                      </Pressable>
-                      <Pressable onPress={() => handleDelete(term.id)} hitSlop={8}>
-                        <Icons.trash size={16} color={colors.danger} />
-                      </Pressable>
-                    </View>
-                  </View>
-                )}
+      {/* Terms list */}
+      <View style={[styles.list, { borderColor: colors.line, backgroundColor: colors.bgElev }]}>
+        {terms.map((term, idx) => (
+          <View
+            key={term.id}
+            style={[
+              styles.termRow,
+              idx < terms.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.line },
+            ]}
+          >
+            {editingId === term.id ? (
+              <View style={styles.editRow}>
+                <TextInput
+                  style={[
+                    styles.editInput,
+                    {
+                      color: colors.ink1,
+                      fontFamily: fonts.sans,
+                      borderColor: colors.line,
+                      backgroundColor: colors.bg,
+                    },
+                  ]}
+                  value={editText}
+                  onChangeText={setEditText}
+                  multiline
+                  textAlign="right"
+                  autoFocus
+                />
+                <Pressable
+                  onPress={handleSaveEdit}
+                  style={[styles.saveBtn, { backgroundColor: colors.ink1 }]}
+                  hitSlop={4}
+                >
+                  <Icons.check size={14} color={colors.bg} stroke={3} />
+                </Pressable>
               </View>
-            ))}
-
-            {/* Add term */}
-            <View style={[styles.addRow, { borderTopWidth: terms.length > 0 ? 1 : 0, borderTopColor: colors.line }]}>
-              <TextInput
-                style={[styles.addInput, { color: colors.ink1, fontFamily: fonts.sans }]}
-                placeholder="הוסף תנאי תשלום…"
-                placeholderTextColor={colors.ink4}
-                value={newText}
-                onChangeText={setNewText}
-                textAlign="right"
-                onSubmitEditing={handleAdd}
-                returnKeyType="done"
-              />
-              <Pressable
-                onPress={handleAdd}
-                style={[styles.addBtn, { backgroundColor: newText.trim() ? colors.ink1 : colors.bgSunken }]}
-                hitSlop={4}
-              >
-                <Icons.plus size={16} color={newText.trim() ? colors.bg : colors.ink4} />
-              </Pressable>
-            </View>
+            ) : (
+              <View style={styles.displayRow}>
+                <View style={[styles.termNum, { backgroundColor: colors.bgSunken }]}>
+                  <Text
+                    style={[styles.termNumText, { color: colors.ink3, fontFamily: fonts.sans }]}
+                  >
+                    {idx + 1}
+                  </Text>
+                </View>
+                <Text style={[styles.termText, { color: colors.ink1, fontFamily: fonts.sans }]}>
+                  {term.text}
+                </Text>
+                <View style={styles.termActions}>
+                  <Pressable onPress={() => handleStartEdit(term)} hitSlop={8}>
+                    <Icons.edit size={16} color={colors.ink3} />
+                  </Pressable>
+                  <Pressable onPress={() => handleDelete(term.id)} hitSlop={8}>
+                    <Icons.trash size={16} color={colors.danger} />
+                  </Pressable>
+                </View>
+              </View>
+            )}
           </View>
+        ))}
 
-          {/* Price summary */}
-          {!!wizard.state.waTotalPrice && (
-            <View style={[styles.priceSummary, { backgroundColor: colors.aiBg, borderColor: 'rgba(90,135,112,0.2)' }]}>
-              <Text style={[styles.priceSummaryLabel, { color: colors.ai2, fontFamily: fonts.sans }]}>
-                סה״כ לתשלום:
-              </Text>
-              <Text style={[styles.priceSummaryValue, { color: colors.ai2, fontFamily: fonts.sans }]}>
-                ₪{wizard.state.waTotalPrice}
-              </Text>
-            </View>
-          )}
+        {/* Add term */}
+        <View
+          style={[
+            styles.addRow,
+            { borderTopWidth: terms.length > 0 ? 1 : 0, borderTopColor: colors.line },
+          ]}
+        >
+          <TextInput
+            style={[styles.addInput, { color: colors.ink1, fontFamily: fonts.sans }]}
+            placeholder="הוסף תנאי תשלום…"
+            placeholderTextColor={colors.ink4}
+            value={newText}
+            onChangeText={setNewText}
+            textAlign="right"
+            onSubmitEditing={handleAdd}
+            returnKeyType="done"
+          />
+          <Pressable
+            onPress={handleAdd}
+            style={[
+              styles.addBtn,
+              { backgroundColor: newText.trim() ? colors.ink1 : colors.bgSunken },
+            ]}
+            hitSlop={4}
+          >
+            <Icons.plus size={16} color={newText.trim() ? colors.bg : colors.ink4} />
+          </Pressable>
+        </View>
+      </View>
+
+      {/* Price summary */}
+      {!!wizard.state.waTotalPrice && (
+        <View
+          style={[
+            styles.priceSummary,
+            { backgroundColor: colors.aiBg, borderColor: 'rgba(90,135,112,0.2)' },
+          ]}
+        >
+          <Text style={[styles.priceSummaryLabel, { color: colors.ai2, fontFamily: fonts.sans }]}>
+            סה״כ לתשלום:
+          </Text>
+          <Text style={[styles.priceSummaryValue, { color: colors.ai2, fontFamily: fonts.sans }]}>
+            ₪{wizard.state.waTotalPrice}
+          </Text>
+        </View>
+      )}
     </KeyboardAwareFormLayout>
   );
 }
 
 const styles = StyleSheet.create({
   content: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 140, gap: 14 },
-  title: { fontSize: 30, fontWeight: '500', lineHeight: 33, letterSpacing: -0.6, textAlign: 'right' },
+  title: {
+    fontSize: 30,
+    fontWeight: '500',
+    lineHeight: 33,
+    letterSpacing: -0.6,
+    textAlign: 'right',
+  },
   subtitle: { fontSize: 14, textAlign: 'right' },
   exitBtn: {
-    width: 44, height: 44, borderRadius: 999, borderWidth: 1,
-    alignItems: 'center', justifyContent: 'center',
+    width: 44,
+    height: 44,
+    borderRadius: 999,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   list: { borderRadius: 16, borderWidth: 1, overflow: 'hidden' },
   termRow: { paddingHorizontal: 14, paddingVertical: 12 },
   displayRow: { flexDirection: 'row-reverse', alignItems: 'flex-start', gap: 10 },
   termNum: {
-    width: 22, height: 22, borderRadius: 6,
-    alignItems: 'center', justifyContent: 'center',
-    flexShrink: 0, marginTop: 1,
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+    marginTop: 1,
   },
   termNumText: { fontSize: 11, fontWeight: '700' },
   termText: { flex: 1, fontSize: 13, lineHeight: 18, textAlign: 'right' },
@@ -221,14 +274,23 @@ const styles = StyleSheet.create({
 
   editRow: { flexDirection: 'row-reverse', gap: 8, alignItems: 'flex-start' },
   editInput: {
-    flex: 1, borderWidth: 1, borderRadius: 10,
-    paddingHorizontal: 10, paddingVertical: 8,
-    fontSize: 13, lineHeight: 18, minHeight: 56,
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    fontSize: 13,
+    lineHeight: 18,
+    minHeight: 56,
   },
   saveBtn: {
-    width: 36, height: 36, borderRadius: 10,
-    alignItems: 'center', justifyContent: 'center',
-    flexShrink: 0, marginTop: 2,
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+    marginTop: 2,
   },
 
   addRow: {
@@ -240,8 +302,12 @@ const styles = StyleSheet.create({
   },
   addInput: { flex: 1, fontSize: 13, padding: 0 },
   addBtn: {
-    width: 32, height: 32, borderRadius: 8,
-    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
   },
 
   priceSummary: {

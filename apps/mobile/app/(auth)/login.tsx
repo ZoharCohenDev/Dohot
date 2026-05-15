@@ -18,7 +18,7 @@ export default function LoginPage() {
         .single();
 
       const role = profile?.role as string | null;
-      const isActive = profile?.is_active ?? true;
+      const isActive = profile?.is_active ?? false;
 
       if (!isActive) {
         router.replace(ROUTES.AUTH_EXPIRED);
@@ -39,7 +39,7 @@ export default function LoginPage() {
       router.replace(role === 'admin' ? ROUTES.ADMIN_HOME : ROUTES.APP_HOME);
     } catch (e) {
       console.log('[LOGIN] error:', e);
-      router.replace(ROUTES.APP_HOME);
+      router.replace(ROUTES.AUTH_EXPIRED);
     }
   };
 

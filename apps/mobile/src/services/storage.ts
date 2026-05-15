@@ -1,11 +1,11 @@
 import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 import * as FileSystem from 'expo-file-system/legacy';
 import { Alert, Platform } from 'react-native';
 import { supabase } from '@/lib/supabase';
 
 export type StorageBucket = 'logos' | 'signatures' | 'report-images' | 'pdf-documents' | 'cert-images';
 
-// Buckets that are private — must use signed URLs, not public URLs.
 const PRIVATE_BUCKETS = new Set<StorageBucket>([
   'signatures',
   'report-images',
@@ -14,9 +14,33 @@ const PRIVATE_BUCKETS = new Set<StorageBucket>([
 ]);
 
 interface PickOptions {
-  /** [width, height] crop ratio passed to expo-image-picker */
   aspect?: [number, number];
   quality?: number;
+}
+
+async function resizeImageForUpload(asset: ImagePicker.ImagePickerAsset) {
+  const width = asset.width ?? 0;
+  const height = asset.height ?? 0;
+  const longestSide = Math.max(width, height);
+
+  if (!longestSide || longestSide <= 1920) return asset;
+
+  const resized = await ImageManipulator.manipulateAsync(
+    asset.uri,
+    [{ resize: width >= height ? { width: 1920 } : { height: 1920 } }],
+    {
+      compress: 0.75,
+      format: ImageManipulator.SaveFormat.JPEG,
+    },
+  );
+
+  return {
+    ...asset,
+    uri: resized.uri,
+    width: resized.width,
+    height: resized.height,
+    mimeType: 'image/jpeg',
+  };
 }
 
 async function uploadAsset(
@@ -25,29 +49,39 @@ async function uploadAsset(
   asset: ImagePicker.ImagePickerAsset,
   onLocalUri?: (uri: string) => void,
 ): Promise<string> {
-  onLocalUri?.(asset.uri);
+  const uploadableAsset = await resizeImageForUpload(asset);
+  onLocalUri?.(uploadableAsset.uri);
 
-  const rawExt = asset.uri.split('.').pop() ?? 'jpg';
-  const ext = rawExt.split('?')[0] ?? 'jpg';
-  const storagePath = `${userId}/${Date.now()}.${ext}`;
+  const storagePath = `${userId}/${Date.now()}.jpg`;
 
-  const base64 = await FileSystem.readAsStringAsync(asset.uri, { encoding: 'base64' });
+  const base64 = await FileSystem.readAsStringAsync(uploadableAsset.uri, {
+    encoding: 'base64',
+  });
+
   const binaryStr = atob(base64);
   const bytes = new Uint8Array(binaryStr.length);
-  for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
+  for (let i = 0; i < binaryStr.length; i++) {
+    bytes[i] = binaryStr.charCodeAt(i);
+  }
 
   const { error } = await supabase.storage
     .from(bucket)
-    .upload(storagePath, bytes, { contentType: asset.mimeType ?? 'image/jpeg', upsert: true });
+    .upload(storagePath, bytes, {
+      contentType: uploadableAsset.mimeType ?? 'image/jpeg',
+      upsert: true,
+    });
 
   if (error) throw error;
 
   if (PRIVATE_BUCKETS.has(bucket)) {
-    // Private bucket — public URL won't work; create a long-lived signed URL instead.
     const { data: signed, error: signErr } = await supabase.storage
       .from(bucket)
-      .createSignedUrl(storagePath, 60 * 60 * 24 * 365); // 1 year
-    if (signErr || !signed) throw signErr ?? new Error('Failed to create signed URL');
+      .createSignedUrl(storagePath, 60 * 60 * 24 * 365);
+
+    if (signErr || !signed) {
+      throw signErr ?? new Error('Failed to create signed URL');
+    }
+
     return signed.signedUrl;
   }
 
@@ -55,10 +89,6 @@ async function uploadAsset(
   return data.publicUrl;
 }
 
-/**
- * Request camera permission, take a photo, upload it, and return the public URL.
- * Returns null when the user cancels or denies permission.
- */
 export async function captureAndUploadImage(
   userId: string,
   bucket: StorageBucket,
@@ -66,6 +96,7 @@ export async function captureAndUploadImage(
   onLocalUri?: (uri: string) => void,
 ): Promise<string | null> {
   const perm = await ImagePicker.requestCameraPermissionsAsync();
+
   if (!perm.granted) {
     Alert.alert('אין הרשאה', 'יש לאפשר גישה למצלמה בהגדרות הטלפון');
     return null;
@@ -79,19 +110,13 @@ export async function captureAndUploadImage(
   });
 
   if (result.canceled) return null;
+
   const asset = result.assets[0];
   if (!asset) return null;
 
   return uploadAsset(userId, bucket, asset, onLocalUri);
 }
 
-/**
- * Request photo library permission, launch the picker, upload the selected
- * image to Supabase Storage, and return the public URL.
- *
- * Returns null when the user cancels or denies permission (no throw).
- * Throws on storage upload errors so callers can show an error UI.
- */
 export async function pickAndUploadImage(
   userId: string,
   bucket: StorageBucket,
@@ -99,6 +124,7 @@ export async function pickAndUploadImage(
   onLocalUri?: (uri: string) => void,
 ): Promise<string | null> {
   const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
   if (!perm.granted) {
     Alert.alert('אין הרשאה', 'יש לאפשר גישה לגלריה בהגדרות הטלפון');
     return null;
@@ -112,84 +138,70 @@ export async function pickAndUploadImage(
   });
 
   if (result.canceled) return null;
+
   const asset = result.assets[0];
   if (!asset) return null;
 
   return uploadAsset(userId, bucket, asset, onLocalUri);
 }
 
-/**
- * Delete a file that was previously uploaded to a bucket.
- * Path must be relative to the bucket root (e.g. "userId/filename.jpg").
- * Silently ignores errors.
- */
 export async function deleteStorageFile(bucket: StorageBucket, path: string): Promise<void> {
   await supabase.storage.from(bucket).remove([path]);
 }
 
-/**
- * Extract the storage path (without bucket prefix) from a full public URL.
- * Used when replacing an existing upload.
- */
 export function pathFromStorageUrl(url: string, bucket: StorageBucket): string {
-  // Public URL:  .../object/public/<bucket>/<path>
-  // Signed URL:  .../object/sign/<bucket>/<path>?token=...
   for (const variant of [`/object/public/${bucket}/`, `/object/sign/${bucket}/`]) {
     const idx = url.indexOf(variant);
     if (idx !== -1) return url.slice(idx + variant.length).split('?')[0] ?? '';
   }
+
   return '';
 }
 
-/** @deprecated Use pathFromStorageUrl — handles both public and signed URLs. */
 export function pathFromPublicUrl(publicUrl: string, bucket: StorageBucket): string {
   return pathFromStorageUrl(publicUrl, bucket);
 }
 
-/**
- * Pick an image from the gallery without uploading it.
- * Never triggers the native Android cropper (allowsEditing: false).
- * Returns null on cancel or permission denial.
- */
-export async function pickImageAsset(opts: PickOptions = {}): Promise<ImagePicker.ImagePickerAsset | null> {
+export async function pickImageAsset(
+  opts: PickOptions = {},
+): Promise<ImagePicker.ImagePickerAsset | null> {
   const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
   if (!perm.granted) {
     Alert.alert('אין הרשאה', 'יש לאפשר גישה לגלריה בהגדרות הטלפון');
     return null;
   }
+
   const result = await ImagePicker.launchImageLibraryAsync({
     mediaTypes: ['images'],
     allowsEditing: false,
     quality: opts.quality ?? 0.85,
   });
+
   if (result.canceled || !result.assets[0]) return null;
   return result.assets[0];
 }
 
-/**
- * Capture a photo with the camera without uploading it.
- * Never triggers the native Android cropper (allowsEditing: false).
- * Returns null on cancel or permission denial.
- */
-export async function captureImageAsset(opts: PickOptions = {}): Promise<ImagePicker.ImagePickerAsset | null> {
+export async function captureImageAsset(
+  opts: PickOptions = {},
+): Promise<ImagePicker.ImagePickerAsset | null> {
   const perm = await ImagePicker.requestCameraPermissionsAsync();
+
   if (!perm.granted) {
     Alert.alert('אין הרשאה', 'יש לאפשר גישה למצלמה בהגדרות הטלפון');
     return null;
   }
+
   const result = await ImagePicker.launchCameraAsync({
     mediaTypes: ['images'],
     allowsEditing: false,
     quality: opts.quality ?? 0.85,
   });
+
   if (result.canceled || !result.assets[0]) return null;
   return result.assets[0];
 }
 
-/**
- * Upload an ImagePickerAsset to a storage bucket.
- * Companion to pickImageAsset / captureImageAsset for two-step pick → preview → upload flows.
- */
 export async function uploadImageAsset(
   userId: string,
   bucket: StorageBucket,

@@ -24,16 +24,16 @@ export type WizardStep =
 
 export interface DocumentTypeConfig {
   id: DocType;
-  dbType: DocumentType;          // maps to DB documents.type
+  dbType: DocumentType; // maps to DB documents.type
   label: string;
   desc: string;
   detail: string;
   hasAI: boolean;
-  steps: WizardStep[];           // ordered wizard steps
-  progressSteps: WizardStep[];   // steps shown in the progress bar (excludes transitions)
-  titlePrefix: string;           // document title prefix (e.g. "דוח בדיקה –")
-  filenameLabel: string;         // label used in generated PDF filename (e.g. "דוח בדיקה")
-  customerNextLabel: string;     // CTA on customer screen
+  steps: WizardStep[]; // ordered wizard steps
+  progressSteps: WizardStep[]; // steps shown in the progress bar (excludes transitions)
+  titlePrefix: string; // document title prefix (e.g. "דוח בדיקה –")
+  filenameLabel: string; // label used in generated PDF filename (e.g. "דוח בדיקה")
+  customerNextLabel: string; // CTA on customer screen
 }
 
 export const DOCUMENT_TYPES: Record<DocType, DocumentTypeConfig> = {
@@ -44,7 +44,18 @@ export const DOCUMENT_TYPES: Record<DocType, DocumentTypeConfig> = {
     desc: 'תיעוד ממצאים והמלצות',
     detail: 'בדיקת שטח, גילוי ליקויים, המלצות מקצועיות',
     hasAI: true,
-    steps: ['customer', 'issue', 'photos', 'voice-idle', 'voice', 'transcript', 'processing', 'recommendations', 'preview', 'send'],
+    steps: [
+      'customer',
+      'issue',
+      'photos',
+      'voice-idle',
+      'voice',
+      'transcript',
+      'processing',
+      'recommendations',
+      'preview',
+      'send',
+    ],
     progressSteps: ['customer', 'issue', 'photos', 'recommendations', 'preview'],
     titlePrefix: 'דוח בדיקה –',
     filenameLabel: 'דוח בדיקה',
@@ -86,26 +97,27 @@ export const DOCUMENT_TYPES: Record<DocType, DocumentTypeConfig> = {
     steps: ['customer', 'wa-residents', 'wa-items', 'wa-price', 'wa-payment', 'preview', 'send'],
     progressSteps: ['customer', 'wa-residents', 'wa-items', 'wa-payment', 'preview'],
     titlePrefix: 'הסכם עבודה –',
+    filenameLabel: 'הסכם עבודה',
     customerNextLabel: 'המשך לדיירים',
   },
 };
 
 // Route paths for each step
 export const STEP_ROUTES: Record<WizardStep, string> = {
-  'customer':        '/(app)/wizard/customer',
-  'issue':           '/(app)/wizard/issue',
-  'photos':          '/(app)/wizard/photos',
-  'voice-idle':      '/(app)/wizard/voice-idle',
-  'voice':           '/(app)/wizard/voice',
-  'transcript':      '/(app)/wizard/transcript',
-  'processing':      '/(app)/wizard/processing',
-  'recommendations': '/(app)/wizard/recommendations',
-  'quote-items':     '/(app)/wizard/quote-items',
-  'warranty-terms':  '/(app)/wizard/warranty-terms',
-  'wa-residents':    '/(app)/wizard/wa-residents',
-  'wa-items':        '/(app)/wizard/wa-items',
-  'wa-price':        '/(app)/wizard/wa-price',
-  'wa-payment':      '/(app)/wizard/wa-payment',
-  'preview':         '/(app)/wizard/preview',
-  'send':            '/(app)/wizard/send',
+  customer: '/(app)/wizard/customer',
+  issue: '/(app)/wizard/issue',
+  photos: '/(app)/wizard/photos',
+  'voice-idle': '/(app)/wizard/voice-idle',
+  voice: '/(app)/wizard/voice',
+  transcript: '/(app)/wizard/transcript',
+  processing: '/(app)/wizard/processing',
+  recommendations: '/(app)/wizard/recommendations',
+  'quote-items': '/(app)/wizard/quote-items',
+  'warranty-terms': '/(app)/wizard/warranty-terms',
+  'wa-residents': '/(app)/wizard/wa-residents',
+  'wa-items': '/(app)/wizard/wa-items',
+  'wa-price': '/(app)/wizard/wa-price',
+  'wa-payment': '/(app)/wizard/wa-payment',
+  preview: '/(app)/wizard/preview',
+  send: '/(app)/wizard/send',
 };

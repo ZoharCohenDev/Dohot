@@ -13,8 +13,8 @@ interface FixedBottomProps {
 // gesture indicator). Was 16 — buttons rendered a touch too low on Android
 // edge-to-edge builds; bumping to 24 lifts them out of the soft-key area
 // without changing notched-iPhone spacing.
-const SAFE_BOTTOM_MIN = 24;
-const PADDING_BOTTOM_EXTRA = 16;
+const SAFE_BOTTOM_MIN = Platform.OS === 'android' ? 40 : 24;
+const PADDING_BOTTOM_EXTRA = Platform.OS === 'android' ? 20 : 16;
 
 /**
  * Fixed bottom action bar.
@@ -25,9 +25,10 @@ const PADDING_BOTTOM_EXTRA = 16;
  * Positioning:
  * - iOS: listens to `keyboardWillShow/Hide` and lifts the bar by the keyboard
  *   height so it floats just above the keyboard (animates with it).
- * - Android: uses `softwareKeyboardLayoutMode: 'resize'` (set in app.json) which
- *   shrinks the window when the keyboard appears. `bottom: 0` therefore lands
- *   right above the keyboard naturally — no JS listener needed.
+ * - Android: listens to `keyboardDidShow/Hide` for the same purpose. We cannot
+ *   rely on `softwareKeyboardLayoutMode: 'resize'` because it is broken under
+ *   the New Architecture — adjustResize does not shrink the window, so
+ *   `bottom: 0` would land hidden under the keyboard.
  *
  * Inputs stay visible above the bar because the host `KeyboardAwareScrollView`
  * uses `extraScrollHeight` (see primitive) large enough to clear both the
@@ -38,14 +39,14 @@ export function FixedBottom({ children, colors = lightColors }: FixedBottomProps
   const [keyboardHeight, setKeyboardHeight] = React.useState(0);
 
   React.useEffect(() => {
-    if (Platform.OS !== 'ios') {
-      // adjustResize shrinks the window; no JS positioning needed.
-      return undefined;
-    }
+    // iOS fires keyboardWill* events — animates in sync with the keyboard slide.
+    // Android only fires keyboardDid* — button appears once keyboard is fully up.
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
     const onShow = (e: KeyboardEvent) => setKeyboardHeight(e.endCoordinates?.height ?? 0);
     const onHide = () => setKeyboardHeight(0);
-    const showSub = Keyboard.addListener('keyboardWillShow', onShow);
-    const hideSub = Keyboard.addListener('keyboardWillHide', onHide);
+    const showSub = Keyboard.addListener(showEvent, onShow);
+    const hideSub = Keyboard.addListener(hideEvent, onHide);
     return () => {
       showSub.remove();
       hideSub.remove();
@@ -53,18 +54,19 @@ export function FixedBottom({ children, colors = lightColors }: FixedBottomProps
   }, []);
 
   const keyboardOpen = keyboardHeight > 0;
-  // When keyboard is open we don't need home-indicator clearance under the bar.
+
+  const bottomOffset = keyboardOpen
+    ? Platform.OS === 'ios'
+      ? keyboardHeight
+      : Math.max(keyboardHeight - Math.max(insets.bottom, SAFE_BOTTOM_MIN), 0)
+    : 0;
+
   const verticalPadding = keyboardOpen
-    ? 12
+    ? 8
     : Math.max(insets.bottom, SAFE_BOTTOM_MIN) + PADDING_BOTTOM_EXTRA;
 
   return (
-    <View
-      style={[
-        styles.container,
-        { bottom: keyboardOpen ? keyboardHeight : 0, paddingBottom: verticalPadding },
-      ]}
-    >
+    <View style={[styles.container, { bottom: bottomOffset, paddingBottom: verticalPadding }]}>
       <View style={[styles.fade, { backgroundColor: colors.bg }]} pointerEvents="none" />
       <View style={styles.content}>{children}</View>
     </View>

@@ -24,15 +24,19 @@ export interface CustomerFields {
   floor: string;
 }
 
-function buildAddress(f: Pick<CustomerFields, 'street' | 'houseNumber' | 'apartment' | 'floor' | 'city'>): string {
+function buildAddress(
+  f: Pick<CustomerFields, 'street' | 'houseNumber' | 'apartment' | 'floor' | 'city'>
+): string {
   const line1 = [f.street, f.houseNumber].filter(Boolean).join(' ');
-  const line2 = [f.apartment && `דירה ${f.apartment}`, f.floor && `קומה ${f.floor}`].filter(Boolean).join(', ');
+  const line2 = [f.apartment && `דירה ${f.apartment}`, f.floor && `קומה ${f.floor}`]
+    .filter(Boolean)
+    .join(', ');
   return [line1, line2, f.city].filter(Boolean).join(', ');
 }
 
 export async function upsertCustomer(
   professionalId: string,
-  fields: CustomerFields,
+  fields: CustomerFields
 ): Promise<Customer> {
   const address = buildAddress(fields);
 
@@ -70,11 +74,7 @@ export async function upsertCustomer(
     return data as Customer;
   }
 
-  const { data, error } = await supabase
-    .from(tables.customers)
-    .insert(payload)
-    .select()
-    .single();
+  const { data, error } = await supabase.from(tables.customers).insert(payload).select().single();
 
   if (error) throw error;
   return data as Customer;
@@ -83,7 +83,7 @@ export async function upsertCustomer(
 export async function searchCustomers(
   professionalId: string,
   query: string,
-  limit = 5,
+  limit = 5
 ): Promise<Customer[]> {
   if (!query.trim()) return [];
   const { data } = await supabase
@@ -100,7 +100,7 @@ export async function createDraftDocument(
   professionalId: string,
   customerId: string,
   title: string,
-  type: DocumentType = 'report',
+  type: DocumentType = 'report'
 ): Promise<Document> {
   const row: InsertDocument = {
     professional_id: professionalId,
@@ -114,11 +114,7 @@ export async function createDraftDocument(
     sent_at: null,
   };
 
-  const { data, error } = await supabase
-    .from(tables.documents)
-    .insert(row)
-    .select()
-    .single();
+  const { data, error } = await supabase.from(tables.documents).insert(row).select().single();
 
   if (error) throw error;
   return data as Document;
@@ -136,17 +132,36 @@ interface ReportOpts {
 
 const ISSUE_TYPE_MAP: Record<string, InsertReport['issue_type']> = {
   // leak-related
-  leak: 'leak', floor_leak: 'leak', sewage: 'leak', ac_leak: 'leak',
+  leak: 'leak',
+  floor_leak: 'leak',
+  sewage: 'leak',
+  ac_leak: 'leak',
   // pipe-related
-  pipe: 'pipe', pipe_leak: 'pipe', pipe_burst: 'pipe', tap_drip: 'pipe',
-  toilet: 'pipe', boiler: 'pipe', drainage: 'pipe', plumbing: 'pipe',
+  pipe: 'pipe',
+  pipe_leak: 'pipe',
+  pipe_burst: 'pipe',
+  tap_drip: 'pipe',
+  toilet: 'pipe',
+  boiler: 'pipe',
+  drainage: 'pipe',
+  plumbing: 'pipe',
   // roof-related
-  roof: 'roof', roof_leak: 'roof', roof_leak2: 'roof', crack: 'roof', tiles: 'roof',
+  roof: 'roof',
+  roof_leak: 'roof',
+  roof_leak2: 'roof',
+  crack: 'roof',
+  tiles: 'roof',
   // moisture-related
-  moisture: 'moisture', wall_moisture: 'moisture',
+  moisture: 'moisture',
+  wall_moisture: 'moisture',
   // waterproofing-related
-  waterproofing: 'waterproofing', basement: 'waterproofing', bathroom: 'waterproofing',
-  balcony: 'waterproofing', pool: 'waterproofing', flat_roof: 'waterproofing', membrane: 'waterproofing',
+  waterproofing: 'waterproofing',
+  basement: 'waterproofing',
+  bathroom: 'waterproofing',
+  balcony: 'waterproofing',
+  pool: 'waterproofing',
+  flat_roof: 'waterproofing',
+  membrane: 'waterproofing',
 };
 
 function toDbIssueType(issueType: string): InsertReport['issue_type'] {
@@ -169,11 +184,7 @@ export async function createReport(documentId: string, opts: ReportOpts): Promis
     recommendations: opts.recommendations,
   };
 
-  const { data, error } = await supabase
-    .from(tables.reports)
-    .insert(row)
-    .select()
-    .single();
+  const { data, error } = await supabase.from(tables.reports).insert(row).select().single();
 
   if (error) throw error;
   return data as Report;
@@ -224,7 +235,7 @@ export async function upsertReport(documentId: string, opts: ReportOpts): Promis
 export async function upsertQuoteItems(
   documentId: string,
   items: WizardQuoteItem[],
-  totalAmount: number,
+  totalAmount: number
 ): Promise<void> {
   // Delete existing items then re-insert
   await supabase.from(tables.quoteItems).delete().eq('document_id', documentId);
@@ -243,25 +254,16 @@ export async function upsertQuoteItems(
   }
 
   // Store total on the document row
-  await supabase
-    .from(tables.documents)
-    .update({ amount: totalAmount })
-    .eq('id', documentId);
+  await supabase.from(tables.documents).update({ amount: totalAmount }).eq('id', documentId);
 }
 
 export async function deleteCustomer(customerId: string): Promise<void> {
-  const { error } = await supabase
-    .from(tables.customers)
-    .delete()
-    .eq('id', customerId);
+  const { error } = await supabase.from(tables.customers).delete().eq('id', customerId);
   if (error) throw error;
 }
 
 export async function deleteDocument(documentId: string): Promise<void> {
-  const { error } = await supabase
-    .from(tables.documents)
-    .delete()
-    .eq('id', documentId);
+  const { error } = await supabase.from(tables.documents).delete().eq('id', documentId);
   if (error) throw error;
 }
 
@@ -273,34 +275,45 @@ export async function deleteDocument(documentId: string): Promise<void> {
 export async function generatePdfFromCapture(
   documentId: string,
   images: string[],
-  mimeType: 'image/jpeg' | 'image/png' = 'image/jpeg',
+  mimeType: 'image/jpeg' | 'image/png' = 'image/jpeg'
 ): Promise<string> {
-  const { data: { session } } = await supabase.auth.getSession();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
   const token = session?.access_token;
   if (!token) throw new Error('לא מחובר — יש להתחבר מחדש');
 
-  const response = await fetch(`${SERVER_URL}/api/documents/${documentId}/generate-pdf-from-capture`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ images, mimeType }),
-  });
+  const response = await fetch(
+    `${SERVER_URL}/api/documents/${documentId}/generate-pdf-from-capture`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ images, mimeType }),
+    }
+  );
 
   if (!response.ok) {
-    const payload = await response.json().catch(() => ({})) as { error?: string };
+    const payload = (await response.json().catch(() => ({}))) as { error?: string };
     throw new Error(payload.error ?? `Server error ${response.status}`);
   }
 
-  const result = await response.json() as { url: string };
+  const result = (await response.json()) as { url: string };
   return result.url;
 }
 
-const SERVER_URL = (process.env['EXPO_PUBLIC_API_URL'] ?? 'http://localhost:3000').replace(/\/$/, '');
+const SERVER_URL = process.env['EXPO_PUBLIC_API_URL']?.replace(/\/$/, '');
+
+if (!SERVER_URL) {
+  throw new Error('Missing EXPO_PUBLIC_API_URL environment variable');
+}
 
 export async function generateDocumentPdf(documentId: string): Promise<string> {
-  const { data: { session } } = await supabase.auth.getSession();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
   const token = session?.access_token;
   if (!token) throw new Error('לא מחובר — יש להתחבר מחדש');
 
@@ -310,10 +323,10 @@ export async function generateDocumentPdf(documentId: string): Promise<string> {
   });
 
   if (!response.ok) {
-    const payload = await response.json().catch(() => ({})) as { error?: string };
+    const payload = (await response.json().catch(() => ({}))) as { error?: string };
     throw new Error(payload.error ?? `Server error ${response.status}`);
   }
 
-  const result = await response.json() as { url: string };
+  const result = (await response.json()) as { url: string };
   return result.url;
 }
