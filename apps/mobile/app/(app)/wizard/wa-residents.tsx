@@ -1,5 +1,7 @@
 import { WaResidentsStep } from '@/screens/wizard/WaResidentsStep';
+import { useColors } from '@/theme';
 
 export default function WaResidentsPage() {
-  return <WaResidentsStep />;
+  const colors = useColors();
+  return <WaResidentsStep colors={colors} />;
 }

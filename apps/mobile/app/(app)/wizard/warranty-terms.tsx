@@ -1,5 +1,7 @@
 import { WarrantyTermsStep } from '@/screens/wizard/WarrantyTermsStep';
+import { useColors } from '@/theme';
 
 export default function WizardWarrantyTermsPage() {
-  return <WarrantyTermsStep />;
+  const colors = useColors();
+  return <WarrantyTermsStep colors={colors} />;
 }

@@ -14,7 +14,7 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.ronitwito.dohot",
+      "bundleIdentifier": "com.dohot.app",
       "buildNumber": "2",
       "infoPlist": {
         "NSMicrophoneUsageDescription": "הקלטת קול ליצירת דוחות",
@@ -34,7 +34,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#F5F3EE"
       },
-      "package": "com.ronitwito.dohot",
+      "package": "com.dohot.app",
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO",

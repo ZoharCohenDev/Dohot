@@ -32,7 +32,7 @@
         <key>CFBundleURLSchemes</key>
         <array>
           <string>dohot</string>
-          <string>com.ronitwito.dohot</string>
+          <string>com.dohot.app</string>
         </array>
       </dict>
     </array>

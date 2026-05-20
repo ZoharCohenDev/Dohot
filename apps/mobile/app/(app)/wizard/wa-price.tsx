@@ -1,5 +1,7 @@
 import { WaPriceStep } from '@/screens/wizard/WaPriceStep';
+import { useColors } from '@/theme';
 
 export default function WaPricePage() {
-  return <WaPriceStep />;
+  const colors = useColors();
+  return <WaPriceStep colors={colors} />;
 }

@@ -1,4 +1,4 @@
-package com.ronitwito.dohot
+package com.dohot.app
 
 import android.app.Application
 import android.content.res.Configuration

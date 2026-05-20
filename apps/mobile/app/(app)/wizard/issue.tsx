@@ -1,5 +1,7 @@
 import { IssueStep } from '@/screens/wizard/IssueStep';
+import { useColors } from '@/theme';
 
 export default function WizardIssuePage() {
-  return <IssueStep />;
+  const colors = useColors();
+  return <IssueStep colors={colors} />;
 }

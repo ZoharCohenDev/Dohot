@@ -5,10 +5,12 @@ import { ROUTES } from '@/navigation/constants';
 import { safeBack } from '@/navigation/safeBack';
 import { useWizard } from '@/context/WizardContext';
 import { transcribeAudioFile } from '@/services/ai';
+import { useColors } from '@/theme';
 
 export default function WizardTranscriptPage() {
   const router = useRouter();
   const wizard = useWizard();
+  const colors = useColors();
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [transcriptionFailed, setTranscriptionFailed] = useState(false);
   const startedRef = useRef(false);
@@ -53,6 +55,7 @@ export default function WizardTranscriptPage() {
 
   return (
     <TranscriptReviewScreen
+      colors={colors}
       isTranscribing={isTranscribing}
       transcriptionFailed={transcriptionFailed}
       onNext={() => router.push(ROUTES.WIZARD_PROCESSING)}

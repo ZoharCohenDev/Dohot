@@ -1,5 +1,7 @@
 import { QuoteItemsStep } from '@/screens/wizard/QuoteItemsStep';
+import { useColors } from '@/theme';
 
 export default function WizardQuoteItemsPage() {
-  return <QuoteItemsStep />;
+  const colors = useColors();
+  return <QuoteItemsStep colors={colors} />;
 }

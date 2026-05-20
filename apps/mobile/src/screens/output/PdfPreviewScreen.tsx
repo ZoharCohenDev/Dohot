@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   View, Text, ScrollView, Pressable, ActivityIndicator,
-  StyleSheet, Image, Platform,
+  StyleSheet, Image, Platform, useWindowDimensions,
 } from 'react-native';
 import { SvgXml } from 'react-native-svg';
 import { captureRef } from 'react-native-view-shot';
@@ -9,11 +9,139 @@ import { Header, FixedBottom } from '@/components/layout';
 import { Button } from '@/components/primitives';
 import { Icons } from '@/components/icons';
 import { lightColors, fonts } from '@/theme/tokens';
-import { useWizard } from '@/context/WizardContext';
+import { useWizard, type WizardQuoteItem, type WaWorkItem } from '@/context/WizardContext';
 import { useAuth } from '@/context/AuthContext';
 import { generatePdfFromCapture } from '@/services/documents';
 import { DOCUMENT_TYPES } from '@/config/documentTypes';
-import type { Recommendation } from '@dohot/shared';
+import type { Recommendation, Certification } from '@dohot/shared';
+
+// ─── A4 page layout constants ────────────────────────────────────────────────
+// These match the StyleSheet values below so that cert-page splitting math is
+// consistent with the rendered output.
+const A4_RATIO = 297 / 210; // height / width
+const SCROLL_H_INSET = 18; // paddingHorizontal of the ScrollView content container
+const PAGE_PAD = 28; // pdfPage padding (all sides)
+
+// Estimated component heights used only for cert-page splitting (not rendered sizes).
+const EST_HEADER_H = 92; // PdfPageHeader: brand block + paddingBottom(14) + border + marginBottom(16)
+const EST_SECTION_TITLE_H = 30; // SectionTitle: label lineHeight(~18) + marginBottom(8) ≈ 30
+const EST_SECTION_MARGIN_H = 12; // pdfSection marginBottom
+const EST_CERT_NOTE_H = 50; // certifications_note ~3 lines of pdfBody text + marginBottom(8)
+const EST_CERT_ROW_H = 113; // certRow: paddingVertical(8+8) + certImage height(96) + borderBottom(1)
+
+// Quote splitting
+const EST_QUOTE_ITEM_H = 46; // quoteItem paddingVertical(7+7) + header row(~25) + 1-line desc(~12) avg
+const EST_QUOTE_FOOTER_H = 255; // quoteTotals(~75) + quoteNotes(opt ~50) + validity(~35) + sigRow(~95)
+
+// Work-agreement details page splitting
+const EST_WA_ITEM_H = 28; // waItemRow height (badge + title text ≈ 22) + gap(8) ≈ 28 (no clauses)
+const EST_WA_CLAUSE_H = 18; // each waClauseRow: fontSize 8, lineHeight 12, paddingRight 20 ≈ 18
+const EST_WA_FOOTER_H = 180; // totalBox section(~85) + payment terms section(~95 for 2 terms)
+
+// ─── Page-group builders (pure functions, no component state) ─────────────────
+
+/**
+ * Splits quote items into A4 page groups.
+ * The last group always renders totals + sig (showTotals=true).
+ * All earlier groups are items-only (showTotals=false).
+ */
+function buildQuoteGroups(items: WizardQuoteItem[], pageHeight: number): WizardQuoteItem[][] {
+  if (items.length === 0) return [[]]; // one page (footer only)
+
+  const bodyH = pageHeight - PAGE_PAD * 2 - EST_HEADER_H;
+  const totalNeeded =
+    EST_SECTION_TITLE_H + EST_SECTION_MARGIN_H +
+    items.length * EST_QUOTE_ITEM_H +
+    EST_QUOTE_FOOTER_H;
+
+  if (totalNeeded <= bodyH) return [items]; // everything fits on one page
+
+  // Greedy forward pass: flush when remaining items + footer fit in leftover space.
+  const groups: WizardQuoteItem[][] = [];
+  let currentGroup: WizardQuoteItem[] = [];
+  let usedH = EST_SECTION_TITLE_H + EST_SECTION_MARGIN_H; // first page has title overhead
+
+  for (let i = 0; i < items.length; i++) {
+    const remainingItems = items.slice(i);
+    const remainingH = remainingItems.length * EST_QUOTE_ITEM_H;
+
+    // Can we fit remaining items + footer on the current page?
+    if (usedH + remainingH + EST_QUOTE_FOOTER_H <= bodyH) {
+      groups.push([...currentGroup, ...remainingItems]);
+      return groups;
+    }
+
+    // Does this item overflow the current page?
+    if (usedH + EST_QUOTE_ITEM_H > bodyH && currentGroup.length > 0) {
+      groups.push(currentGroup);
+      currentGroup = [];
+      usedH = 0; // subsequent pages have no section-title overhead
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    currentGroup.push(items[i]!);
+    usedH += EST_QUOTE_ITEM_H;
+  }
+
+  if (currentGroup.length > 0) groups.push(currentGroup);
+  return groups;
+}
+
+/**
+ * Splits WaWorkItems into A4 page groups.
+ * The last group always renders total-price + payment-terms (showFooter=true).
+ */
+function buildWaDetailGroups(
+  items: WaWorkItem[],
+  paymentTermCount: number,
+  pageHeight: number,
+): WaWorkItem[][] {
+  const filled = items.filter(i => i.title.trim());
+  if (filled.length === 0) return [[]]; // one page (footer only)
+
+  const bodyH = pageHeight - PAGE_PAD * 2 - EST_HEADER_H;
+  const footerH = EST_WA_FOOTER_H + paymentTermCount * EST_WA_CLAUSE_H;
+
+  function itemH(item: WaWorkItem) {
+    return EST_WA_ITEM_H + item.clauses.filter(c => c.text.trim()).length * EST_WA_CLAUSE_H;
+  }
+
+  const totalItemsH = filled.reduce((s, i) => s + itemH(i), 0);
+  const totalNeeded =
+    EST_SECTION_TITLE_H + EST_SECTION_MARGIN_H + totalItemsH + footerH;
+
+  if (totalNeeded <= bodyH) return [filled]; // everything fits
+
+  // Greedy forward pass
+  const groups: WaWorkItem[][] = [];
+  let currentGroup: WaWorkItem[] = [];
+  let usedH = EST_SECTION_TITLE_H + EST_SECTION_MARGIN_H;
+
+  for (let i = 0; i < filled.length; i++) {
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const item = filled[i]!;
+    const h = itemH(item);
+    const remainingItems = filled.slice(i);
+    const remainingH = remainingItems.reduce((s, x) => s + itemH(x), 0);
+
+    if (usedH + remainingH + footerH <= bodyH) {
+      groups.push([...currentGroup, ...remainingItems]);
+      return groups;
+    }
+
+    if (usedH + h > bodyH && currentGroup.length > 0) {
+      groups.push(currentGroup);
+      currentGroup = [];
+      usedH = 0;
+    }
+
+    currentGroup.push(item);
+    usedH += h;
+  }
+
+  if (currentGroup.length > 0) groups.push(currentGroup);
+  return groups;
+}
 
 interface PdfPreviewScreenProps {
   colors?: typeof lightColors;
@@ -245,29 +373,36 @@ function AboutPage({
   );
 }
 
-function CertificationsPage({ businessProfile, sectionNum }: { businessProfile: BusinessProfile; sectionNum: number }) {
-  const certs = businessProfile?.certifications ?? [];
+function CertificationsPage({
+  businessProfile,
+  sectionNum,
+  certsSubset,
+  showTitle,
+}: {
+  businessProfile: BusinessProfile;
+  sectionNum: number;
+  certsSubset: Certification[];
+  showTitle: boolean;
+}) {
   const certsNote = businessProfile?.certifications_note;
   return (
-    <>
-      <View style={styles.pdfSection}>
-        <SectionTitle num={sectionNum} label="תעודות והסמכות" />
-        {!!certsNote && (
-          <Text style={[styles.pdfBody, { marginBottom: 8 }]}>{certsNote}</Text>
-        )}
-        {certs.map((cert, i) => (
-          <View key={i} style={styles.certRow}>
-            {!!cert.image_url && (
-              <Image source={{ uri: cert.image_url }} style={styles.certImage} resizeMode="cover" />
-            )}
-            <View style={styles.certInfo}>
-              <Text style={styles.certName}>{cert.name}</Text>
-              <Text style={styles.certYear}>{cert.year}</Text>
-            </View>
+    <View style={styles.pdfSection}>
+      {showTitle && <SectionTitle num={sectionNum} label="תעודות והסמכות" />}
+      {showTitle && !!certsNote && (
+        <Text style={[styles.pdfBody, { marginBottom: 8 }]}>{certsNote}</Text>
+      )}
+      {certsSubset.map((cert, i) => (
+        <View key={i} style={styles.certRow}>
+          {!!cert.image_url && (
+            <Image source={{ uri: cert.image_url }} style={styles.certImage} resizeMode="cover" />
+          )}
+          <View style={styles.certInfo}>
+            <Text style={styles.certName}>{cert.name}</Text>
+            <Text style={styles.certYear}>{cert.year}</Text>
           </View>
-        ))}
-      </View>
-    </>
+        </View>
+      ))}
+    </View>
   );
 }
 
@@ -341,7 +476,20 @@ function LegalPage({ pageNum, businessProfile }: { pageNum: number; businessProf
 
 const VAT_RATE = 0.18;
 
-function QuoteContent({ state }: { state: WizardState }) {
+function QuoteContent({
+  state,
+  itemsSubset,
+  showSectionTitle,
+  showTotals,
+  globalItemOffset = 0,
+}: {
+  state: WizardState;
+  itemsSubset: WizardQuoteItem[];
+  showSectionTitle: boolean;
+  showTotals: boolean;
+  globalItemOffset?: number;
+}) {
+  // Totals always reflect ALL items (not just the subset).
   const subtotal = state.quoteItems.reduce((s, i) => s + i.qty * i.unitPrice, 0);
   const vat = Math.round(subtotal * VAT_RATE);
   const total = subtotal + vat;
@@ -349,22 +497,22 @@ function QuoteContent({ state }: { state: WizardState }) {
   return (
     <>
       <View style={styles.pdfSection}>
-        <SectionTitle num={1} label="פירוט עבודות" />
-        {state.quoteItems.length === 0 ? (
+        {showSectionTitle && <SectionTitle num={1} label="פירוט עבודות" />}
+        {state.quoteItems.length === 0 && showSectionTitle ? (
           <Text style={styles.pdfBody}>לא הוזנו פריטים.</Text>
         ) : (
           <>
-            {state.quoteItems.map((item, i) => (
+            {itemsSubset.map((item, i) => (
               <View
                 key={item.key}
                 style={[
                   styles.quoteItem,
-                  i < state.quoteItems.length - 1 && styles.quoteItemBorder,
+                  i < itemsSubset.length - 1 && styles.quoteItemBorder,
                 ]}
               >
                 <View style={styles.quoteItemHeader}>
                   <View style={styles.quoteItemNumBadge}>
-                    <Text style={styles.quoteItemNum}>{i + 1}</Text>
+                    <Text style={styles.quoteItemNum}>{globalItemOffset + i + 1}</Text>
                   </View>
                   <Text style={styles.quoteItemTitle}>{item.title}</Text>
                   <Text style={styles.quoteItemPrice}>
@@ -376,30 +524,32 @@ function QuoteContent({ state }: { state: WizardState }) {
                 )}
               </View>
             ))}
-            <View style={styles.quoteTotals}>
-              <View style={styles.quoteTotalRow}>
-                <Text style={styles.quoteTotalLabel}>סכום לפני מע״מ</Text>
-                <Text style={styles.quoteTotalValue}>₪{subtotal.toLocaleString()}</Text>
+            {showTotals && (
+              <View style={styles.quoteTotals}>
+                <View style={styles.quoteTotalRow}>
+                  <Text style={styles.quoteTotalLabel}>סכום לפני מע״מ</Text>
+                  <Text style={styles.quoteTotalValue}>₪{subtotal.toLocaleString()}</Text>
+                </View>
+                <View style={styles.quoteTotalRow}>
+                  <Text style={styles.quoteTotalLabel}>מע״מ (18%)</Text>
+                  <Text style={styles.quoteTotalValue}>₪{vat.toLocaleString()}</Text>
+                </View>
+                <View style={[styles.quoteTotalRow, styles.quoteTotalFinalRow]}>
+                  <Text style={styles.quoteTotalFinalLabel}>סה״כ לתשלום</Text>
+                  <Text style={styles.quoteTotalFinalValue}>₪{total.toLocaleString()}</Text>
+                </View>
               </View>
-              <View style={styles.quoteTotalRow}>
-                <Text style={styles.quoteTotalLabel}>מע״מ (18%)</Text>
-                <Text style={styles.quoteTotalValue}>₪{vat.toLocaleString()}</Text>
-              </View>
-              <View style={[styles.quoteTotalRow, styles.quoteTotalFinalRow]}>
-                <Text style={styles.quoteTotalFinalLabel}>סה״כ לתשלום</Text>
-                <Text style={styles.quoteTotalFinalValue}>₪{total.toLocaleString()}</Text>
-              </View>
-            </View>
+            )}
           </>
         )}
-        {!!state.quoteNotes && (
+        {showTotals && !!state.quoteNotes && (
           <View style={{ marginTop: 10 }}>
             <Text style={[styles.metaItemLabel, { marginBottom: 3 }]}>הערות</Text>
             <Text style={styles.pdfBody}>{state.quoteNotes}</Text>
           </View>
         )}
       </View>
-      {!!state.quoteValidityDate && (
+      {showTotals && !!state.quoteValidityDate && (
         <View style={styles.quoteValidityRow}>
           <Icons.calendar size={11} color="#807A72" />
           <Text style={styles.quoteValidityText}>
@@ -529,29 +679,43 @@ function WaCustomerPage({ state }: { state: WizardState }) {
   );
 }
 
-function WaDetailsPage({ state, businessProfile }: { state: WizardState; businessProfile: BusinessProfile }) {
-  const filledItems = state.waWorkItems.filter(i => i.title.trim());
+function WaDetailsPage({
+  state,
+  businessProfile,
+  itemsSubset,
+  showSectionTitle,
+  showFooter,
+  globalItemOffset = 0,
+}: {
+  state: WizardState;
+  businessProfile: BusinessProfile;
+  itemsSubset: WaWorkItem[];
+  showSectionTitle: boolean;
+  showFooter: boolean;
+  globalItemOffset?: number;
+}) {
+  const allFilled = state.waWorkItems.filter(i => i.title.trim());
 
   return (
     <>
       {/* Work items */}
       <View style={styles.pdfSection}>
-        <SectionTitle num={2} label="פירוט העבודות" />
-        {filledItems.length === 0 ? (
+        {showSectionTitle && <SectionTitle num={2} label="פירוט העבודות" />}
+        {allFilled.length === 0 && showSectionTitle ? (
           <Text style={styles.pdfBody}>לא הוזן פירוט עבודות.</Text>
         ) : (
           <View style={{ gap: 8 }}>
-            {filledItems.map((item, i) => (
+            {itemsSubset.map((item, i) => (
               <View key={item.id} style={styles.waItemBlock}>
                 <View style={styles.waItemRow}>
                   <View style={styles.waItemNum}>
-                    <Text style={styles.waItemNumText}>{i + 1}</Text>
+                    <Text style={styles.waItemNumText}>{globalItemOffset + i + 1}</Text>
                   </View>
                   <Text style={[styles.waItemText, { fontWeight: '700' }]}>{item.title}</Text>
                 </View>
                 {item.clauses.filter(c => c.text.trim()).map((clause, j) => (
                   <View key={clause.id} style={styles.waClauseRow}>
-                    <Text style={styles.waClauseNum}>{`${i + 1}.${j + 1}`}</Text>
+                    <Text style={styles.waClauseNum}>{`${globalItemOffset + i + 1}.${j + 1}`}</Text>
                     <Text style={styles.waClauseText}>{clause.text}</Text>
                   </View>
                 ))}
@@ -561,32 +725,34 @@ function WaDetailsPage({ state, businessProfile }: { state: WizardState; busines
         )}
       </View>
 
-      {/* Total price */}
-      <View style={[styles.pdfSection, { marginTop: 10 }]}>
-        <SectionTitle num={3} label="מחיר כולל" />
-        <View style={styles.waTotalBox}>
-          <Text style={styles.waTotalLabel}>סה״כ לתשלום כולל מע״מ:</Text>
-          <Text style={styles.waTotalValue}>
-            {state.waTotalPrice ? `₪${Number(state.waTotalPrice).toLocaleString('he-IL')}` : 'לא צוין'}
-          </Text>
-        </View>
-      </View>
-
-      {/* Payment terms */}
-      {state.waPaymentTerms.length > 0 && (
-        <View style={[styles.pdfSection, { marginTop: 10 }]}>
-          <SectionTitle num={4} label="תנאי תשלום" />
-          <View style={{ gap: 4 }}>
-            {state.waPaymentTerms.map((term, i) => (
-              <View key={term.id} style={styles.warrantyConditionRow}>
-                <Text style={styles.warrantyConditionNum}>{i + 1}.</Text>
-                <Text style={styles.warrantyConditionText}>{term.text}</Text>
-              </View>
-            ))}
+      {/* Total price + payment terms — only on the last page of this section */}
+      {showFooter && (
+        <>
+          <View style={[styles.pdfSection, { marginTop: 10 }]}>
+            <SectionTitle num={3} label="מחיר כולל" />
+            <View style={styles.waTotalBox}>
+              <Text style={styles.waTotalLabel}>סה״כ לתשלום כולל מע״מ:</Text>
+              <Text style={styles.waTotalValue}>
+                {state.waTotalPrice ? `₪${Number(state.waTotalPrice).toLocaleString('he-IL')}` : 'לא צוין'}
+              </Text>
+            </View>
           </View>
-        </View>
-      )}
 
+          {state.waPaymentTerms.length > 0 && (
+            <View style={[styles.pdfSection, { marginTop: 10 }]}>
+              <SectionTitle num={4} label="תנאי תשלום" />
+              <View style={{ gap: 4 }}>
+                {state.waPaymentTerms.map((term, i) => (
+                  <View key={term.id} style={styles.warrantyConditionRow}>
+                    <Text style={styles.warrantyConditionNum}>{i + 1}.</Text>
+                    <Text style={styles.warrantyConditionText}>{term.text}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
+        </>
+      )}
     </>
   );
 }
@@ -646,6 +812,19 @@ export function PdfPreviewScreen({ colors = lightColors, onBack, onSend }: PdfPr
   const [generatingPdf, setGeneratingPdf] = React.useState(false);
   const [pdfError, setPdfError] = React.useState('');
 
+  // ── A4 page dimensions ──────────────────────────────────────────────────────
+  // Page width = screen width minus the ScrollView's horizontal insets.
+  // Page height = width × A4 ratio so each captured JPEG has perfect A4 proportions.
+  // overflow:'hidden' on every page View ensures captureRef never sees content
+  // outside the A4 rectangle, eliminating mid-content PDF cuts.
+  const { width: screenWidth } = useWindowDimensions();
+  const pageWidth = screenWidth - SCROLL_H_INSET * 2;
+  const pageHeight = Math.round(pageWidth * A4_RATIO);
+  const dynPage = React.useMemo(
+    () => ({ height: pageHeight, overflow: 'hidden' as const }),
+    [pageHeight],
+  );
+
   // Each PDF page gets its own View ref. Keyed by page ID string.
   const pageRefs = React.useRef<Map<string, View | null>>(new Map());
   function setPageRef(key: string) {
@@ -659,10 +838,50 @@ export function PdfPreviewScreen({ colors = lightColors, onBack, onSend }: PdfPr
     : `${docConfig.titlePrefix} ${state.customerName || 'לא צוין'}`;
   const brandInitial = (businessProfile?.business_name ?? businessProfile?.full_name ?? 'ד')[0] ?? 'ד';
 
-  const certs = businessProfile?.certifications ?? [];
+  const certs = (businessProfile?.certifications ?? []) as Certification[];
   const hasAboutPage = !!businessProfile?.bio || !!businessProfile?.training_note;
   const hasCertsPage = certs.length > 0 || !!businessProfile?.certifications_note;
   const issues = state.reportIssues;
+
+  // ── Cert page splitting ─────────────────────────────────────────────────────
+  // Distribute all certifications across as many A4 pages as needed so that no
+  // cert row is ever cut at a page boundary.
+  const certPageGroups = React.useMemo((): Certification[][] => {
+    if (!hasCertsPage) return [];
+    if (certs.length === 0) return [[]]; // note-only page
+
+    const bodyH = pageHeight - PAGE_PAD * 2 - EST_HEADER_H;
+    const hasNote = !!businessProfile?.certifications_note;
+
+    // First page must also reserve space for the section title (and optional note).
+    const firstAvail = bodyH - EST_SECTION_TITLE_H - EST_SECTION_MARGIN_H - (hasNote ? EST_CERT_NOTE_H : 0);
+    const certsFirst = Math.max(1, Math.floor(firstAvail / EST_CERT_ROW_H));
+
+    const groups: Certification[][] = [certs.slice(0, certsFirst)];
+    const subseqPerPage = Math.max(1, Math.floor(bodyH / EST_CERT_ROW_H));
+    let idx = certsFirst;
+    while (idx < certs.length) {
+      groups.push(certs.slice(idx, idx + subseqPerPage));
+      idx += subseqPerPage;
+    }
+    return groups;
+  }, [certs, hasCertsPage, pageHeight, businessProfile?.certifications_note]);
+
+  // ── Quote page splitting ────────────────────────────────────────────────────
+  const quotePageGroups = React.useMemo(
+    (): WizardQuoteItem[][] =>
+      state.docType === 'quote' ? buildQuoteGroups(state.quoteItems, pageHeight) : [],
+    [state.docType, state.quoteItems, pageHeight],
+  );
+
+  // ── Work-agreement details page splitting ───────────────────────────────────
+  const waDetailPageGroups = React.useMemo(
+    (): WaWorkItem[][] =>
+      state.docType === 'work-agreement'
+        ? buildWaDetailGroups(state.waWorkItems, state.waPaymentTerms.length, pageHeight)
+        : [],
+    [state.docType, state.waWorkItems, state.waPaymentTerms, pageHeight],
+  );
 
   // Dynamic section numbering (sections 1+2 are on page 1: customer + professional)
   let _sec = 3;
@@ -694,7 +913,8 @@ export function PdfPreviewScreen({ colors = lightColors, onBack, onSend }: PdfPr
       if (state.docType === 'report') {
         const pageKeys: string[] = ['page1'];
         if (hasAboutPage) pageKeys.push('about');
-        if (hasCertsPage) pageKeys.push('certs');
+        // Certs may span multiple A4 pages — capture each one.
+        certPageGroups.forEach((_, i) => pageKeys.push(`certs_${i}`));
         issues.forEach((_, i) => pageKeys.push(`issue_${i}`));
         pageKeys.push('legal');
 
@@ -706,14 +926,28 @@ export function PdfPreviewScreen({ colors = lightColors, onBack, onSend }: PdfPr
           capturedImages.push(base64 as string);
         }
       } else if (state.docType === 'work-agreement') {
+        // wa_page1, then each wa_details page, then wa_page3 (signatures)
+        const waKeys: string[] = ['wa_page1'];
+        waDetailPageGroups.forEach((_, i) => waKeys.push(`wa_details_${i}`));
+        waKeys.push('wa_page3');
+
         capturedImages = [];
-        for (const key of ['wa_page1', 'wa_page2', 'wa_page3']) {
+        for (const key of waKeys) {
           const view = pageRefs.current.get(key);
           if (!view) continue;
           const base64 = await captureRef(view, { format: 'jpg', quality: 0.92, result: 'base64' });
           capturedImages.push(base64 as string);
         }
+      } else if (state.docType === 'quote') {
+        capturedImages = [];
+        for (let i = 0; i < quotePageGroups.length; i++) {
+          const view = pageRefs.current.get(`quote_${i}`);
+          if (!view) continue;
+          const base64 = await captureRef(view, { format: 'jpg', quality: 0.92, result: 'base64' });
+          capturedImages.push(base64 as string);
+        }
       } else {
+        // warranty — single page, content is short enough
         const view = pageRefs.current.get('single');
         if (!view) throw new Error('לא נמצא תוכן לייצוא');
         const base64 = await captureRef(view, { format: 'jpg', quality: 0.92, result: 'base64' });
@@ -747,13 +981,13 @@ export function PdfPreviewScreen({ colors = lightColors, onBack, onSend }: PdfPr
       >
         {state.docType === 'report' && (
           <>
-            <View ref={setPageRef('page1')} style={styles.pdfPage}>
+            <View ref={setPageRef('page1')} style={[styles.pdfPage, dynPage]}>
               <PdfPageHeader {...headerProps} />
               <ReportPage1 state={state} businessProfile={businessProfile} />
             </View>
 
             {hasAboutPage && (
-              <View ref={setPageRef('about')} style={styles.pdfPage}>
+              <View ref={setPageRef('about')} style={[styles.pdfPage, dynPage]}>
                 <PdfPageHeader {...headerProps} />
                 <AboutPage
                   businessProfile={businessProfile}
@@ -763,32 +997,93 @@ export function PdfPreviewScreen({ colors = lightColors, onBack, onSend }: PdfPr
               </View>
             )}
 
-            {hasCertsPage && (
-              <View ref={setPageRef('certs')} style={styles.pdfPage}>
+            {/* Each certPageGroup is one A4 page — no cert row is ever cut. */}
+            {certPageGroups.map((certGroup, pageIdx) => (
+              <View
+                key={`certs_${pageIdx}`}
+                ref={setPageRef(`certs_${pageIdx}`)}
+                style={[styles.pdfPage, dynPage]}
+              >
                 <PdfPageHeader {...headerProps} />
-                <CertificationsPage businessProfile={businessProfile} sectionNum={certsSectionNum} />
+                <CertificationsPage
+                  businessProfile={businessProfile}
+                  sectionNum={certsSectionNum}
+                  certsSubset={certGroup}
+                  showTitle={pageIdx === 0}
+                />
               </View>
-            )}
+            ))}
 
             {issues.map((issue, i) => (
-              <View key={issue.id} ref={setPageRef(`issue_${i}`)} style={styles.pdfPage}>
+              <View key={issue.id} ref={setPageRef(`issue_${i}`)} style={[styles.pdfPage, dynPage]}>
                 <PdfPageHeader {...headerProps} />
                 <IssuePage issue={issue} pageNum={issueBasePageNum + i} businessProfile={businessProfile} />
               </View>
             ))}
 
-            <View ref={setPageRef('legal')} style={styles.pdfPage}>
+            <View ref={setPageRef('legal')} style={[styles.pdfPage, dynPage]}>
               <PdfPageHeader {...headerProps} />
               <LegalPage pageNum={legalPageNum} businessProfile={businessProfile} />
             </View>
           </>
         )}
 
-        {(state.docType === 'quote' || state.docType === 'warranty') && (
-          <View ref={setPageRef('single')} style={styles.pdfPage}>
+        {/* Quote — items split across pages; totals + sig only on the last page. */}
+        {state.docType === 'quote' && (() => {
+          let offset = 0;
+          return quotePageGroups.map((group, pageIdx) => {
+            const isLast = pageIdx === quotePageGroups.length - 1;
+            const pageOffset = offset;
+            offset += group.length;
+            return (
+              <View key={`quote_${pageIdx}`} ref={setPageRef(`quote_${pageIdx}`)} style={[styles.pdfPage, dynPage]}>
+                <PdfPageHeader {...headerProps} />
+                <QuoteContent
+                  state={state}
+                  itemsSubset={group}
+                  showSectionTitle={pageIdx === 0}
+                  showTotals={isLast}
+                  globalItemOffset={pageOffset}
+                />
+                {isLast && (
+                  <View style={[styles.pdfSigRow, { borderTopColor: '#C7C1B6' }]}>
+                    <View>
+                      {businessProfile?.signature_url
+                        ? businessProfile.signature_url.startsWith('data:image/svg+xml;base64,')
+                          ? (
+                            <SvgXml
+                              xml={atob(businessProfile.signature_url.replace('data:image/svg+xml;base64,', ''))}
+                              width={80}
+                              height={28}
+                            />
+                          )
+                          : (
+                            <Image
+                              source={{ uri: businessProfile.signature_url }}
+                              style={styles.pdfSigImage}
+                              resizeMode="contain"
+                            />
+                          )
+                        : <View style={styles.pdfSigLine} />
+                      }
+                      <Text style={styles.pdfSigName}>
+                        {[businessProfile?.full_name, businessProfile?.license_number && `ח.פ ${businessProfile.license_number}`]
+                          .filter(Boolean).join(' · ') || 'חתימה'}
+                      </Text>
+                    </View>
+                    <Text style={styles.pdfQrPlaceholder}>QR</Text>
+                  </View>
+                )}
+              </View>
+            );
+          });
+        })()}
+
+        {/* Warranty — short content, single page always fits. */}
+        {state.docType === 'warranty' && (
+          <View ref={setPageRef('single')} style={[styles.pdfPage, dynPage]}>
             <PdfPageHeader {...headerProps} />
-            {state.docType === 'quote' && <QuoteContent state={state} />}
-            {state.docType === 'warranty' && <WarrantyContent state={state} />}
+            <WarrantyContent state={state} />
             <View style={[styles.pdfSigRow, { borderTopColor: '#C7C1B6' }]}>
               <View>
                 {businessProfile?.signature_url
@@ -822,19 +1117,36 @@ export function PdfPreviewScreen({ colors = lightColors, onBack, onSend }: PdfPr
         {state.docType === 'work-agreement' && (
           <>
             {/* Page 1: Customer + Residents */}
-            <View ref={setPageRef('wa_page1')} style={styles.pdfPage}>
+            <View ref={setPageRef('wa_page1')} style={[styles.pdfPage, dynPage]}>
               <PdfPageHeader {...headerProps} />
               <WaCustomerPage state={state} />
             </View>
 
-            {/* Page 2: Work items + Price + Payment terms */}
-            <View ref={setPageRef('wa_page2')} style={styles.pdfPage}>
-              <PdfPageHeader {...headerProps} />
-              <WaDetailsPage state={state} businessProfile={businessProfile} />
-            </View>
+            {/* Work details — split across as many pages as needed. */}
+            {(() => {
+              let offset = 0;
+              return waDetailPageGroups.map((group, pageIdx) => {
+                const isLast = pageIdx === waDetailPageGroups.length - 1;
+                const pageOffset = offset;
+                offset += group.length;
+                return (
+                  <View key={`wa_details_${pageIdx}`} ref={setPageRef(`wa_details_${pageIdx}`)} style={[styles.pdfPage, dynPage]}>
+                    <PdfPageHeader {...headerProps} />
+                    <WaDetailsPage
+                      state={state}
+                      businessProfile={businessProfile}
+                      itemsSubset={group}
+                      showSectionTitle={pageIdx === 0}
+                      showFooter={isLast}
+                      globalItemOffset={pageOffset}
+                    />
+                  </View>
+                );
+              });
+            })()}
 
-            {/* Page 3: Signatures — always on its own page */}
-            <View ref={setPageRef('wa_page3')} style={styles.pdfPage}>
+            {/* Signatures — always on its own page. */}
+            <View ref={setPageRef('wa_page3')} style={[styles.pdfPage, dynPage]}>
               <PdfPageHeader {...headerProps} />
               <WaSigPage businessProfile={businessProfile} />
             </View>

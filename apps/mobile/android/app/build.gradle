@@ -87,9 +87,9 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace 'com.ronitwito.dohot'
+    namespace 'com.dohot.app'
     defaultConfig {
-        applicationId 'com.ronitwito.dohot'
+        applicationId 'com.dohot.app'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

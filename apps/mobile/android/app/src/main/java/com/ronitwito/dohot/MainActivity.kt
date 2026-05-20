@@ -1,4 +1,4 @@
-package com.ronitwito.dohot
+package com.dohot.app
 
 import android.os.Build
 import android.os.Bundle

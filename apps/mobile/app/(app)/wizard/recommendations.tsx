@@ -6,11 +6,13 @@ import { safeBack } from '@/navigation/safeBack';
 import { useWizard } from '@/context/WizardContext';
 import { useAuth } from '@/context/AuthContext';
 import type { Recommendation } from '@dohot/shared';
+import { useColors } from '@/theme';
 
 export default function WizardRecommendationsPage() {
   const router = useRouter();
   const wizard = useWizard();
   const { businessProfile } = useAuth();
+  const colors = useColors();
 
   const handleNext = async (updates: { index: number; aiSummary: string; recs: Recommendation[] }[]) => {
     wizard.setAllIssueRecommendations(updates);
@@ -30,6 +32,7 @@ export default function WizardRecommendationsPage() {
 
   return (
     <CreateReportSummaryScreen
+      colors={colors}
       onNext={handleNext}
       onBack={() => safeBack(router, ROUTES.WIZARD_PROCESSING)}
       isSaving={wizard.saving}

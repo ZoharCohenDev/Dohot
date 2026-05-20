@@ -1,19 +1,19 @@
-import React from 'react';
 import { useRouter } from 'expo-router';
 import { SettingsScreen } from '@/screens/settings/SettingsScreen';
 import { ROUTES } from '@/navigation/constants';
-import { getColors, lightColors } from '@/theme';
+import { useColors } from '@/theme';
+import { useSettings } from '@/context/SettingsContext';
 
 export default function MePage() {
-  const [dark, setDark] = React.useState(false);
-  const colors = getColors(dark) as typeof lightColors;
+  const { dark, toggleTheme } = useSettings();
+  const colors = useColors();
   const router = useRouter();
 
   return (
     <SettingsScreen
       dark={dark}
       colors={colors}
-      onToggleTheme={() => setDark((d) => !d)}
+      onToggleTheme={toggleTheme}
       onNavigate={(tab) => {
         switch (tab) {
           case 'home': return router.push(ROUTES.APP_HOME);

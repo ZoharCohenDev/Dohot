@@ -1,11 +1,14 @@
 import { useRouter } from 'expo-router';
 import { DashboardScreen } from '@/screens/dashboard/DashboardScreen';
 import { ROUTES } from '@/navigation/constants';
+import { useColors } from '@/theme';
 
 export default function DashboardPage() {
   const router = useRouter();
+  const colors = useColors();
   return (
     <DashboardScreen
+      colors={colors}
       onCreateReport={() => router.push(ROUTES.WIZARD_VOICE_IDLE)}
       onCreateType={() => router.push(ROUTES.APP_CREATE)}
       onNavigate={(tab) => {

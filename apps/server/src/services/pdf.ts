@@ -258,7 +258,7 @@ export function buildHtml(data: PdfData): string {
 
   const certs = (bp.certifications ?? []) as Certification[];
   const certsSection = (bp.certifications_note || certs.length > 0) ? `
-    <div class="dis-section">
+    <div class="dis-section certs-block">
       <div class="dis-section-title"><span class="dis-dot"></span>הסמכות ואישורים מקצועיים</div>
       ${bp.certifications_note ? `<div class="certs-note">${esc(bp.certifications_note)}</div>` : ''}
       ${certs.length > 0 ? `
@@ -642,12 +642,19 @@ export function buildHtml(data: PdfData): string {
     font-size: 9pt;
     color: #4A4641;
     line-height: 1.8;
-    margin-bottom: 14px;
+    margin-bottom: 12px;
+    page-break-after: avoid;
+    break-after: avoid;
+  }
+  /* Keep the section title attached to the cert list below it */
+  .certs-block .dis-section-title {
+    page-break-after: avoid;
+    break-after: avoid;
   }
   .certs-list {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
   }
   .cert-row {
     display: flex;
@@ -655,13 +662,16 @@ export function buildHtml(data: PdfData): string {
     gap: 12px;
     background: #fff;
     border-radius: 9px;
-    padding: 10px 12px;
+    padding: 8px 12px;
     border: 1px solid #E0DDD6;
+    /* Never split a certificate card across pages */
+    page-break-inside: avoid;
+    break-inside: avoid;
   }
   .cert-thumb {
-    width: 52px;
-    height: 52px;
-    object-fit: cover;
+    width: 72px;
+    height: 72px;
+    object-fit: contain;
     border-radius: 6px;
     flex-shrink: 0;
     border: 1px solid #E0DDD6;
@@ -896,12 +906,17 @@ export async function renderPdfFromImages(
   body { background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .page {
     width: 210mm;
+    height: 297mm;
     page-break-after: always;
+    page-break-inside: avoid;
+    break-inside: avoid;
     display: block;
     overflow: hidden;
   }
   .page:last-child { page-break-after: auto; }
-  img { width: 210mm; height: auto; display: block; }
+  /* object-fit:contain guarantees the JPEG fills the page without distortion
+     even if the captured aspect ratio is very slightly off from perfect A4. */
+  img { width: 210mm; height: 297mm; object-fit: contain; display: block; }
 </style>
 </head>
 <body>${pages}</body>

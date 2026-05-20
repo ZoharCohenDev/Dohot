@@ -2,9 +2,11 @@ import { useRouter } from 'expo-router';
 import { CreateDocumentTypeScreen } from '@/screens/dashboard/CreateDocumentTypeScreen';
 import { ROUTES } from '@/navigation/constants';
 import type { DocType } from '@/config/documentTypes';
+import { useColors } from '@/theme';
 
 export default function CreatePage() {
   const router = useRouter();
+  const colors = useColors();
 
   const handleSelectType = (docType: DocType) => {
     router.push(`${ROUTES.WIZARD_CUSTOMER}?docType=${docType}` as never);
@@ -12,6 +14,7 @@ export default function CreatePage() {
 
   return (
     <CreateDocumentTypeScreen
+      colors={colors}
       onSelectType={handleSelectType}
       onNavigate={(tab) => {
         switch (tab) {
