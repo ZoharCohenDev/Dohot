@@ -3,6 +3,24 @@ import { supabaseAdmin, getUserFromToken } from '../lib/supabase';
 
 export const adminRouter = Router();
 
+function toDateOnlyString(date: Date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function addDays(date: Date, days: number) {
+  const next = new Date(date);
+  next.setUTCDate(next.getUTCDate() + days);
+  return next;
+}
+
+function startOfCurrentMonth(date: Date) {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
+}
+
+function isValidUsername(username: string) {
+  return username.length >= 3 && username.length <= 50 && /^[a-z0-9_.-]+$/.test(username);
+}
+
 // ─── requireAdmin middleware ──────────────────────────────────────────────────
 
 async function requireAdmin(req: Request, res: Response, next: NextFunction) {
@@ -33,6 +51,92 @@ async function requireAdmin(req: Request, res: Response, next: NextFunction) {
   next();
 }
 
+// ─── GET /api/admin/status ────────────────────────────────────────────────────
+
+adminRouter.get('/status', requireAdmin, async (_req, res) => {
+  const now = new Date();
+  const today = toDateOnlyString(now);
+  const expiringSoonEnd = toDateOnlyString(addDays(now, 7));
+  const monthStart = startOfCurrentMonth(now).toISOString();
+
+  const { data, error } = await supabaseAdmin
+    .from('business_profiles')
+    .select('role, subscription_expiration_date, is_active, created_at');
+
+  if (error) {
+    res.status(500).json({ error: error.message });
+    return;
+  }
+
+  const profiles = data ?? [];
+  const stats = profiles.reduce(
+    (acc, profile) => {
+      if (profile.is_active === true) acc.activeUsers += 1;
+      if (profile.is_active === false) acc.inactiveUsers += 1;
+      if (profile.role === 'admin') acc.admins += 1;
+      if (profile.role === 'technician') acc.technicians += 1;
+      if (profile.created_at && profile.created_at >= monthStart) acc.newUsersThisMonth += 1;
+
+      const expirationDate = profile.subscription_expiration_date;
+      if (expirationDate) {
+        if (expirationDate >= today) acc.validSubscriptions += 1;
+        if (expirationDate < today) acc.expiredSubscriptions += 1;
+        if (expirationDate >= today && expirationDate <= expiringSoonEnd) acc.expiringSoon += 1;
+      }
+
+      return acc;
+    },
+    {
+      totalUsers: profiles.length,
+      activeUsers: 0,
+      inactiveUsers: 0,
+      admins: 0,
+      technicians: 0,
+      validSubscriptions: 0,
+      expiredSubscriptions: 0,
+      expiringSoon: 0,
+      newUsersThisMonth: 0,
+    },
+  );
+
+  res.json(stats);
+});
+
+// ─── GET /api/admin/expiring?days=7 ───────────────────────────────────────────
+
+adminRouter.get('/expiring', requireAdmin, async (req, res) => {
+  const rawDays = Array.isArray(req.query.days) ? req.query.days[0] : req.query.days;
+  const days = rawDays === undefined ? 7 : Number(rawDays);
+
+  if (!Number.isInteger(days) || days < 1 || days > 90) {
+    res.status(400).json({ error: 'days must be a number between 1 and 90' });
+    return;
+  }
+
+  const now = new Date();
+  const today = toDateOnlyString(now);
+  const endDate = toDateOnlyString(addDays(now, days));
+
+  const { data, error } = await supabaseAdmin
+    .from('business_profiles')
+    .select('id, username, full_name, phone, profession, role, subscription_expiration_date, is_active')
+    .gte('subscription_expiration_date', today)
+    .lte('subscription_expiration_date', endDate)
+    .order('subscription_expiration_date', { ascending: true });
+
+  if (error) {
+    res.status(500).json({ error: error.message });
+    return;
+  }
+
+  const users = data ?? [];
+  res.json({
+    days,
+    count: users.length,
+    users,
+  });
+});
+
 // ─── GET /api/admin/users ─────────────────────────────────────────────────────
 
 adminRouter.get('/users', requireAdmin, async (_req, res) => {
@@ -46,6 +150,52 @@ adminRouter.get('/users', requireAdmin, async (_req, res) => {
     return;
   }
   res.json({ users: data ?? [] });
+});
+
+// ─── GET /api/admin/users/check-username?username=<username> ─────────────────
+
+adminRouter.get('/users/check-username', requireAdmin, async (req, res) => {
+  const rawUsername = Array.isArray(req.query.username) ? req.query.username[0] : req.query.username;
+
+  if (rawUsername === undefined) {
+    res.status(400).json({ error: 'username is required' });
+    return;
+  }
+
+  if (typeof rawUsername !== 'string') {
+    res.status(400).json({ error: 'Invalid username' });
+    return;
+  }
+
+  const username = rawUsername.trim().toLowerCase();
+
+  if (!username) {
+    res.status(400).json({ error: 'username is required' });
+    return;
+  }
+
+  if (!isValidUsername(username)) {
+    res.status(400).json({ error: 'Invalid username' });
+    return;
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from('business_profiles')
+    .select('id, username')
+    .eq('username', username)
+    .maybeSingle();
+
+  if (error) {
+    res.status(500).json({ error: error.message });
+    return;
+  }
+
+  const exists = Boolean(data);
+  res.json({
+    username,
+    exists,
+    available: !exists,
+  });
 });
 
 // ─── POST /api/admin/users ────────────────────────────────────────────────────
