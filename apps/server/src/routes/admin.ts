@@ -17,8 +17,25 @@ function startOfCurrentMonth(date: Date) {
   return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
 }
 
+function startOfServerDay(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
 function isValidUsername(username: string) {
   return username.length >= 3 && username.length <= 50 && /^[a-z0-9_.-]+$/.test(username);
+}
+
+function normalizeUsernameInput(value: unknown) {
+  if (typeof value !== 'string') return null;
+  return value.trim().toLowerCase();
+}
+
+async function findProfileByUsername(username: string) {
+  return supabaseAdmin
+    .from('business_profiles')
+    .select('id, username, full_name, phone, profession, role, subscription_expiration_date, is_active, created_at, updated_at')
+    .eq('username', username)
+    .maybeSingle();
 }
 
 // ─── requireAdmin middleware ──────────────────────────────────────────────────
@@ -137,6 +154,80 @@ adminRouter.get('/expiring', requireAdmin, async (req, res) => {
   });
 });
 
+// ─── GET /api/admin/today ─────────────────────────────────────────────────────
+
+adminRouter.get('/today', requireAdmin, async (_req, res) => {
+  const now = new Date();
+  const todayStart = startOfServerDay(now);
+  const tomorrowStart = addDays(todayStart, 1);
+  const date = toDateOnlyString(todayStart);
+
+  const { data, error } = await supabaseAdmin
+    .from('business_profiles')
+    .select('username, full_name, profession, role, created_at')
+    .gte('created_at', todayStart.toISOString())
+    .lt('created_at', tomorrowStart.toISOString())
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    res.status(500).json({ error: error.message });
+    return;
+  }
+
+  const users = data ?? [];
+  res.json({
+    date,
+    count: users.length,
+    users,
+  });
+});
+
+// ─── GET /api/admin/analytics ─────────────────────────────────────────────────
+
+adminRouter.get('/analytics', requireAdmin, async (_req, res) => {
+  const now = new Date();
+  const last7DaysStart = addDays(now, -7).toISOString();
+  const monthStart = startOfCurrentMonth(now).toISOString();
+
+  const { data, error } = await supabaseAdmin
+    .from('business_profiles')
+    .select('profession, role, is_active, created_at');
+
+  if (error) {
+    res.status(500).json({ error: error.message });
+    return;
+  }
+
+  const analytics = (data ?? []).reduce(
+    (acc, profile) => {
+      if (profile.profession) {
+        acc.byProfession[profile.profession] = (acc.byProfession[profile.profession] ?? 0) + 1;
+      }
+      if (profile.role) {
+        acc.byRole[profile.role] = (acc.byRole[profile.role] ?? 0) + 1;
+      }
+      if (profile.is_active === true) acc.byActiveStatus.active += 1;
+      if (profile.is_active === false) acc.byActiveStatus.inactive += 1;
+      if (profile.created_at && profile.created_at >= last7DaysStart) acc.newUsersLast7Days += 1;
+      if (profile.created_at && profile.created_at >= monthStart) acc.newUsersThisMonth += 1;
+
+      return acc;
+    },
+    {
+      byProfession: {} as Record<string, number>,
+      byRole: {} as Record<string, number>,
+      byActiveStatus: {
+        active: 0,
+        inactive: 0,
+      },
+      newUsersLast7Days: 0,
+      newUsersThisMonth: 0,
+    },
+  );
+
+  res.json(analytics);
+});
+
 // ─── GET /api/admin/users ─────────────────────────────────────────────────────
 
 adminRouter.get('/users', requireAdmin, async (_req, res) => {
@@ -196,6 +287,37 @@ adminRouter.get('/users/check-username', requireAdmin, async (req, res) => {
     exists,
     available: !exists,
   });
+});
+
+// ─── GET /api/admin/users/find?username=<username> ────────────────────────────
+
+adminRouter.get('/users/find', requireAdmin, async (req, res) => {
+  const rawUsername = Array.isArray(req.query.username) ? req.query.username[0] : req.query.username;
+  const username = normalizeUsernameInput(rawUsername);
+
+  if (!username) {
+    res.status(400).json({ error: 'username is required' });
+    return;
+  }
+
+  if (!isValidUsername(username)) {
+    res.status(400).json({ error: 'Invalid username' });
+    return;
+  }
+
+  const { data, error } = await findProfileByUsername(username);
+
+  if (error) {
+    res.status(500).json({ error: error.message });
+    return;
+  }
+
+  if (!data) {
+    res.status(404).json({ error: 'User not found' });
+    return;
+  }
+
+  res.json({ user: data });
 });
 
 // ─── POST /api/admin/users ────────────────────────────────────────────────────
@@ -258,6 +380,120 @@ adminRouter.post('/users', requireAdmin, async (req, res) => {
   }
 
   res.status(201).json({ user: profile });
+});
+
+// ─── PATCH /api/admin/users/:username/extend ──────────────────────────────────
+
+adminRouter.patch('/users/:username/extend', requireAdmin, async (req, res) => {
+  const username = normalizeUsernameInput(req.params['username']);
+  const rawDays = (req.body as { days?: unknown }).days;
+
+  if (!username || !isValidUsername(username)) {
+    res.status(400).json({ error: 'Invalid username' });
+    return;
+  }
+
+  if (typeof rawDays !== 'number' || !Number.isInteger(rawDays) || rawDays < 1 || rawDays > 365) {
+    res.status(400).json({ error: 'days must be an integer between 1 and 365' });
+    return;
+  }
+
+  const days = rawDays;
+
+  const { data: user, error: findError } = await findProfileByUsername(username);
+
+  if (findError) {
+    res.status(500).json({ error: findError.message });
+    return;
+  }
+
+  if (!user) {
+    res.status(404).json({ error: 'User not found' });
+    return;
+  }
+
+  const today = toDateOnlyString(new Date());
+  const baseDate = user.subscription_expiration_date && user.subscription_expiration_date >= today
+    ? new Date(`${user.subscription_expiration_date}T00:00:00.000Z`)
+    : new Date(`${today}T00:00:00.000Z`);
+  const subscription_expiration_date = toDateOnlyString(addDays(baseDate, days));
+
+  const { data, error } = await supabaseAdmin
+    .from('business_profiles')
+    .update({ subscription_expiration_date })
+    .eq('username', username)
+    .select('username, full_name, subscription_expiration_date, is_active')
+    .single();
+
+  if (error) {
+    res.status(500).json({ error: error.message });
+    return;
+  }
+
+  res.json({
+    user: data,
+    addedDays: days,
+  });
+});
+
+// ─── PATCH /api/admin/users/:username/disable ─────────────────────────────────
+
+adminRouter.patch('/users/:username/disable', requireAdmin, async (req, res) => {
+  const username = normalizeUsernameInput(req.params['username']);
+
+  if (!username || !isValidUsername(username)) {
+    res.status(400).json({ error: 'Invalid username' });
+    return;
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from('business_profiles')
+    .update({ is_active: false })
+    .eq('username', username)
+    .select('username, full_name, is_active')
+    .maybeSingle();
+
+  if (error) {
+    res.status(500).json({ error: error.message });
+    return;
+  }
+
+  if (!data) {
+    res.status(404).json({ error: 'User not found' });
+    return;
+  }
+
+  res.json({ user: data });
+});
+
+// ─── PATCH /api/admin/users/:username/activate ────────────────────────────────
+
+adminRouter.patch('/users/:username/activate', requireAdmin, async (req, res) => {
+  const username = normalizeUsernameInput(req.params['username']);
+
+  if (!username || !isValidUsername(username)) {
+    res.status(400).json({ error: 'Invalid username' });
+    return;
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from('business_profiles')
+    .update({ is_active: true })
+    .eq('username', username)
+    .select('username, full_name, is_active')
+    .maybeSingle();
+
+  if (error) {
+    res.status(500).json({ error: error.message });
+    return;
+  }
+
+  if (!data) {
+    res.status(404).json({ error: 'User not found' });
+    return;
+  }
+
+  res.json({ user: data });
 });
 
 // ─── DELETE /api/admin/users/:id ─────────────────────────────────────────────
