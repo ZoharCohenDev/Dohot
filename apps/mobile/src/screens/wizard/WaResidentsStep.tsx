@@ -36,17 +36,15 @@ function ResidentFormModal({
   colors: typeof lightColors;
 }) {
   const [form, setForm] = useState(initial);
-  const [keyboardOpen, setKeyboardOpen] = React.useState(false);
+  const [keyboardHeight, setKeyboardHeight] = React.useState(0);
 
   React.useEffect(() => {
-    const show = Keyboard.addListener('keyboardDidShow', () => {
-      setKeyboardOpen(true);
+    const show = Keyboard.addListener('keyboardDidShow', (e) => {
+      setKeyboardHeight(e.endCoordinates.height);
     });
-
     const hide = Keyboard.addListener('keyboardDidHide', () => {
-      setKeyboardOpen(false);
+      setKeyboardHeight(0);
     });
-
     return () => {
       show.remove();
       hide.remove();
@@ -86,8 +84,8 @@ function ResidentFormModal({
             contentContainerStyle={styles.modalContent}
             enableOnAndroid
             enableAutomaticScroll
-            extraScrollHeight={320}
-            extraHeight={320}
+            extraScrollHeight={24}
+            extraHeight={24}
             keyboardOpeningTime={0}
           >
             <Field
@@ -141,7 +139,7 @@ function ResidentFormModal({
             style={[
               styles.modalActions,
               { borderTopColor: colors.line },
-              keyboardOpen && { marginBottom: 320 },
+              keyboardHeight > 0 && { marginBottom: keyboardHeight },
             ]}
           >
             <Button kind="primary" size="lg" full onPress={handleSave} colors={colors}>

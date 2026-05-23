@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import Svg, { Path as SvgPath } from 'react-native-svg';
 import { SvgXml } from 'react-native-svg';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Header, BottomNav, useBottomNavSpacing, type TabId } from '@/components/layout';
 import { Card, Toggle, Button, ScaledText, KeyboardAwareScrollView } from '@/components/primitives';
 import { Avatar } from '@/components/shared';
@@ -33,8 +34,6 @@ type ModalKey =
   | 'certs'
   | 'disclaimer'
   | 'fontsize'
-  | 'billing'
-  | 'upgrade'
   | 'profession'
   | null;
 
@@ -57,32 +56,29 @@ interface SheetProps {
 }
 
 function BottomSheet({ visible, onClose, title, colors, children, scrollable = true }: SheetProps) {
+  const insets = useSafeAreaInsets();
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={styles.overlay}>
-        <Pressable style={styles.backdrop} onPress={onClose} />
-        <View style={[styles.sheet, { backgroundColor: colors.bg }]}>
-          <View style={[styles.sheetHandle, { backgroundColor: colors.line }]} />
-          <View style={styles.sheetHeader}>
-            <ScaledText style={[styles.sheetTitle, { color: colors.ink1, fontFamily: fonts.sans }]}>
-              {title}
-            </ScaledText>
-            <Pressable onPress={onClose} hitSlop={12}>
-              <Icons.close size={20} color={colors.ink2} />
-            </Pressable>
-          </View>
-          {scrollable ? (
-            <KeyboardAwareScrollView
-              contentContainerStyle={styles.sheetContent}
-              extraScrollHeight={320}
-              extraHeight={140}
-            >
-              {children}
-            </KeyboardAwareScrollView>
-          ) : (
-            <View style={styles.sheetContent}>{children}</View>
-          )}
+    <Modal visible={visible} animationType="none" onRequestClose={onClose}>
+      <View style={[styles.fullScreen, { backgroundColor: colors.bg, paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+        <View style={styles.sheetHeader}>
+          <ScaledText style={[styles.sheetTitle, { color: colors.ink1, fontFamily: fonts.sans }]}>
+            {title}
+          </ScaledText>
+          <Pressable onPress={onClose} hitSlop={12}>
+            <Icons.close size={20} color={colors.ink2} />
+          </Pressable>
         </View>
+        {scrollable ? (
+          <KeyboardAwareScrollView
+            contentContainerStyle={styles.sheetContent}
+            extraScrollHeight={24}
+            extraHeight={24}
+          >
+            {children}
+          </KeyboardAwareScrollView>
+        ) : (
+          <View style={[styles.sheetContent, { flex: 1 }]}>{children}</View>
+        )}
       </View>
     </Modal>
   );
@@ -1113,152 +1109,6 @@ function ProfessionModal({
   );
 }
 
-// ─── BillingModal ─────────────────────────────────────────────────────────────
-
-function BillingModal({
-  visible,
-  onClose,
-  colors,
-}: {
-  visible: boolean;
-  onClose: () => void;
-  colors: typeof lightColors;
-}) {
-  const { businessProfile } = useAuth();
-  return (
-    <BottomSheet visible={visible} onClose={onClose} title="היסטוריית חיובים" colors={colors}>
-      <View style={styles.emptyState}>
-        <Icons.history size={40} color={colors.ink4} />
-        {businessProfile?.plan === 'free' ? (
-          <>
-            <ScaledText style={[styles.emptyText, { color: colors.ink3, fontFamily: fonts.sans }]}>
-              אתה במסלול החינמי
-            </ScaledText>
-            <ScaledText
-              style={[styles.emptySubText, { color: colors.ink4, fontFamily: fonts.sans }]}
-            >
-              שדרג לפרו כדי לצפות בהיסטוריית חיובים
-            </ScaledText>
-          </>
-        ) : (
-          <>
-            <ScaledText style={[styles.emptyText, { color: colors.ink3, fontFamily: fonts.sans }]}>
-              אין חיובים להצגה
-            </ScaledText>
-            <ScaledText
-              style={[styles.emptySubText, { color: colors.ink4, fontFamily: fonts.sans }]}
-            >
-              החיובים יופיעו כאן לאחר ביצוע תשלום
-            </ScaledText>
-          </>
-        )}
-      </View>
-    </BottomSheet>
-  );
-}
-
-// ─── UpgradeModal ─────────────────────────────────────────────────────────────
-
-const PRO_FEATURES = [
-  'מסמכים ללא הגבלה',
-  'לוגו מותאם אישית בכל PDF',
-  'הפקת PDF מהירה',
-  'תמיכה בעדיפות',
-  'ייצוא נתונים',
-];
-
-function UpgradeModal({
-  visible,
-  onClose,
-  colors,
-}: {
-  visible: boolean;
-  onClose: () => void;
-  colors: typeof lightColors;
-}) {
-  const { businessProfile } = useAuth();
-  const isPro = businessProfile?.plan === 'pro';
-
-  const handleUpgrade = () => {
-    Alert.alert('שדרוג לפרו', 'לשדרוג המסלול צרו קשר עם התמיכה: support@dohot.app', [
-      { text: 'סגור', style: 'cancel' },
-    ]);
-  };
-
-  return (
-    <BottomSheet visible={visible} onClose={onClose} title="מסלול מנוי" colors={colors}>
-      {isPro ? (
-        <View style={[styles.planCard, { backgroundColor: colors.aiBg, borderColor: colors.ai2 }]}>
-          <View style={styles.planCardHeader}>
-            <Icons.shieldCheck size={24} color={colors.ai2} />
-            <ScaledText
-              style={[styles.planCardTitle, { color: colors.ai2, fontFamily: fonts.sans }]}
-            >
-              תכנית פרו פעילה
-            </ScaledText>
-          </View>
-          <ScaledText style={[styles.planCardSub, { color: colors.ai2, fontFamily: fonts.sans }]}>
-            גישה מלאה לכל הפיצ׳רים
-          </ScaledText>
-        </View>
-      ) : (
-        <>
-          <View
-            style={[
-              styles.planCard,
-              { backgroundColor: colors.bgSunken, borderColor: colors.line },
-            ]}
-          >
-            <ScaledText
-              style={[styles.planCardTitle, { color: colors.ink1, fontFamily: fonts.sans }]}
-            >
-              חינמי
-            </ScaledText>
-            <ScaledText
-              style={[styles.planCardSub, { color: colors.ink3, fontFamily: fonts.sans }]}
-            >
-              10 מסמכים בחודש · ללא לוגו
-            </ScaledText>
-          </View>
-
-          <View
-            style={[styles.planCard, { backgroundColor: colors.aiBg, borderColor: colors.ai2 }]}
-          >
-            <View style={styles.planCardHeader}>
-              <ScaledText
-                style={[styles.planCardTitle, { color: colors.ai2, fontFamily: fonts.sans }]}
-              >
-                פרו
-              </ScaledText>
-              <View style={[styles.priceTag, { backgroundColor: colors.ai2 }]}>
-                <ScaledText style={[styles.priceText, { color: '#fff', fontFamily: fonts.sans }]}>
-                  ₪79 / חודש
-                </ScaledText>
-              </View>
-            </View>
-            <View style={styles.featureList}>
-              {PRO_FEATURES.map((f) => (
-                <View key={f} style={styles.featureRow}>
-                  <Icons.check size={16} color={colors.ai2} />
-                  <ScaledText
-                    style={[styles.featureText, { color: colors.ink1, fontFamily: fonts.sans }]}
-                  >
-                    {f}
-                  </ScaledText>
-                </View>
-              ))}
-            </View>
-          </View>
-
-          <Button kind="ai" size="lg" full onPress={handleUpgrade} colors={colors}>
-            שדרג לפרו
-          </Button>
-        </>
-      )}
-    </BottomSheet>
-  );
-}
-
 // ─── InputField ───────────────────────────────────────────────────────────────
 
 interface InputFieldProps {
@@ -1589,18 +1439,8 @@ export function SettingsScreen({
               </View>
             }
             colors={colors}
-            last={plan !== 'free' && plan !== 'pro'}
+            last
           />
-          {(plan === 'free' || plan === 'pro') && (
-            <SettingRow
-              icon={<Icons.star size={20} color={colors.ink2} />}
-              label="תכנית"
-              value={plan === 'pro' ? 'פרו' : 'חינמי'}
-              colors={colors}
-              onPress={() => setModal('upgrade')}
-              last
-            />
-          )}
         </SettingGroup>
 
         <SettingGroup title="מידע משפטי" colors={colors}>
@@ -1634,7 +1474,7 @@ export function SettingsScreen({
         </ScaledText>
       </ScrollView>
 
-      <BottomNav active="me" onTab={onNavigate} colors={colors} />
+      {openModal === null && <BottomNav active="me" onTab={onNavigate} colors={colors} />}
 
       {/* Modals */}
       <BusinessModal
@@ -1664,16 +1504,6 @@ export function SettingsScreen({
       />
       <ProfessionModal
         visible={openModal === 'profession'}
-        onClose={() => setModal(null)}
-        colors={colors}
-      />
-      <BillingModal
-        visible={openModal === 'billing'}
-        onClose={() => setModal(null)}
-        colors={colors}
-      />
-      <UpgradeModal
-        visible={openModal === 'upgrade'}
         onClose={() => setModal(null)}
         colors={colors}
       />
@@ -1741,18 +1571,8 @@ const styles = StyleSheet.create({
   subStatusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
   subStatusText: { fontSize: 12, fontWeight: '600' },
 
-  // BottomSheet
-  overlay: { flex: 1, justifyContent: 'flex-end' },
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)' },
-  sheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingBottom: 34, maxHeight: '90%' },
-  sheetHandle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    alignSelf: 'center',
-    marginTop: 10,
-    marginBottom: 4,
-  },
+  // BottomSheet (full-screen)
+  fullScreen: { flex: 1 },
   sheetHeader: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
@@ -1896,21 +1716,4 @@ const styles = StyleSheet.create({
   // Empty state
   emptyState: { alignItems: 'center', paddingVertical: 32, gap: 10 },
   emptyText: { fontSize: 15, fontWeight: '600' },
-  emptySubText: { fontSize: 13, textAlign: 'center' },
-
-  // Plan cards
-  planCard: { borderRadius: 18, borderWidth: 1, padding: 18, marginBottom: 6 },
-  planCardHeader: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 6,
-  },
-  planCardTitle: { fontSize: 17, fontWeight: '700' },
-  planCardSub: { fontSize: 13 },
-  priceTag: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
-  priceText: { fontSize: 13, fontWeight: '700' },
-  featureList: { marginTop: 10, gap: 8 },
-  featureRow: { flexDirection: 'row-reverse', alignItems: 'center', gap: 8 },
-  featureText: { fontSize: 14 },
 });

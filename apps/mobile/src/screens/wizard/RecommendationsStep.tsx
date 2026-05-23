@@ -116,17 +116,15 @@ interface RecEditModalProps {
 }
 
 function RecEditModal({ editState, colors, onSave, onClose }: RecEditModalProps) {
-  const [keyboardOpen, setKeyboardOpen] = React.useState(false);
+  const [keyboardHeight, setKeyboardHeight] = React.useState(0);
 
   React.useEffect(() => {
-    const show = Keyboard.addListener('keyboardDidShow', () => {
-      setKeyboardOpen(true);
+    const show = Keyboard.addListener('keyboardDidShow', (e) => {
+      setKeyboardHeight(e.endCoordinates.height);
     });
-
     const hide = Keyboard.addListener('keyboardDidHide', () => {
-      setKeyboardOpen(false);
+      setKeyboardHeight(0);
     });
-
     return () => {
       show.remove();
       hide.remove();
@@ -275,7 +273,7 @@ function RecEditModal({ editState, colors, onSave, onClose }: RecEditModalProps)
             </View>
           </KeyboardAwareScrollView>
 
-          <View style={[styles.editActions, keyboardOpen && { marginBottom: 320 }]}>
+          <View style={[styles.editActions, keyboardHeight > 0 && { marginBottom: keyboardHeight }]}>
             <Button kind="ghost" size="md" onPress={onClose} colors={colors} style={{ flex: 1 }}>
               ביטול
             </Button>

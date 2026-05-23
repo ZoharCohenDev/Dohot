@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
+import { AppState } from 'react-native';
 import type { Session, User } from '@supabase/supabase-js';
 import { getSession, onAuthStateChange } from '@/services/auth';
 import { supabase, tables } from '@/lib/supabase';
@@ -110,6 +111,55 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return unsubscribe;
   }, []);
+
+  // ── Live user-status watcher ──────────────────────────────────────────────
+  // Keeps a ref so the Realtime/AppState callbacks always call the latest
+  // version of loadBusinessProfile without being stale closures.
+  const loadProfileRef = useRef(loadBusinessProfile);
+  useEffect(() => { loadProfileRef.current = loadBusinessProfile; });
+
+  useEffect(() => {
+    const userId = session?.user?.id;
+    if (!userId) return;
+
+    const reload = () => {
+      supabase.auth.getSession()
+        .then(({ data }) => { if (data.session) loadProfileRef.current(data.session); })
+        .catch(() => {});
+    };
+
+    // Primary: Supabase Realtime — instant when the table has Realtime enabled
+    // in the Supabase dashboard (Database → Replication).
+    const channel = supabase
+      .channel(`profile-status-${userId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: tables.businessProfiles,
+          filter: `id=eq.${userId}`,
+        },
+        reload,
+      )
+      .subscribe();
+
+    // Fallback 1: re-fetch whenever the app returns from background.
+    const appStateSub = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') reload();
+    });
+
+    // Fallback 2: poll every 30 s while the app is open.
+    // Guarantees detection even if Realtime is not configured and the user
+    // never backgrounds the app.
+    const pollInterval = setInterval(reload, 30_000);
+
+    return () => {
+      supabase.removeChannel(channel);
+      appStateSub.remove();
+      clearInterval(pollInterval);
+    };
+  }, [session?.user?.id]); // re-subscribe only when the logged-in user changes
 
   const refreshBusinessProfile = async () => {
     await loadBusinessProfile(session);

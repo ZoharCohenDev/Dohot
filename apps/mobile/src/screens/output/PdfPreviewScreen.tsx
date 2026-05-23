@@ -1,7 +1,7 @@
 import React from 'react';
 import {
-  View, Text, ScrollView, Pressable, ActivityIndicator,
-  StyleSheet, Image, Platform, useWindowDimensions,
+  View, Text as RNText, ScrollView, Pressable, ActivityIndicator,
+  StyleSheet, Image, useWindowDimensions,
 } from 'react-native';
 import { SvgXml } from 'react-native-svg';
 import { captureRef } from 'react-native-view-shot';
@@ -14,6 +14,13 @@ import { useAuth } from '@/context/AuthContext';
 import { generatePdfFromCapture } from '@/services/documents';
 import { DOCUMENT_TYPES } from '@/config/documentTypes';
 import type { Recommendation, Certification } from '@dohot/shared';
+
+// Scoped Text that ignores OS accessibility font scale — keeps PDF captures
+// identical across all devices. All Text in this file uses this wrapper.
+// The rest of the app is unaffected.
+function Text(props: React.ComponentProps<typeof RNText>): React.ReactElement {
+  return <RNText {...props} allowFontScaling={false} />;
+}
 
 // ─── A4 page layout constants ────────────────────────────────────────────────
 // These match the StyleSheet values below so that cert-page splitting math is
@@ -177,6 +184,132 @@ function propertyLabel(type: string): string {
   return map[type] ?? type;
 }
 
+// ─── PDF image preloading ─────────────────────────────────────────────────────
+
+/**
+ * Returns every remote image URL the current PDF will render, scoped to the
+ * active docType and user profile. Data URIs and SVGs are excluded — they are
+ * always available inline and never need network loading.
+ */
+function collectPdfImageUrls(
+  state: WizardState,
+  businessProfile: BusinessProfile,
+): string[] {
+  const urls: string[] = [];
+  const add = (url: string | null | undefined) => {
+    if (!url || url.startsWith('data:')) return;
+    urls.push(url);
+  };
+
+  add(businessProfile?.logo_url);
+  add(businessProfile?.signature_url);
+
+  switch (state.docType) {
+    case 'report':
+      for (const cert of (businessProfile?.certifications ?? []) as Certification[]) {
+        add(cert.image_url);
+      }
+      for (const issue of state.reportIssues) {
+        issue.photos.slice(0, 4).forEach(add);
+      }
+      break;
+    case 'warranty':
+      (state.reportIssues[0]?.photos ?? []).slice(0, 4).forEach(add);
+      break;
+    // 'quote' and 'work-agreement' only use logo + signature (added above)
+  }
+
+  return urls;
+}
+
+interface PdfImagePreloadResult {
+  imagesReady: boolean;
+  loaded: number;
+  total: number;
+  failedUrls: string[];
+  retry: () => void;
+}
+
+/**
+ * Prefetches all required PDF images into the RN image cache so every <Image>
+ * component renders instantly from cache before captureRef fires.
+ * - `imagesReady` is true only when every URL settled without errors.
+ * - `retry()` re-runs all prefetches (useful after a network failure).
+ */
+// Maximum time allowed for a single image to prefetch + decode.
+// This is a fail-safe only — not the primary readiness mechanism.
+const PREFETCH_TIMEOUT_MS = 25_000;
+
+/**
+ * Prefetches a single URL into the RN cache (network), then calls Image.getSize
+ * which forces the image decoder to run and confirms the image is fully ready.
+ * Races against a 25-second fail-safe timeout that produces an explicit failure
+ * rather than leaving the UI stuck forever.
+ */
+function prefetchAndDecode(url: string): Promise<void> {
+  let timerId: ReturnType<typeof setTimeout> | undefined;
+
+  const timeout = new Promise<never>((_, reject) => {
+    timerId = setTimeout(
+      () => reject(new Error(`timed out after ${PREFETCH_TIMEOUT_MS / 1000}s`)),
+      PREFETCH_TIMEOUT_MS,
+    );
+  });
+
+  const load = Image.prefetch(url).then(
+    () =>
+      new Promise<void>((resolve, reject) => {
+        Image.getSize(url, () => resolve(), reject);
+      }),
+  );
+
+  // clearTimeout is safe to call with undefined; it is also called on success
+  // so the timer never fires after the image is ready.
+  return Promise.race([load, timeout]).finally(() => clearTimeout(timerId));
+}
+
+function usePdfImagePreload(urls: string[]): PdfImagePreloadResult {
+  const urlsKey = urls.join('\n');
+  const [loaded, setLoaded] = React.useState(0);
+  const [failedUrls, setFailedUrls] = React.useState<string[]>([]);
+  const [retryToken, setRetryToken] = React.useState(0);
+
+  React.useEffect(() => {
+    if (urls.length === 0) {
+      setLoaded(0);
+      setFailedUrls([]);
+      return;
+    }
+    setLoaded(0);
+    setFailedUrls([]);
+    let active = true;
+
+    for (const url of urls) {
+      prefetchAndDecode(url)
+        .then(() => { if (active) setLoaded(n => n + 1); })
+        .catch((err) => {
+          if (!active) return;
+          console.warn('[PDF] image load failed:', url, err instanceof Error ? err.message : String(err));
+          setFailedUrls(prev => [...prev, url]);
+          setLoaded(n => n + 1);
+        });
+    }
+    return () => { active = false; };
+    // retryToken intentionally re-runs the effect to retry all prefetches
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlsKey, retryToken]);
+
+  const retry = React.useCallback(() => setRetryToken(t => t + 1), []);
+
+  return {
+    imagesReady: urls.length === 0 || (loaded >= urls.length && failedUrls.length === 0),
+    loaded,
+    total: urls.length,
+    failedUrls,
+    retry,
+  };
+}
+
 // ─── Shared components ────────────────────────────────────────────────────────
 
 function SectionTitle({ num, label }: { num: number; label: string }) {
@@ -303,16 +436,6 @@ function ReportPage1({ state, businessProfile }: { state: WizardState; businessP
             </View>
           )}
         </View>
-        {issues.length > 0 && (
-          <View style={styles.visitReasonBox}>
-            <Text style={styles.visitReasonLabel}>סוגי תקלות שנבדקו</Text>
-            {issues.map((issue, i) => (
-              <Text key={issue.id} style={[styles.visitReasonValue, i > 0 && { marginTop: 2 }]}>
-                {`${i + 1}. ${issue.issueLabel}`}
-              </Text>
-            ))}
-          </View>
-        )}
       </View>
 
       <View style={[styles.pdfSection, { marginTop: 10 }]}>
@@ -461,11 +584,12 @@ function IssuePage({
 }
 
 function LegalPage({ pageNum, businessProfile }: { pageNum: number; businessProfile: BusinessProfile }) {
+  const disclaimerText = businessProfile?.default_disclaimer?.trim() || LEGAL_DISCLAIMER;
   return (
     <>
       <View style={styles.pdfSection}>
         <SectionTitle num={pageNum} label="הגבלת אחריות" />
-        <Text style={[styles.pdfBody, styles.disclaimerText]}>{LEGAL_DISCLAIMER}</Text>
+        <Text style={[styles.pdfBody, styles.disclaimerText]}>{disclaimerText}</Text>
       </View>
       <PageSig businessProfile={businessProfile} />
     </>
@@ -832,6 +956,26 @@ export function PdfPreviewScreen({ colors = lightColors, onBack, onSend }: PdfPr
   }
 
   const state = wizard.state;
+
+  // ── Image preloading ────────────────────────────────────────────────────────
+  // All remote images required for the current report/docType are prefetched
+  // into the RN cache here. The send button is disabled until every prefetch
+  // resolves so captureRef never captures a blank image placeholder.
+  const pdfImageUrls = React.useMemo(
+    () => collectPdfImageUrls(state, businessProfile),
+    // Re-collect whenever the content that drives visible images changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [state.docType, state.reportIssues, businessProfile?.logo_url,
+     businessProfile?.signature_url, businessProfile?.certifications],
+  );
+  const {
+    imagesReady,
+    loaded: imagesLoaded,
+    total: imagesTotal,
+    failedUrls: imageFailedUrls,
+    retry: retryImages,
+  } = usePdfImagePreload(pdfImageUrls);
+
   const docConfig = DOCUMENT_TYPES[state.docType];
   const docTitle = state.docType === 'work-agreement'
     ? docConfig.label
@@ -900,13 +1044,20 @@ export function PdfPreviewScreen({ colors = lightColors, onBack, onSend }: PdfPr
 
   const handleSend = async () => {
     if (!state.documentId) return;
+    if (!imagesReady) return; // guard against race between prefetch resolution and tap
     if (state.pdfUrl) { onSend?.(); return; }
 
     setGeneratingPdf(true);
     setPdfError('');
 
     try {
-      await new Promise<void>((r) => setTimeout(r, Platform.OS === 'ios' ? 200 : 400));
+      // Yield two animation frames before captureRef fires.
+      // Frame 1: React Native commits pending state to the native view tree.
+      // Frame 2: The native layout engine resolves RTL measurements and image
+      // decode paints, so captureRef sees a fully-settled view.
+      // Images are already decoded at this point (guaranteed by prefetchAndDecode),
+      // so two frames is deterministically sufficient on any device.
+      await new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r())));
 
       let capturedImages: string[];
 
@@ -1155,6 +1306,18 @@ export function PdfPreviewScreen({ colors = lightColors, onBack, onSend }: PdfPr
       </ScrollView>
 
       <FixedBottom colors={colors}>
+        {imageFailedUrls.length > 0 && !generatingPdf && (
+          <View style={styles.imageErrorRow}>
+            <Text style={[styles.pdfError, { color: colors.danger }]}>
+              {imageFailedUrls.length === 1
+                ? 'תמונה אחת לא נטענה — לא ניתן ליצור PDF'
+                : `${imageFailedUrls.length} תמונות לא נטענו — לא ניתן ליצור PDF`}
+            </Text>
+            <Pressable onPress={retryImages}>
+              <Text style={styles.retryLink}>נסה שוב</Text>
+            </Pressable>
+          </View>
+        )}
         {!!pdfError && (
           <Text style={[styles.pdfError, { color: colors.danger, fontFamily: fonts.sans }]}>
             {pdfError}
@@ -1164,12 +1327,20 @@ export function PdfPreviewScreen({ colors = lightColors, onBack, onSend }: PdfPr
           kind="primary"
           size="lg"
           full
-          disabled={generatingPdf}
+          disabled={generatingPdf || !imagesReady}
           onPress={handleSend}
-          iconRight={generatingPdf ? <ActivityIndicator size="small" color={colors.bg} /> : undefined}
+          iconRight={
+            generatingPdf || (imagesTotal > 0 && !imagesReady && imageFailedUrls.length === 0)
+              ? <ActivityIndicator size="small" color={colors.bg} />
+              : undefined
+          }
           colors={colors}
         >
-          {generatingPdf ? 'מייצר PDF…' : 'שלח ללקוח'}
+          {generatingPdf
+            ? 'מייצר PDF…'
+            : imagesTotal > 0 && !imagesReady
+              ? `מכין תמונות לדוח… (${imagesLoaded}/${imagesTotal})`
+              : 'שלח ללקוח'}
         </Button>
       </FixedBottom>
     </View>
@@ -1368,4 +1539,6 @@ const styles = StyleSheet.create({
   // Bottom
   bottomRow: { flexDirection: 'row', gap: 10 },
   pdfError: { fontSize: 12, textAlign: 'center', marginBottom: 8 },
+  imageErrorRow: { alignItems: 'center', gap: 4, marginBottom: 8 },
+  retryLink: { fontSize: 13, fontWeight: '600', color: '#5A8770', textDecorationLine: 'underline' },
 });

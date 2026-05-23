@@ -13,7 +13,14 @@ export default function ExpiredPage() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const colors = lightColors;
-  const { daysUntilExpiration, isActive } = useAuth();
+  const { daysUntilExpiration, isActive, isSubscriptionExpired, session } = useAuth();
+
+  // When admin re-activates the user (or renews subscription), redirect live.
+  React.useEffect(() => {
+    if (session && isActive && !isSubscriptionExpired) {
+      router.replace(ROUTES.APP_HOME);
+    }
+  }, [isActive, isSubscriptionExpired, session]);
 
   const isDisabled = !isActive;
   const daysSince = daysUntilExpiration !== null ? Math.abs(daysUntilExpiration) : 0;
