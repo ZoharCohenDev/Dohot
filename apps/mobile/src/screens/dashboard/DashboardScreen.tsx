@@ -11,7 +11,12 @@ import { Icons } from '@/components/icons';
 import { lightColors, fonts } from '@/theme/tokens';
 import { useAuth } from '@/context/AuthContext';
 import { useDashboard } from '@/hooks/useDashboard';
-import { useQuoteFollowUp, type QuoteFollowUpItem } from '@/hooks/useQuoteFollowUp';
+import {
+  useQuoteFollowUp,
+  type QuoteFollowUpItem,
+  type QuoteStatus,
+  type QuoteStatusFilter,
+} from '@/hooks/useQuoteFollowUp';
 
 interface DashboardScreenProps {
   colors?: typeof lightColors;
@@ -20,9 +25,12 @@ interface DashboardScreenProps {
   onCreateType?: (type: string) => void;
 }
 
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
 function formatDate(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric', year: '2-digit' });
+  return new Date(iso).toLocaleDateString('he-IL', {
+    day: 'numeric', month: 'numeric', year: '2-digit',
+  });
 }
 
 function formatAmount(amount: number | null): string {
@@ -41,102 +49,198 @@ function formatAddress(q: QuoteFollowUpItem): string {
   return [line1, apt, c.city].filter(Boolean).join(', ') || c.address || '';
 }
 
+// Returns label + color pair for each quote status.
+function getQuoteStatusConfig(
+  status: QuoteStatus,
+  colors: typeof lightColors,
+): { label: string; color: string; bg: string } {
+  switch (status) {
+    case 'waiting':
+      return { label: 'ממתין', color: colors.warn, bg: colors.warnBg };
+    case 'completed':
+      return { label: 'בוצע', color: colors.ai2, bg: colors.aiBg };
+    case 'cancelled':
+      return { label: 'בוטל', color: colors.danger, bg: colors.dangerBg };
+  }
+}
+
+// ── Filter tabs config ────────────────────────────────────────────────────────
+
+// Order is RTL: first item renders on the far right.
+const FILTER_TABS: { label: string; value: QuoteStatusFilter }[] = [
+  { label: 'הכל', value: 'all' },
+  { label: 'בוצעו', value: 'completed' },
+  { label: 'ממתינים', value: 'waiting' },
+  { label: 'בוטלו', value: 'cancelled' },
+];
+
+// ── QuoteCard ─────────────────────────────────────────────────────────────────
+
 function QuoteCard({
   item,
   colors,
-  onToggle,
+  onSetStatus,
   onLongPress,
 }: {
   item: QuoteFollowUpItem;
   colors: typeof lightColors;
-  onToggle: () => void;
+  onSetStatus: (status: QuoteStatus) => void;
   onLongPress: () => void;
 }) {
   const address = formatAddress(item);
   const phone = item.customers?.phone;
-  const completed = item.followUp.completed;
+  const status = item.followUp.status;
+  const statusConfig = getQuoteStatusConfig(status, colors);
 
   return (
     <Pressable
-      style={[styles.card, { backgroundColor: colors.bgElev, opacity: completed ? 0.72 : 1 }]}
+      style={[
+        styles.card,
+        {
+          backgroundColor: colors.bgElev,
+          opacity: status === 'waiting' ? 1 : 0.82,
+          borderRightWidth: 4,
+          borderRightColor: statusConfig.color,
+        },
+      ]}
       onLongPress={onLongPress}
       delayLongPress={500}
     >
-      <View style={styles.cardMain}>
-        {/* Checkbox */}
-        <Pressable
-          onPress={onToggle}
-          hitSlop={8}
-          style={[
-            styles.checkbox,
-            {
-              borderColor: completed ? colors.ai : colors.ink4,
-              backgroundColor: completed ? colors.ai : 'transparent',
-            },
-          ]}
+      {/* ── Top row: name · status pill · date ─────────────────────────── */}
+      <View style={styles.cardTopRow}>
+        <Text
+          style={[styles.customerName, { color: colors.ink1, fontFamily: fonts.sans }]}
+          numberOfLines={1}
         >
-          {completed && <Icons.check size={13} color={colors.bgElev} stroke={2.5} />}
-        </Pressable>
-
-        {/* Content */}
-        <View style={styles.cardContent}>
-          <View style={styles.cardTopRow}>
-            <Text
-              style={[
-                styles.customerName,
-                { color: colors.ink1, fontFamily: fonts.sans, textDecorationLine: completed ? 'line-through' : 'none' },
-              ]}
-              numberOfLines={1}
-            >
-              {item.customers?.name ?? 'ללא שם'}
-            </Text>
-            <Text style={[styles.dateText, { color: colors.ink4, fontFamily: fonts.sans }]}>
-              {formatDate(item.created_at)}
+          {item.customers?.name ?? 'ללא שם'}
+        </Text>
+        <View style={styles.topMeta}>
+          <View style={[styles.statusPill, { backgroundColor: statusConfig.bg }]}>
+            <Text style={[styles.statusPillText, { color: statusConfig.color, fontFamily: fonts.sans }]}>
+              {statusConfig.label}
             </Text>
           </View>
-
-          {!!address && (
-            <View style={styles.infoRow}>
-              <Icons.pin2 size={12} color={colors.ink4} />
-              <Text style={[styles.infoText, { color: colors.ink3, fontFamily: fonts.sans }]} numberOfLines={1}>
-                {address}
-              </Text>
-            </View>
-          )}
-
-          <View style={styles.cardBottomRow}>
-            {!!phone && (
-              <Pressable
-                style={styles.phoneChip}
-                onPress={() => Linking.openURL(`tel:${phone.replace(/[-\s]/g, '')}`)}
-                hitSlop={6}
-              >
-                <Icons.phone size={12} color={colors.info} />
-                <Text style={[styles.phoneText, { color: colors.info, fontFamily: fonts.sans }]}>
-                  {phone}
-                </Text>
-              </Pressable>
-            )}
-            {!!item.amount && (
-              <View style={[styles.amountBadge, { backgroundColor: colors.infoBg }]}>
-                <Text style={[styles.amountText, { color: colors.info, fontFamily: fonts.sans }]}>
-                  {formatAmount(item.amount)}
-                </Text>
-              </View>
-            )}
-          </View>
+          <Text style={[styles.dateText, { color: colors.ink4, fontFamily: fonts.sans }]}>
+            {formatDate(item.created_at)}
+          </Text>
         </View>
+      </View>
+
+      {/* ── Address ──────────────────────────────────────────────────────── */}
+      {!!address && (
+        <View style={styles.infoRow}>
+          <Icons.pin2 size={12} color={colors.ink4} />
+          <Text style={[styles.infoText, { color: colors.ink3, fontFamily: fonts.sans }]} numberOfLines={1}>
+            {address}
+          </Text>
+        </View>
+      )}
+
+      {/* ── Phone + amount ───────────────────────────────────────────────── */}
+      <View style={styles.cardMidRow}>
+        {!!phone && (
+          <Pressable
+            style={styles.phoneChip}
+            onPress={() => Linking.openURL(`tel:${phone.replace(/[-\s]/g, '')}`)}
+            hitSlop={6}
+          >
+            <Icons.phone size={12} color={colors.info} />
+            <Text style={[styles.phoneText, { color: colors.info, fontFamily: fonts.sans }]}>
+              {phone}
+            </Text>
+          </Pressable>
+        )}
+        {!!item.amount && (
+          <View style={[styles.amountBadge, { backgroundColor: colors.infoBg }]}>
+            <Text style={[styles.amountText, { color: colors.info, fontFamily: fonts.sans }]}>
+              {formatAmount(item.amount)}
+            </Text>
+          </View>
+        )}
+      </View>
+
+      {/* ── Action buttons ───────────────────────────────────────────────── */}
+      <View style={[styles.actionsRow, { borderTopColor: colors.line }]}>
+        {status === 'waiting' && (
+          <>
+            <Pressable
+              style={[styles.actionBtn, { backgroundColor: colors.aiBg }]}
+              onPress={() => onSetStatus('completed')}
+              hitSlop={4}
+            >
+              <Icons.check size={13} color={colors.ai2} stroke={2.5} />
+              <Text style={[styles.actionBtnText, { color: colors.ai2, fontFamily: fonts.sans }]}>
+                סמן כבוצע
+              </Text>
+            </Pressable>
+            <Pressable
+              style={[styles.actionBtn, { backgroundColor: colors.dangerBg }]}
+              onPress={() => onSetStatus('cancelled')}
+              hitSlop={4}
+            >
+              <Icons.close size={13} color={colors.danger} />
+              <Text style={[styles.actionBtnText, { color: colors.danger, fontFamily: fonts.sans }]}>
+                סמן כבוטל
+              </Text>
+            </Pressable>
+          </>
+        )}
+        {status === 'completed' && (
+          <Pressable
+            style={[styles.actionBtn, { backgroundColor: colors.bgSunken }]}
+            onPress={() => onSetStatus('waiting')}
+            hitSlop={4}
+          >
+            <Text style={[styles.actionBtnText, { color: colors.ink3, fontFamily: fonts.sans }]}>
+              החזר לממתין
+            </Text>
+          </Pressable>
+        )}
+        {status === 'cancelled' && (
+          <>
+            <Pressable
+              style={[styles.actionBtn, { backgroundColor: colors.aiBg }]}
+              onPress={() => onSetStatus('completed')}
+              hitSlop={4}
+            >
+              <Icons.check size={13} color={colors.ai2} stroke={2.5} />
+              <Text style={[styles.actionBtnText, { color: colors.ai2, fontFamily: fonts.sans }]}>
+                סמן כבוצע
+              </Text>
+            </Pressable>
+            <Pressable
+              style={[styles.actionBtn, { backgroundColor: colors.bgSunken }]}
+              onPress={() => onSetStatus('waiting')}
+              hitSlop={4}
+            >
+              <Text style={[styles.actionBtnText, { color: colors.ink3, fontFamily: fonts.sans }]}>
+                החזר לממתין
+              </Text>
+            </Pressable>
+          </>
+        )}
       </View>
     </Pressable>
   );
 }
+
+// ── Screen ────────────────────────────────────────────────────────────────────
 
 export function DashboardScreen({ colors = lightColors, onNavigate, onCreateType }: DashboardScreenProps) {
   const insets = useSafeAreaInsets();
   const navSpacing = useBottomNavSpacing();
   const { businessProfile, daysUntilExpiration, isSubscriptionExpired, isSubscriptionWarning } = useAuth();
   const { stats } = useDashboard();
-  const { items, loading, error, toggleFollowUp, deleteQuote } = useQuoteFollowUp();
+  const {
+    items,
+    counts,
+    loading,
+    error,
+    statusFilter,
+    setStatusFilter,
+    setQuoteStatus,
+    deleteQuote,
+  } = useQuoteFollowUp();
 
   const displayName = businessProfile?.full_name || businessProfile?.business_name || '';
   const firstName = displayName.split(' ')[0] ?? displayName;
@@ -173,7 +277,7 @@ export function DashboardScreen({ colors = lightColors, onNavigate, onCreateType
         ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
         ListHeaderComponent={() => (
           <>
-            {/* Top bar */}
+            {/* ── Top bar ── */}
             <View style={styles.topBar}>
               <View style={styles.greeting}>
                 <Avatar name={displayName} size={42} logoUrl={businessProfile?.logo_url} />
@@ -188,7 +292,7 @@ export function DashboardScreen({ colors = lightColors, onNavigate, onCreateType
               </View>
             </View>
 
-            {/* Subscription expiry banner */}
+            {/* ── Subscription banner ── */}
             {(isSubscriptionExpired || isSubscriptionWarning) && (
               <View style={[
                 styles.subBanner,
@@ -207,7 +311,7 @@ export function DashboardScreen({ colors = lightColors, onNavigate, onCreateType
               </View>
             )}
 
-            {/* Stats strip */}
+            {/* ── Stats strip ── */}
             <View style={styles.statsRow}>
               <View style={[styles.statCard, { backgroundColor: colors.bgElev, borderColor: colors.line }]}>
                 <ScaledText style={[styles.statValue, { color: colors.ink1, fontFamily: fonts.sans }]}>
@@ -218,26 +322,67 @@ export function DashboardScreen({ colors = lightColors, onNavigate, onCreateType
                 </ScaledText>
               </View>
               <View style={[styles.statCard, { backgroundColor: colors.bgElev, borderColor: colors.line }]}>
-                <ScaledText style={[styles.statValue, { color: colors.accent, fontFamily: fonts.sans }]}>
-                  {stats.activeQuotes}
+                <ScaledText style={[styles.statValue, { color: colors.warn, fontFamily: fonts.sans }]}>
+                  {counts.waiting}
                 </ScaledText>
                 <ScaledText style={[styles.statLabel, { color: colors.ink3, fontFamily: fonts.sans }]}>
-                  הצעות פעילות
+                  ממתינות לאישור
                 </ScaledText>
               </View>
             </View>
 
-            {/* Section header */}
+            {/* ── Section header ── */}
             <ScaledText style={[styles.sectionLabel, { color: colors.ink2, fontFamily: fonts.sans }]}>
               מעקב הצעות מחיר
             </ScaledText>
+
+            {/* ── Status filter tabs ── */}
+            <View style={styles.tabsRow}>
+              {FILTER_TABS.map((tab) => {
+                const active = statusFilter === tab.value;
+                const count = counts[tab.value];
+                return (
+                  <Pressable
+                    key={tab.value}
+                    onPress={() => setStatusFilter(tab.value)}
+                    style={[
+                      styles.filterTab,
+                      {
+                        backgroundColor: active ? colors.ink1 : colors.bgElev,
+                        borderColor: active ? colors.ink1 : colors.line,
+                        borderWidth: active ? 2 : 1.5,
+                      },
+                    ]}
+                  >
+                    <Text style={[
+                      styles.filterTabText,
+                      { color: active ? colors.bg : colors.ink2, fontFamily: fonts.sans },
+                    ]}>
+                      {tab.label}
+                    </Text>
+                    {count > 0 && (
+                      <View style={[
+                        styles.filterTabBadge,
+                        { backgroundColor: active ? colors.bg : colors.bgSunken },
+                      ]}>
+                        <Text style={[
+                          styles.filterTabBadgeText,
+                          { color: active ? colors.ink1 : colors.ink3, fontFamily: fonts.sans },
+                        ]}>
+                          {count}
+                        </Text>
+                      </View>
+                    )}
+                  </Pressable>
+                );
+              })}
+            </View>
 
             {loading && (
               <View style={styles.center}>
                 <ActivityIndicator color={colors.ink3} />
               </View>
             )}
-
             {!loading && !!error && (
               <View style={styles.center}>
                 <ScaledText style={[styles.emptyTitle, { color: colors.ink3, fontFamily: fonts.sans }]}>
@@ -255,17 +400,21 @@ export function DashboardScreen({ colors = lightColors, onNavigate, onCreateType
                 <Icons.quote size={32} color={colors.ink4} />
               </View>
               <ScaledText style={[styles.emptyTitle, { color: colors.ink2, fontFamily: fonts.sans }]}>
-                אין הצעות מחיר למעקב כרגע
+                {statusFilter === 'all'
+                  ? 'אין הצעות מחיר למעקב כרגע'
+                  : 'אין הצעות מחיר בסטטוס זה'}
               </ScaledText>
-              <Pressable
-                style={[styles.emptyBtn, { backgroundColor: colors.ink1 }]}
-                onPress={() => onCreateType?.('quote')}
-              >
-                <Icons.plus size={16} color={colors.bg} />
-                <Text style={[styles.emptyBtnText, { color: colors.bg, fontFamily: fonts.sans }]}>
-                  צור הצעת מחיר
-                </Text>
-              </Pressable>
+              {statusFilter === 'all' && (
+                <Pressable
+                  style={[styles.emptyBtn, { backgroundColor: colors.ink1 }]}
+                  onPress={() => onCreateType?.('quote')}
+                >
+                  <Icons.plus size={16} color={colors.bg} />
+                  <Text style={[styles.emptyBtnText, { color: colors.bg, fontFamily: fonts.sans }]}>
+                    צור הצעת מחיר
+                  </Text>
+                </Pressable>
+              )}
             </View>
           );
         }}
@@ -273,7 +422,7 @@ export function DashboardScreen({ colors = lightColors, onNavigate, onCreateType
           <QuoteCard
             item={item}
             colors={colors}
-            onToggle={() => toggleFollowUp(item.id)}
+            onSetStatus={(status) => setQuoteStatus(item.id, status)}
             onLongPress={() => handleLongPress(item)}
           />
         )}
@@ -303,6 +452,7 @@ const styles = StyleSheet.create({
   greeting: { flexDirection: 'row-reverse', alignItems: 'center', gap: 12 },
   greetSub: { fontSize: 12, textAlign: 'right' },
   greetName: { fontSize: 16, fontWeight: '700', lineHeight: 20, textAlign: 'right' },
+
   subBanner: {
     flexDirection: 'row-reverse',
     alignItems: 'flex-start',
@@ -319,11 +469,40 @@ const styles = StyleSheet.create({
   statValue: { fontSize: 22, fontWeight: '800', letterSpacing: -0.6, textAlign: 'right' },
   statLabel: { fontSize: 11, marginTop: 2, textAlign: 'right' },
 
-  // Section
+  // Section header
   sectionLabel: {
     fontSize: 13, fontWeight: '700',
-    marginBottom: 12, letterSpacing: -0.1, textAlign: 'right',
+    marginBottom: 10, letterSpacing: -0.1, textAlign: 'right',
   },
+
+  // Filter tabs
+  tabsRow: {
+    flexDirection: 'row-reverse',
+    justifyContent: 'space-between',
+    gap: 5,
+    marginBottom: 14,
+  },
+  filterTab: {
+    flex: 1,
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: 1.5,
+  },
+  filterTabText: { fontSize: 13, fontWeight: '700' },
+  filterTabBadge: {
+    minWidth: 19,
+    height: 19,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  filterTabBadgeText: { fontSize: 10, fontWeight: '800' },
 
   // Quote card
   card: {
@@ -335,33 +514,54 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 2,
   },
-  cardMain: { flexDirection: 'row-reverse', alignItems: 'flex-start', gap: 12 },
-  checkbox: {
-    width: 24, height: 24, borderRadius: 7,
-    borderWidth: 1.5, alignItems: 'center', justifyContent: 'center',
-    marginTop: 1, flexShrink: 0,
-  },
-  cardContent: { flex: 1, minWidth: 0 },
   cardTopRow: {
-    flexDirection: 'row-reverse', alignItems: 'flex-start',
-    justifyContent: 'space-between', gap: 8, marginBottom: 4,
+    flexDirection: 'row-reverse',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 8,
+    marginBottom: 5,
   },
   customerName: { fontSize: 15, fontWeight: '700', flex: 1, textAlign: 'right' },
-  dateText: { fontSize: 11, flexShrink: 0, marginTop: 2 },
+  topMeta: { alignItems: 'flex-end', gap: 3, flexShrink: 0 },
+  statusPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+  },
+  statusPillText: { fontSize: 11, fontWeight: '700' },
+  dateText: { fontSize: 11 },
   infoRow: { flexDirection: 'row-reverse', alignItems: 'center', gap: 4, marginBottom: 6 },
   infoText: { fontSize: 12, flex: 1, textAlign: 'right' },
-  cardBottomRow: {
-    flexDirection: 'row-reverse', alignItems: 'center',
-    justifyContent: 'space-between', gap: 8,
+  cardMidRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
   },
   phoneChip: { flexDirection: 'row-reverse', alignItems: 'center', gap: 5 },
   phoneText: { fontSize: 12, textDecorationLine: 'underline', textAlign: 'right' },
-  amountBadge: {
-    paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999,
-  },
+  amountBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
   amountText: { fontSize: 12, fontWeight: '700' },
 
-  // Empty state
+  // Action buttons
+  actionsRow: {
+    flexDirection: 'row-reverse',
+    justifyContent: 'flex-start',
+    gap: 8,
+    paddingTop: 10,
+    borderTopWidth: 1,
+  },
+  actionBtn: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 13,
+    paddingVertical: 7,
+    borderRadius: 10,
+  },
+  actionBtnText: { fontSize: 12, fontWeight: '700' },
+
+  // Misc
   center: { alignItems: 'center', paddingVertical: 40 },
   emptyState: { alignItems: 'center', paddingTop: 48, paddingBottom: 40, gap: 10 },
   emptyIcon: {

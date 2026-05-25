@@ -4,11 +4,15 @@ import { useAuth } from '@/context/AuthContext';
 import type { Document } from '@dohot/shared';
 import {
   loadFollowUpStore,
-  setFollowUp,
+  setQuoteStatus as persistQuoteStatus,
   removeFollowUp,
   type FollowUpEntry,
+  type QuoteStatus,
 } from '@/services/followUpStorage';
 import { deleteDocument } from '@/services/documents';
+
+export type { QuoteStatus, FollowUpEntry };
+export type QuoteStatusFilter = 'all' | QuoteStatus;
 
 export type QuoteWithCustomer = Document & {
   customers: {
@@ -27,14 +31,25 @@ export type QuoteFollowUpItem = QuoteWithCustomer & {
   followUp: FollowUpEntry;
 };
 
+const DEFAULT_FOLLOW_UP: FollowUpEntry = { status: 'waiting', updatedAt: null };
+
+// Sort: waiting first, then completed, then cancelled; newest-first within each group.
+const STATUS_ORDER: Record<QuoteStatus, number> = { waiting: 0, completed: 1, cancelled: 2 };
+
 function sortQuotes(items: QuoteFollowUpItem[]): QuoteFollowUpItem[] {
-  const open = items
-    .filter((q) => !q.followUp.completed)
-    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-  const done = items
-    .filter((q) => q.followUp.completed)
-    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-  return [...open, ...done];
+  return [...items].sort((a, b) => {
+    const diff = STATUS_ORDER[a.followUp.status] - STATUS_ORDER[b.followUp.status];
+    if (diff !== 0) return diff;
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+  });
+}
+
+export function filterQuotesByStatus(
+  items: QuoteFollowUpItem[],
+  filter: QuoteStatusFilter,
+): QuoteFollowUpItem[] {
+  if (filter === 'all') return items;
+  return items.filter((q) => q.followUp.status === filter);
 }
 
 export function useQuoteFollowUp() {
@@ -43,6 +58,7 @@ export function useQuoteFollowUp() {
   const [followUpStore, setFollowUpStore] = useState<Record<string, FollowUpEntry>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [statusFilter, setStatusFilter] = useState<QuoteStatusFilter>('all');
 
   const load = useCallback(async () => {
     if (!businessProfile) return;
@@ -71,11 +87,10 @@ export function useQuoteFollowUp() {
 
   useEffect(() => { load(); }, [load]);
 
-  const toggleFollowUp = useCallback(async (documentId: string) => {
-    const current = followUpStore[documentId]?.completed ?? false;
-    const updated = await setFollowUp(documentId, !current);
+  const setQuoteStatus = useCallback(async (documentId: string, status: QuoteStatus) => {
+    const updated = await persistQuoteStatus(documentId, status);
     setFollowUpStore(updated);
-  }, [followUpStore]);
+  }, []);
 
   const deleteQuote = useCallback(async (documentId: string) => {
     await deleteDocument(documentId);
@@ -84,12 +99,31 @@ export function useQuoteFollowUp() {
     setQuotes((prev) => prev.filter((q) => q.id !== documentId));
   }, []);
 
-  const items: QuoteFollowUpItem[] = sortQuotes(
+  const allItems = sortQuotes(
     quotes.map((q) => ({
       ...q,
-      followUp: followUpStore[q.id] ?? { completed: false, completedAt: null },
+      followUp: followUpStore[q.id] ?? DEFAULT_FOLLOW_UP,
     })),
   );
 
-  return { items, loading, error, refetch: load, toggleFollowUp, deleteQuote };
+  const items = filterQuotesByStatus(allItems, statusFilter);
+
+  const counts: Record<QuoteStatusFilter, number> = {
+    all: allItems.length,
+    waiting: allItems.filter((q) => q.followUp.status === 'waiting').length,
+    completed: allItems.filter((q) => q.followUp.status === 'completed').length,
+    cancelled: allItems.filter((q) => q.followUp.status === 'cancelled').length,
+  };
+
+  return {
+    items,
+    counts,
+    loading,
+    error,
+    statusFilter,
+    setStatusFilter,
+    refetch: load,
+    setQuoteStatus,
+    deleteQuote,
+  };
 }

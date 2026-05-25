@@ -1,20 +1,44 @@
 import { File, Paths } from 'expo-file-system';
 
-const getFile = () => new File(Paths.document, 'quote_followup.json');
+export type QuoteStatus = 'waiting' | 'completed' | 'cancelled';
 
 export interface FollowUpEntry {
-  completed: boolean;
-  completedAt: string | null;
+  status: QuoteStatus;
+  updatedAt: string | null;
 }
 
 type FollowUpStore = Record<string, FollowUpEntry>;
+
+// Shape of entries written before the status field was introduced.
+interface LegacyEntry {
+  completed?: boolean;
+  completedAt?: string | null;
+  status?: QuoteStatus;
+  updatedAt?: string | null;
+}
+
+const getFile = () => new File(Paths.document, 'quote_followup.json');
 
 async function read(): Promise<FollowUpStore> {
   const file = getFile();
   try {
     if (!file.exists) return {};
     const raw = await file.text();
-    return JSON.parse(raw) as FollowUpStore;
+    const parsed = JSON.parse(raw) as Record<string, LegacyEntry>;
+
+    const store: FollowUpStore = {};
+    for (const [id, entry] of Object.entries(parsed)) {
+      if (entry.status) {
+        store[id] = { status: entry.status, updatedAt: entry.updatedAt ?? null };
+      } else {
+        // Migrate: completed:true → 'completed', false → 'waiting'
+        store[id] = {
+          status: entry.completed ? 'completed' : 'waiting',
+          updatedAt: entry.completedAt ?? null,
+        };
+      }
+    }
+    return store;
   } catch {
     return {};
   }
@@ -28,12 +52,12 @@ export async function loadFollowUpStore(): Promise<FollowUpStore> {
   return read();
 }
 
-export async function setFollowUp(documentId: string, completed: boolean): Promise<FollowUpStore> {
+export async function setQuoteStatus(
+  documentId: string,
+  status: QuoteStatus,
+): Promise<FollowUpStore> {
   const store = await read();
-  store[documentId] = {
-    completed,
-    completedAt: completed ? new Date().toISOString() : null,
-  };
+  store[documentId] = { status, updatedAt: new Date().toISOString() };
   write(store);
   return store;
 }
