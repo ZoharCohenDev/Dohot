@@ -137,6 +137,20 @@ export function CustomerStep({
     return Object.keys(e).length === 0;
   };
 
+  const flushToContext = () => {
+    wizard.setCustomer({
+      name: name.trim(),
+      phone: phone.trim(),
+      email: email.trim(),
+      city: city.trim(),
+      street: street.trim(),
+      houseNumber: houseNumber.trim(),
+      apartment: apartment.trim(),
+      floor: floor.trim(),
+    });
+    wizard.setPropertyType(propertyType);
+  };
+
   const handleNext = () => {
     if (!validate()) return;
     const fields: CustomerFields = {
@@ -156,6 +170,13 @@ export function CustomerStep({
     else goNext();
   };
 
+  const handleBack = () => {
+    // Persist current form state so it survives navigation without pressing Next
+    flushToContext();
+    if (onBack) onBack();
+    else goBack();
+  };
+
   return (
     <KeyboardAwareFormLayout
       colors={colors}
@@ -164,7 +185,7 @@ export function CustomerStep({
           <Header
             step={stepNum}
             ofSteps={stepOf}
-            onBack={onBack ?? goBack}
+            onBack={onBack ?? handleBack}
             colors={colors}
             action={
               <Pressable

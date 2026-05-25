@@ -27,6 +27,12 @@ export function WaPriceStep({ colors = lightColors, onNext, onBack }: WaPriceSte
     ? `₪${Number(price.replace(/[^\d.]/g, '')).toLocaleString('he-IL')}`
     : '';
 
+  const handleBack = () => {
+    wizard.setWaTotalPrice(price.trim());
+    if (onBack) onBack();
+    else goBack();
+  };
+
   const handleNext = () => {
     wizard.setWaTotalPrice(price.trim());
     if (onNext) onNext();
@@ -41,7 +47,7 @@ export function WaPriceStep({ colors = lightColors, onNext, onBack }: WaPriceSte
           <Header
             step={stepNum}
             ofSteps={stepOf}
-            onBack={onBack ?? goBack}
+            onBack={onBack ?? handleBack}
             colors={colors}
             action={
               <Pressable

@@ -2,6 +2,7 @@ import { useRouter, usePathname } from 'expo-router';
 import { useWizard } from '@/context/WizardContext';
 import { DOCUMENT_TYPES, STEP_ROUTES, type WizardStep } from '@/config/documentTypes';
 import { ROUTES } from '@/navigation/constants';
+import { safeBack } from '@/navigation/safeBack';
 
 export function useWizardStep() {
   const router = useRouter();
@@ -36,12 +37,12 @@ export function useWizardStep() {
   };
 
   const goBack = () => {
-    if (stepIndex > 0) {
-      const prevStep = config.steps[stepIndex - 1]!;
-      router.push(STEP_ROUTES[prevStep] as never);
-    } else {
-      router.replace(ROUTES.APP_CREATE);
-    }
+    if (stepIndex < 0) { safeBack(router, ROUTES.APP_HOME); return; }
+    if (stepIndex === 0) { router.replace(ROUTES.APP_CREATE); return; }
+    const prevStep = config.steps[stepIndex - 1]!;
+    // Use router.back() so the previous screen stays mounted with its local state.
+    // safeBack falls back to router.replace(prevRoute) if there's no history (e.g. deep link).
+    safeBack(router, STEP_ROUTES[prevStep] as never);
   };
 
   return { goNext, goBack, progress, stepNum, stepOf, currentStep, config };

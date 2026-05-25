@@ -116,14 +116,24 @@ export function QuoteItemsStep({ colors = lightColors, onNext, onBack }: QuoteIt
   const effectiveValidity =
     selectedValidity === 'אחר' ? customValidity.trim() || 'אחר' : selectedValidity;
 
+  const flushToContext = () => {
+    wizard.setQuoteItems(items);
+    wizard.setQuoteNotes(notes);
+    wizard.setQuoteValidityDate(effectiveValidity);
+  };
+
+  const handleBack = () => {
+    flushToContext();
+    if (onBack) onBack();
+    else goBack();
+  };
+
   const handleNext = async () => {
     if (items.length === 0) {
       Alert.alert('שגיאה', 'יש להוסיף לפחות פריט עבודה אחד');
       return;
     }
-    wizard.setQuoteItems(items);
-    wizard.setQuoteNotes(notes);
-    wizard.setQuoteValidityDate(effectiveValidity);
+    flushToContext();
 
     if (!businessProfile?.id) {
       Alert.alert('שגיאה', 'לא נמצא פרופיל עסקי. אנא התחבר מחדש.');
@@ -154,7 +164,7 @@ export function QuoteItemsStep({ colors = lightColors, onNext, onBack }: QuoteIt
           <Header
             step={stepNum}
             ofSteps={stepOf}
-            onBack={onBack ?? goBack}
+            onBack={onBack ?? handleBack}
             colors={colors}
             action={
               <Pressable

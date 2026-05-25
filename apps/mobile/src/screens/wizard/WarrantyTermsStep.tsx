@@ -95,6 +95,12 @@ export function WarrantyTermsStep({
     ]);
   };
 
+  const handleBack = () => {
+    wizard.setWarrantyData(effectiveDuration, conditions, workDescription);
+    if (onBack) onBack();
+    else goBack();
+  };
+
   const handleNext = async () => {
     wizard.setWarrantyData(effectiveDuration, conditions, workDescription);
 
@@ -124,7 +130,7 @@ export function WarrantyTermsStep({
           <Header
             step={stepNum}
             ofSteps={stepOf}
-            onBack={onBack ?? goBack}
+            onBack={onBack ?? handleBack}
             colors={colors}
             action={
               <Pressable

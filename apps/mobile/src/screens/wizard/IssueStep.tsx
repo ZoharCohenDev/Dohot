@@ -45,17 +45,29 @@ export function IssueStep({ colors = lightColors, onNext, onBack }: IssueStepPro
   const selectedIssue = issues.find((i) => i.id === selectedId);
   const canProceed = !!selectedId && (selectedId !== 'other' || customText.trim().length > 0);
 
-  const handleNext = () => {
-    if (!canProceed) return;
-    const label =
-      selectedId === 'other' && customText.trim()
-        ? customText.trim()
-        : (selectedIssue?.label ?? selectedId);
-    wizard.setIssueData(selectedId, label);
+  const flushToContext = () => {
+    if (selectedId) {
+      const label =
+        selectedId === 'other' && customText.trim()
+          ? customText.trim()
+          : (selectedIssue?.label ?? selectedId);
+      wizard.setIssueData(selectedId, label);
+    }
     wizard.setIssueNote(issueNote);
     wizard.setAttendees(attendees);
+  };
+
+  const handleNext = () => {
+    if (!canProceed) return;
+    flushToContext();
     if (onNext) onNext();
     else goNext();
+  };
+
+  const handleBack = () => {
+    flushToContext();
+    if (onBack) onBack();
+    else goBack();
   };
 
   return (
@@ -66,7 +78,7 @@ export function IssueStep({ colors = lightColors, onNext, onBack }: IssueStepPro
           <Header
             step={stepNum}
             ofSteps={stepOf}
-            onBack={onBack ?? goBack}
+            onBack={onBack ?? handleBack}
             colors={colors}
             action={
               <Pressable

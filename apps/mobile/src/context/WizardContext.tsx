@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { saveWizardDraft, clearWizardDraft } from '@/services/wizardDraft';
 import type { PropertyType, Recommendation } from '@dohot/shared';
 import type { DocType } from '@/config/documentTypes';
 import {
@@ -143,6 +144,8 @@ interface WizardContextValue {
   state: WizardState;
   currentIssue: ReportIssue;
   saving: boolean;
+  restoreDraft: (savedState: Record<string, unknown>) => void;
+  discardDraft: () => void;
   setDocType: (t: DocType) => void;
   setCustomer: (fields: CustomerFields) => void;
   setPropertyType: (t: PropertyType) => void;
@@ -221,6 +224,8 @@ const WizardContext = createContext<WizardContextValue>({
   state: DEFAULT_STATE,
   currentIssue: newIssue('1'),
   saving: false,
+  restoreDraft: () => {},
+  discardDraft: () => {},
   setDocType: () => {},
   setCustomer: () => {},
   setPropertyType: () => {},
@@ -437,7 +442,28 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
 
   const setPdfUrl = (pdfUrl: string) => setState((s) => ({ ...s, pdfUrl }));
 
-  const reset = () => setState({ ...DEFAULT_STATE, inspectionDate: todayString() });
+  // Auto-save draft to disk whenever state changes (debounced 500ms).
+  // Only triggers once the user has started entering data.
+  useEffect(() => {
+    if (!state.customerName) return;
+    const timer = setTimeout(() => {
+      saveWizardDraft(state);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [state]);
+
+  const restoreDraft = (savedState: Record<string, unknown>) => {
+    setState((s) => ({ ...s, ...(savedState as Partial<WizardState>), pdfUrl: null }));
+  };
+
+  const discardDraft = () => {
+    clearWizardDraft();
+  };
+
+  const reset = () => {
+    clearWizardDraft();
+    setState({ ...DEFAULT_STATE, inspectionDate: todayString() });
+  };
 
   const initDraft = async (professionalId: string, fields: CustomerFields): Promise<void> => {
     try {
@@ -550,6 +576,8 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
         state,
         currentIssue,
         saving,
+        restoreDraft,
+        discardDraft,
         setDocType,
         setCustomer,
         setPropertyType,
