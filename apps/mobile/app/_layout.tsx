@@ -1,5 +1,8 @@
+// Sentry must be imported before anything else so it can instrument the process
+// from the very first tick. The module calls Sentry.init() at evaluation time.
+import { Sentry, navigationIntegration } from '@/lib/sentry';
 import React from 'react';
-import { Stack } from 'expo-router';
+import { Stack, useNavigationContainerRef } from 'expo-router';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { I18nManager, View } from 'react-native';
@@ -16,7 +19,18 @@ I18nManager.allowRTL(true);
 I18nManager.forceRTL(true);
 console.log(`[RTL] nativeIsRTL=${nativeIsRTL} doSwap=${I18nManager.doLeftAndRightSwapInRTL} __DEV__=${__DEV__}`);
 
-export default function RootLayout() {
+function RootLayout() {
+  const navigationRef = useNavigationContainerRef();
+
+  // Register the navigation container with Sentry so it can track screen
+  // transitions as breadcrumbs and performance transactions.
+  React.useEffect(() => {
+    if (navigationRef) {
+      navigationIntegration.registerNavigationContainer(navigationRef);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // In production: if the native layout started as LTR (plugin didn't run or first cold
   // launch), forceRTL already wrote to SharedPreferences. A JS bundle reload forces the
   // new React Native runtime to re-read SharedPreferences → isRTL=true.
@@ -75,3 +89,7 @@ export default function RootLayout() {
     </GestureHandlerRootView>
   );
 }
+
+// Sentry.wrap adds an error boundary that catches React rendering errors and
+// uncaught JS exceptions that bubble up from within the component tree.
+export default Sentry.wrap(RootLayout);

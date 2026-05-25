@@ -65,7 +65,14 @@
           "photosPermission": "בחירת תמונות מהגלריה לדוחות"
         }
       ],
-      "expo-audio"
+      "expo-audio",
+      [
+        "@sentry/react-native",
+        {
+          "organization": "dohot",
+          "project": "dohot-mobile"
+        }
+      ]
     ],
     "newArchEnabled": true,
     "runtimeVersion": "1.0.1",
