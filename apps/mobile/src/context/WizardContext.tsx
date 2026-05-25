@@ -152,6 +152,7 @@ interface WizardContextValue {
   setIssueData: (type: string, label: string) => void;
   setIssueNote: (note: string) => void;
   addPhoto: (uri: string) => void;
+  addPhotos: (uris: string[]) => void;
   removePhoto: (uri: string) => void;
   replacePhoto: (oldUri: string, newUri: string) => void;
   setRecordedAudioUri: (uri: string) => void;
@@ -228,6 +229,7 @@ const WizardContext = createContext<WizardContextValue>({
   setIssueData: () => {},
   setIssueNote: () => {},
   addPhoto: () => {},
+  addPhotos: () => {},
   removePhoto: () => {},
   replacePhoto: () => {},
   setRecordedAudioUri: () => {},
@@ -305,6 +307,14 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
       ...s,
       reportIssues: updateIssueAt(s.reportIssues, s.currentIssueIndex, {
         photos: [...(s.reportIssues[s.currentIssueIndex]?.photos ?? []), uri],
+      }),
+    }));
+
+  const addPhotos = (uris: string[]) =>
+    setState((s) => ({
+      ...s,
+      reportIssues: updateIssueAt(s.reportIssues, s.currentIssueIndex, {
+        photos: [...(s.reportIssues[s.currentIssueIndex]?.photos ?? []), ...uris],
       }),
     }));
 
@@ -548,6 +558,7 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
         setIssueData,
         setIssueNote,
         addPhoto,
+        addPhotos,
         removePhoto,
         replacePhoto,
         setRecordedAudioUri,

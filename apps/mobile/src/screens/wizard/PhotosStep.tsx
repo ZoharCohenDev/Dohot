@@ -12,7 +12,7 @@ import { useWizard } from '@/context/WizardContext';
 import { useAuth } from '@/context/AuthContext';
 import { useWizardStep } from '@/hooks/useWizardStep';
 import { useWizardExit } from '@/hooks/useWizardExit';
-import { pickImageAsset, captureImageAsset, uploadImageAsset } from '@/services/storage';
+import { pickImageAssets, captureImageAsset, uploadImageAsset } from '@/services/storage';
 
 interface PhotosStepProps {
   colors?: typeof lightColors;
@@ -37,6 +37,7 @@ export function PhotosStep({ colors = lightColors, onNext, onBack, onAnnotate }:
 
   const [pendingAsset, setPendingAsset] = React.useState<ImagePickerAsset | null>(null);
   const [previewUploading, setPreviewUploading] = React.useState<'confirm' | 'edit' | null>(null);
+  const [bulkUploading, setBulkUploading] = React.useState(false);
 
   const photos = wizard.currentIssue.photos;
 
@@ -44,9 +45,31 @@ export function PhotosStep({ colors = lightColors, onNext, onBack, onAnnotate }:
     if (!user?.id) return;
 
     const doPick = async (source: 'camera' | 'library') => {
-      const fn = source === 'camera' ? captureImageAsset : pickImageAsset;
-      const asset = await fn();
-      if (asset) setPendingAsset(asset);
+      if (source === 'camera') {
+        const asset = await captureImageAsset();
+        if (asset) setPendingAsset(asset);
+        return;
+      }
+
+      const assets = await pickImageAssets();
+      if (assets.length === 0) return;
+
+      if (assets.length === 1) {
+        setPendingAsset(assets[0]!);
+        return;
+      }
+
+      setBulkUploading(true);
+      try {
+        const urls = await Promise.all(
+          assets.map(a => uploadImageAsset(user.id!, 'report-images', a)),
+        );
+        wizard.addPhotos(urls);
+      } catch {
+        Alert.alert('שגיאה', 'לא ניתן היה להעלות את התמונות. נסה שוב.');
+      } finally {
+        setBulkUploading(false);
+      }
     };
 
     if (Platform.OS === 'ios') {
@@ -152,7 +175,7 @@ export function PhotosStep({ colors = lightColors, onNext, onBack, onAnnotate }:
         </View>
 
         {/* Camera button */}
-        <Pressable style={styles.cameraBtn} onPress={handleAddPhoto}>
+        <Pressable style={styles.cameraBtn} onPress={handleAddPhoto} disabled={bulkUploading}>
           <>
             <Icons.camera size={28} color="#fff" />
             <View>

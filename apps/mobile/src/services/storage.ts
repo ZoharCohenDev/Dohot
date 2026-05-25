@@ -52,7 +52,7 @@ async function uploadAsset(
   const uploadableAsset = await resizeImageForUpload(asset);
   onLocalUri?.(uploadableAsset.uri);
 
-  const storagePath = `${userId}/${Date.now()}.jpg`;
+  const storagePath = `${userId}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.jpg`;
 
   const base64 = await FileSystem.readAsStringAsync(uploadableAsset.uri, {
     encoding: 'base64',
@@ -180,6 +180,27 @@ export async function pickImageAsset(
 
   if (result.canceled || !result.assets[0]) return null;
   return result.assets[0];
+}
+
+export async function pickImageAssets(
+  opts: PickOptions = {},
+): Promise<ImagePicker.ImagePickerAsset[]> {
+  const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+  if (!perm.granted) {
+    Alert.alert('אין הרשאה', 'יש לאפשר גישה לגלריה בהגדרות הטלפון');
+    return [];
+  }
+
+  const result = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ['images'],
+    allowsEditing: false,
+    allowsMultipleSelection: true,
+    quality: opts.quality ?? 0.85,
+  });
+
+  if (result.canceled) return [];
+  return result.assets;
 }
 
 export async function captureImageAsset(
