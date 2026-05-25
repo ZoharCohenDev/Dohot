@@ -37,7 +37,7 @@ export function PhotosStep({ colors = lightColors, onNext, onBack, onAnnotate }:
 
   const [pendingAsset, setPendingAsset] = React.useState<ImagePickerAsset | null>(null);
   const [previewUploading, setPreviewUploading] = React.useState<'confirm' | 'edit' | null>(null);
-  const [bulkUploading, setBulkUploading] = React.useState(false);
+  const [uploadProgress, setUploadProgress] = React.useState<{ done: number; total: number } | null>(null);
 
   const photos = wizard.currentIssue.photos;
 
@@ -59,16 +59,31 @@ export function PhotosStep({ colors = lightColors, onNext, onBack, onAnnotate }:
         return;
       }
 
-      setBulkUploading(true);
+      // Show skeleton tiles immediately; upload each image and add it to the
+      // grid as soon as it resolves so previews appear progressively.
+      let done = 0;
+      setUploadProgress({ done: 0, total: assets.length });
       try {
-        const urls = await Promise.all(
-          assets.map(a => uploadImageAsset(user.id!, 'report-images', a)),
+        const results = await Promise.allSettled(
+          assets.map(async (a) => {
+            const url = await uploadImageAsset(user.id!, 'report-images', a);
+            wizard.addPhoto(url);
+            done += 1;
+            setUploadProgress({ done, total: assets.length });
+            return url;
+          }),
         );
-        wizard.addPhotos(urls);
-      } catch {
-        Alert.alert('שגיאה', 'לא ניתן היה להעלות את התמונות. נסה שוב.');
+        const failures = results.filter(r => r.status === 'rejected').length;
+        if (failures > 0) {
+          Alert.alert(
+            'שגיאה',
+            failures === 1
+              ? 'תמונה אחת לא הועלתה. ניתן לנסות שוב.'
+              : `${failures} תמונות לא הועלו. ניתן לנסות שוב.`,
+          );
+        }
       } finally {
-        setBulkUploading(false);
+        setUploadProgress(null);
       }
     };
 
@@ -175,22 +190,29 @@ export function PhotosStep({ colors = lightColors, onNext, onBack, onAnnotate }:
         </View>
 
         {/* Camera button */}
-        <Pressable style={styles.cameraBtn} onPress={handleAddPhoto} disabled={bulkUploading}>
+        <Pressable style={styles.cameraBtn} onPress={handleAddPhoto} disabled={!!uploadProgress}>
           <>
-            <Icons.camera size={28} color="#fff" />
+            {uploadProgress
+              ? <ActivityIndicator size="small" color="#fff" />
+              : <Icons.camera size={28} color="#fff" />
+            }
             <View>
               <Text style={styles.cameraBtnTitle}>
-                {photos.length > 0 ? 'הוסף תמונה נוספת' : 'צלם או בחר מהגלריה'}
+                {uploadProgress
+                  ? `מעלה ${uploadProgress.done}/${uploadProgress.total} תמונות...`
+                  : photos.length > 0 ? 'הוסף תמונה נוספת' : 'צלם או בחר מהגלריה'}
               </Text>
               <Text style={styles.cameraBtnSub}>
-                {photos.length > 0 ? 'מצלמה או גלריה' : 'תיעוד הנזק יופיע בדוח'}
+                {uploadProgress
+                  ? 'אנא המתן...'
+                  : photos.length > 0 ? 'מצלמה או גלריה' : 'תיעוד הנזק יופיע בדוח'}
               </Text>
             </View>
           </>
         </Pressable>
 
         {/* Photo grid or empty state */}
-        {photos.length > 0 ? (
+        {(photos.length > 0 || uploadProgress) ? (
           <View style={styles.photoGrid}>
             {photos.map((uri, i) => (
               <Pressable
@@ -224,6 +246,16 @@ export function PhotosStep({ colors = lightColors, onNext, onBack, onAnnotate }:
                   <Icons.close size={12} color="#fff" />
                 </Pressable>
               </Pressable>
+            ))}
+
+            {/* Skeleton tiles — one per image still in flight */}
+            {uploadProgress && Array.from({ length: uploadProgress.total - uploadProgress.done }).map((_, i) => (
+              <View
+                key={`skeleton_${i}`}
+                style={[styles.photoTile, styles.photoSkeleton, { backgroundColor: colors.bgElev, borderColor: colors.line }]}
+              >
+                <ActivityIndicator size="small" color={colors.ink3} />
+              </View>
             ))}
           </View>
         ) : (
@@ -269,6 +301,7 @@ export function PhotosStep({ colors = lightColors, onNext, onBack, onAnnotate }:
           kind="primary"
           size="lg"
           full
+          disabled={!!uploadProgress}
           onPress={onNext ?? goNext}
           iconRight={<Icons.back size={20} color={colors.bg} />}
           colors={colors}
@@ -410,6 +443,12 @@ const styles = StyleSheet.create({
     overflow: 'hidden', position: 'relative',
   },
   photoTileImage: { width: '100%', height: '100%' },
+  photoSkeleton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderStyle: 'dashed',
+  },
   editOverlay: {
     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
     alignItems: 'flex-end', justifyContent: 'flex-end',

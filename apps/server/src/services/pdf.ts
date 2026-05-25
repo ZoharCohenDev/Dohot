@@ -420,6 +420,8 @@ export function buildHtml(data: PdfData): string {
     align-items: center;
     gap: 9px;
     margin-bottom: 10px;
+    page-break-after: avoid;
+    break-after: avoid;
   }
   .section-num {
     width: 24px;
@@ -461,6 +463,8 @@ export function buildHtml(data: PdfData): string {
     border-radius: 8px;
     overflow: hidden;
     background: #F0EDE7;
+    page-break-inside: avoid;
+    break-inside: avoid;
   }
   .photo-item img {
     width: 100%;
@@ -481,7 +485,12 @@ export function buildHtml(data: PdfData): string {
   }
 
   /* ─ Recommendations ─ */
-  .recs-list { display: flex; flex-direction: column; gap: 8px; }
+  /*
+   * display:block instead of flex-column avoids a Chromium print-engine bug
+   * where flex column containers are clipped at page boundaries, causing
+   * items after the break to silently disappear.
+   */
+  .recs-list { display: block; }
   .rec-item {
     display: flex;
     align-items: flex-start;
@@ -489,7 +498,11 @@ export function buildHtml(data: PdfData): string {
     padding: 12px 14px;
     border-radius: 11px;
     border: 1px solid #E8E5DF;
+    margin-bottom: 8px;
+    page-break-inside: avoid;
+    break-inside: avoid;
   }
+  .rec-item:last-child { margin-bottom: 0; }
   .rec-num-badge {
     width: 28px;
     height: 28px;

@@ -45,6 +45,17 @@ const EST_WA_ITEM_H = 28; // waItemRow height (badge + title text ≈ 22) + gap(
 const EST_WA_CLAUSE_H = 18; // each waClauseRow: fontSize 8, lineHeight 12, paddingRight 20 ≈ 18
 const EST_WA_FOOTER_H = 180; // totalBox section(~85) + payment terms section(~95 for 2 terms)
 
+// Issue (report) page splitting
+const EST_ISSUE_PHOTOS_ROW_H = 92;         // pdfImage(80) + label(~9) + label margin + gap overhead ≈ 92 per 2-col row
+const EST_ISSUE_PHOTOS_MARGIN_H = 10;      // { marginTop: 10 } on the photo grid
+const EST_ISSUE_DESC_CHARS_PER_LINE = 48;  // pdfBody fontSize 9 — ~48 Hebrew chars per line
+const EST_ISSUE_DESC_LINE_H = 14;          // pdfBody lineHeight: 14
+const EST_ISSUE_REC_SECTION_MARGIN_H = 10; // { marginTop: 10 } on the recs container
+const EST_ISSUE_REC_PADDING_V = 10;        // pdfRecRow paddingVertical: 5 × 2
+const EST_ISSUE_REC_TITLE_H = 11;          // pdfRecTitle fontSize 8, one line ≈ 11px
+const EST_ISSUE_REC_DESC_CHARS_PER_LINE = 50;
+const EST_ISSUE_REC_DESC_LINE_H = 12;      // pdfRecDesc fontSize 7.5, lineHeight ≈ 12
+
 // ─── Page-group builders (pure functions, no component state) ─────────────────
 
 /**
@@ -159,6 +170,96 @@ interface PdfPreviewScreenProps {
 type BusinessProfile = ReturnType<typeof useAuth>['businessProfile'];
 type WizardState = ReturnType<typeof useWizard>['state'];
 type ReportIssue = WizardState['reportIssues'][number];
+
+// ─── Issue page-splitting helpers ─────────────────────────────────────────────
+
+interface IssuePageGroup {
+  /** True only on the first page of an issue: renders title + description + photos. */
+  showMainContent: boolean;
+  /** Subset of recommendations to render on this page. */
+  recs: Recommendation[];
+}
+
+/** Usable content height inside one A4 page card (below the repeated header). */
+function getAvailablePageHeight(pageH: number): number {
+  return pageH - PAGE_PAD * 2 - EST_HEADER_H;
+}
+
+/** Estimates rendered height of a pdfBody text block from its character count. */
+function estimateDescHeight(text: string): number {
+  if (!text) return 0;
+  const lines = Math.max(1, Math.ceil(text.length / EST_ISSUE_DESC_CHARS_PER_LINE));
+  return lines * EST_ISSUE_DESC_LINE_H;
+}
+
+/** Estimates rendered height of the 2-column photo grid (capped at 4 photos). */
+function estimatePhotosHeight(photoCount: number): number {
+  if (photoCount === 0) return 0;
+  const rows = Math.ceil(Math.min(photoCount, 4) / 2);
+  // marginTop(10) + rows × rowH + row-gaps(6 each) + grid marginBottom(12)
+  return EST_ISSUE_PHOTOS_MARGIN_H + rows * EST_ISSUE_PHOTOS_ROW_H + (rows - 1) * 6 + 12;
+}
+
+/** Estimates rendered height of a single recommendation row. */
+function estimateRecRowHeight(rec: Recommendation): number {
+  const descLines = rec.description
+    ? Math.max(1, Math.ceil(rec.description.length / EST_ISSUE_REC_DESC_CHARS_PER_LINE))
+    : 0;
+  // paddingVertical + title + description lines + bottom border
+  return EST_ISSUE_REC_PADDING_V + EST_ISSUE_REC_TITLE_H + descLines * EST_ISSUE_REC_DESC_LINE_H + 1;
+}
+
+/**
+ * Splits a single report issue across as many A4 page groups as needed.
+ * The first group always contains the section title + description + photos, plus
+ * as many recommendations as fit in the remaining space.
+ * Overflow recommendations are distributed across continuation page groups.
+ */
+function buildIssuePageGroups(issue: ReportIssue, pageHeight: number): IssuePageGroup[] {
+  const recs = issue.recommendations;
+  const bodyH = getAvailablePageHeight(pageHeight);
+
+  // Space consumed by the non-recommendation content on the first page
+  const descText = issue.aiSummary || issue.description || issue.issueNote || '';
+  const mainContentH =
+    EST_SECTION_TITLE_H +
+    EST_SECTION_MARGIN_H +
+    estimateDescHeight(descText) +
+    estimatePhotosHeight(issue.photos.length);
+
+  // Space left on page 1 for recommendations
+  let page1Remaining = bodyH - mainContentH;
+  if (recs.length > 0) page1Remaining -= EST_ISSUE_REC_SECTION_MARGIN_H;
+
+  // Greedy fill for page 1
+  const page1Recs: Recommendation[] = [];
+  for (const rec of recs) {
+    const h = estimateRecRowHeight(rec);
+    if (page1Remaining - h < 0) break;
+    page1Recs.push(rec);
+    page1Remaining -= h;
+  }
+
+  const groups: IssuePageGroup[] = [{ showMainContent: true, recs: page1Recs }];
+
+  // Distribute remaining recs across continuation pages
+  let overflow = recs.slice(page1Recs.length);
+  while (overflow.length > 0) {
+    const contBodyH = getAvailablePageHeight(pageHeight);
+    const contRecs: Recommendation[] = [];
+    let contUsed = 0;
+    for (const rec of overflow) {
+      const h = estimateRecRowHeight(rec);
+      if (contUsed + h > contBodyH && contRecs.length > 0) break;
+      contRecs.push(rec);
+      contUsed += h;
+    }
+    groups.push({ showMainContent: false, recs: contRecs });
+    overflow = overflow.slice(contRecs.length);
+  }
+
+  return groups;
+}
 
 function formatDate(): string {
   return new Date().toLocaleDateString('he-IL', { day: 'numeric', month: 'long', year: 'numeric' });
@@ -530,43 +631,53 @@ function CertificationsPage({
 }
 
 function IssuePage({
-  issue, pageNum, businessProfile,
+  issue, pageNum, businessProfile, showMainContent, recs, isContinuation, recOffset,
 }: {
   issue: ReportIssue;
   pageNum: number;
   businessProfile: BusinessProfile;
+  showMainContent: boolean;
+  recs: Recommendation[];
+  isContinuation: boolean;
+  recOffset: number;
 }) {
   return (
     <>
       <View style={styles.pdfSection}>
-        <SectionTitle num={pageNum} label={issue.issueLabel} />
-        <Text style={styles.pdfBody}>
-          {issue.aiSummary || issue.description || issue.issueNote || 'לא צוין תיאור מפורט.'}
-        </Text>
-        {!!issue.issueNote && !issue.aiSummary && (
-          <View style={{ marginTop: 6 }}>
-            <Text style={styles.metaItemLabel}>הערות</Text>
-            <Text style={styles.pdfBody}>{issue.issueNote}</Text>
-          </View>
-        )}
-        {issue.photos.length > 0 && (
-          <View style={[styles.pdfImageGrid, { marginTop: 10 }]}>
-            {issue.photos.slice(0, 4).map((uri, j) => (
-              <View key={uri} style={styles.pdfImageCell}>
-                <Image source={{ uri }} style={styles.pdfImage} resizeMode="cover" />
-                <Text style={styles.pdfImageLabel}>{`תמונה ${j + 1}`}</Text>
+        {showMainContent ? (
+          <>
+            <SectionTitle num={pageNum} label={issue.issueLabel} />
+            <Text style={styles.pdfBody}>
+              {issue.aiSummary || issue.description || issue.issueNote || 'לא צוין תיאור מפורט.'}
+            </Text>
+            {!!issue.issueNote && !issue.aiSummary && (
+              <View style={{ marginTop: 6 }}>
+                <Text style={styles.metaItemLabel}>הערות</Text>
+                <Text style={styles.pdfBody}>{issue.issueNote}</Text>
               </View>
-            ))}
-          </View>
-        )}
-        {issue.recommendations.length > 0 && (
-          <View style={{ marginTop: 10 }}>
-            {issue.recommendations.map((r: Recommendation, j: number) => (
+            )}
+            {issue.photos.length > 0 && (
+              <View style={[styles.pdfImageGrid, { marginTop: 10 }]}>
+                {issue.photos.slice(0, 4).map((uri, j) => (
+                  <View key={uri} style={styles.pdfImageCell}>
+                    <Image source={{ uri }} style={styles.pdfImage} resizeMode="cover" />
+                    <Text style={styles.pdfImageLabel}>{`תמונה ${j + 1}`}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+          </>
+        ) : isContinuation ? (
+          <SectionTitle num={pageNum} label={`${issue.issueLabel} (המשך)`} />
+        ) : null}
+        {recs.length > 0 && (
+          <View style={showMainContent ? { marginTop: 10 } : undefined}>
+            {recs.map((r: Recommendation, j: number) => (
               <View
                 key={j}
-                style={[styles.pdfRecRow, j < issue.recommendations.length - 1 && styles.pdfRecBorder]}
+                style={[styles.pdfRecRow, j < recs.length - 1 && styles.pdfRecBorder]}
               >
-                <Text style={styles.pdfRecNum}>{`${j + 1}`}</Text>
+                <Text style={styles.pdfRecNum}>{`${recOffset + j + 1}`}</Text>
                 <View style={styles.pdfRecPill}>
                   <Text style={styles.pdfRecPillText}>{r.priority}</Text>
                 </View>
@@ -1027,6 +1138,12 @@ export function PdfPreviewScreen({ colors = lightColors, onBack, onSend }: PdfPr
     [state.docType, state.waWorkItems, state.waPaymentTerms, pageHeight],
   );
 
+  // ── Issue page splitting ────────────────────────────────────────────────────
+  const issuePageGroupsList = React.useMemo(
+    () => issues.map(issue => buildIssuePageGroups(issue, pageHeight)),
+    [issues, pageHeight],
+  );
+
   // Dynamic section numbering (sections 1+2 are on page 1: customer + professional)
   let _sec = 3;
   const aboutSectionNum = _sec;
@@ -1066,7 +1183,12 @@ export function PdfPreviewScreen({ colors = lightColors, onBack, onSend }: PdfPr
         if (hasAboutPage) pageKeys.push('about');
         // Certs may span multiple A4 pages — capture each one.
         certPageGroups.forEach((_, i) => pageKeys.push(`certs_${i}`));
-        issues.forEach((_, i) => pageKeys.push(`issue_${i}`));
+        issues.forEach((_, issueIdx) => {
+          const groups = issuePageGroupsList[issueIdx] ?? [{}];
+          groups.forEach((_, groupIdx) => {
+            pageKeys.push(groupIdx === 0 ? `issue_${issueIdx}` : `issue_${issueIdx}_${groupIdx}`);
+          });
+        });
         pageKeys.push('legal');
 
         capturedImages = [];
@@ -1165,12 +1287,29 @@ export function PdfPreviewScreen({ colors = lightColors, onBack, onSend }: PdfPr
               </View>
             ))}
 
-            {issues.map((issue, i) => (
-              <View key={issue.id} ref={setPageRef(`issue_${i}`)} style={[styles.pdfPage, dynPage]}>
-                <PdfPageHeader {...headerProps} />
-                <IssuePage issue={issue} pageNum={issueBasePageNum + i} businessProfile={businessProfile} />
-              </View>
-            ))}
+            {issues.map((issue, issueIdx) => {
+              const groups = issuePageGroupsList[issueIdx] ?? [{ showMainContent: true, recs: issue.recommendations }];
+              let recOffset = 0;
+              return groups.map((group, groupIdx) => {
+                const pageKey = groupIdx === 0 ? `issue_${issueIdx}` : `issue_${issueIdx}_${groupIdx}`;
+                const thisOffset = recOffset;
+                recOffset += group.recs.length;
+                return (
+                  <View key={pageKey} ref={setPageRef(pageKey)} style={[styles.pdfPage, dynPage]}>
+                    <PdfPageHeader {...headerProps} />
+                    <IssuePage
+                      issue={issue}
+                      pageNum={issueBasePageNum + issueIdx}
+                      businessProfile={businessProfile}
+                      showMainContent={group.showMainContent}
+                      recs={group.recs}
+                      isContinuation={!group.showMainContent}
+                      recOffset={thisOffset}
+                    />
+                  </View>
+                );
+              });
+            })}
 
             <View ref={setPageRef('legal')} style={[styles.pdfPage, dynPage]}>
               <PdfPageHeader {...headerProps} />
