@@ -1,5 +1,6 @@
 import { Router, type Request, type Response, type NextFunction } from 'express';
 import { supabaseAdmin, getUserFromToken } from '../lib/supabase';
+import { logger } from '../lib/logger';
 
 export const adminRouter = Router();
 
@@ -43,12 +44,14 @@ async function findProfileByUsername(username: string) {
 async function requireAdmin(req: Request, res: Response, next: NextFunction) {
   const header = req.headers['authorization'];
   if (!header?.startsWith('Bearer ')) {
+    logger.warn({ method: req.method, path: req.path }, 'Admin auth failed: missing Authorization header');
     res.status(401).json({ error: 'Missing Authorization header' });
     return;
   }
   const token = header.slice(7);
   const user = await getUserFromToken(token);
   if (!user) {
+    logger.warn({ method: req.method, path: req.path }, 'Admin auth failed: invalid or expired token');
     res.status(401).json({ error: 'Invalid or expired token' });
     return;
   }
@@ -60,6 +63,7 @@ async function requireAdmin(req: Request, res: Response, next: NextFunction) {
     .single();
 
   if (data?.role !== 'admin') {
+    logger.warn({ userId: user.id, role: data?.role, path: req.path }, 'Admin auth failed: insufficient role');
     res.status(403).json({ error: 'Admin access required' });
     return;
   }
@@ -340,6 +344,8 @@ adminRouter.post('/users', requireAdmin, async (req, res) => {
 
   const email = `${username.toLowerCase().trim()}@dohot.app`;
 
+  logger.info({ username: username.toLowerCase().trim(), role, profession }, 'Admin: creating user');
+
   // Create Supabase auth user
   const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
     email,
@@ -348,6 +354,7 @@ adminRouter.post('/users', requireAdmin, async (req, res) => {
   });
 
   if (authError || !authData.user) {
+    logger.error({ err: authError, username }, 'Admin: auth user creation failed');
     res.status(400).json({ error: authError?.message ?? 'Failed to create auth user' });
     return;
   }
@@ -375,10 +382,12 @@ adminRouter.post('/users', requireAdmin, async (req, res) => {
   if (profileError) {
     // Roll back auth user if profile insert fails
     await supabaseAdmin.auth.admin.deleteUser(userId);
+    logger.error({ err: profileError, username, userId }, 'Admin: profile upsert failed, auth user rolled back');
     res.status(500).json({ error: profileError.message });
     return;
   }
 
+  logger.info({ username: username.toLowerCase().trim(), userId, role, profession }, 'Admin: user created');
   res.status(201).json({ user: profile });
 });
 
@@ -426,10 +435,12 @@ adminRouter.patch('/users/:username/extend', requireAdmin, async (req, res) => {
     .single();
 
   if (error) {
+    logger.error({ err: error, username }, 'Admin: subscription extend DB update failed');
     res.status(500).json({ error: error.message });
     return;
   }
 
+  logger.info({ username, addedDays: days, newExpiration: subscription_expiration_date }, 'Admin: subscription extended');
   res.json({
     user: data,
     addedDays: days,
@@ -454,6 +465,7 @@ adminRouter.patch('/users/:username/disable', requireAdmin, async (req, res) => 
     .maybeSingle();
 
   if (error) {
+    logger.error({ err: error, username }, 'Admin: user disable DB update failed');
     res.status(500).json({ error: error.message });
     return;
   }
@@ -463,6 +475,7 @@ adminRouter.patch('/users/:username/disable', requireAdmin, async (req, res) => 
     return;
   }
 
+  logger.info({ username }, 'Admin: user disabled');
   res.json({ user: data });
 });
 
@@ -484,6 +497,7 @@ adminRouter.patch('/users/:username/activate', requireAdmin, async (req, res) =>
     .maybeSingle();
 
   if (error) {
+    logger.error({ err: error, username }, 'Admin: user activate DB update failed');
     res.status(500).json({ error: error.message });
     return;
   }
@@ -493,6 +507,7 @@ adminRouter.patch('/users/:username/activate', requireAdmin, async (req, res) =>
     return;
   }
 
+  logger.info({ username }, 'Admin: user activated');
   res.json({ user: data });
 });
 
@@ -506,19 +521,24 @@ adminRouter.delete('/users/:id', requireAdmin, async (req, res) => {
     return;
   }
 
+  logger.info({ targetUserId: id }, 'Admin: deleting user');
+
   // Hard-delete the auth user; cascade removes business_profiles when FK is set.
   const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(id);
 
   if (authError) {
     // Related documents block hard-delete — soft-delete the profile instead.
+    logger.warn({ err: authError, targetUserId: id }, 'Admin: hard delete failed, falling back to soft delete');
     const { error: softError } = await supabaseAdmin
       .from('business_profiles')
       .update({ is_active: false })
       .eq('id', id);
     if (softError) {
+      logger.error({ err: softError, targetUserId: id }, 'Admin: soft delete also failed');
       res.status(500).json({ error: softError.message });
       return;
     }
+    logger.info({ targetUserId: id }, 'Admin: user soft-deleted');
     res.json({ deleted: true, soft: true });
     return;
   }
@@ -526,6 +546,7 @@ adminRouter.delete('/users/:id', requireAdmin, async (req, res) => {
   // Belt-and-suspenders: remove profile row if no cascade was configured.
   await supabaseAdmin.from('business_profiles').delete().eq('id', id);
 
+  logger.info({ targetUserId: id }, 'Admin: user hard-deleted');
   res.json({ deleted: true });
 });
 

@@ -9,10 +9,14 @@ import {
   savePdfUrl,
 } from '../services/pdf';
 import { supabaseAdmin } from '../lib/supabase';
+import { logger } from '../lib/logger';
 
 export async function generatePdfHandler(req: Request, res: Response): Promise<void> {
   const { documentId } = req.params as { documentId: string };
   const userId = req.userId!;
+  const tStart = Date.now();
+
+  logger.info({ documentId, userId }, 'PDF generation started');
 
   try {
     const data = await fetchDocumentData(documentId, userId);
@@ -21,11 +25,12 @@ export async function generatePdfHandler(req: Request, res: Response): Promise<v
     const pdfUrl = await uploadPdf(pdfBuffer, userId, documentId);
     await savePdfUrl(documentId, userId, pdfUrl);
 
+    logger.info({ documentId, userId, durationMs: Date.now() - tStart }, 'PDF generation succeeded');
     res.json({ url: pdfUrl });
   } catch (err: unknown) {
     const status = (err as { status?: number }).status ?? 500;
     const message = err instanceof Error ? err.message : 'PDF generation failed';
-    console.error('[PDF] generatePdf error:', message);
+    logger.error({ err, documentId, userId, durationMs: Date.now() - tStart }, 'PDF generation failed');
     res.status(status).json({ error: message });
   }
 }
@@ -40,6 +45,7 @@ export async function generatePdfHandler(req: Request, res: Response): Promise<v
 export async function generatePdfFromCaptureHandler(req: Request, res: Response): Promise<void> {
   const { documentId } = req.params as { documentId: string };
   const userId = req.userId!;
+  const tStart = Date.now();
 
   const { images, mimeType = 'image/jpeg' } = req.body as {
     images?: string[];
@@ -51,6 +57,8 @@ export async function generatePdfFromCaptureHandler(req: Request, res: Response)
     return;
   }
 
+  logger.info({ documentId, userId, imageCount: images.length }, 'PDF from capture started');
+
   try {
     // Verify the document belongs to the authenticated user before writing anything.
     const { data: doc } = await supabaseAdmin
@@ -61,6 +69,7 @@ export async function generatePdfFromCaptureHandler(req: Request, res: Response)
       .maybeSingle();
 
     if (!doc) {
+      logger.warn({ documentId, userId }, 'PDF from capture: document not found');
       res.status(404).json({ error: 'Document not found' });
       return;
     }
@@ -71,10 +80,11 @@ export async function generatePdfFromCaptureHandler(req: Request, res: Response)
     const pdfUrl = await uploadPdf(pdfBuffer, userId, documentId);
     await savePdfUrl(documentId, userId, pdfUrl);
 
+    logger.info({ documentId, userId, imageCount: images.length, durationMs: Date.now() - tStart }, 'PDF from capture succeeded');
     res.json({ url: pdfUrl });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'PDF generation from capture failed';
-    console.error('[PDF] generatePdfFromCapture error:', message);
+    logger.error({ err, documentId, userId, durationMs: Date.now() - tStart }, 'PDF from capture failed');
     res.status(500).json({ error: message });
   }
 }

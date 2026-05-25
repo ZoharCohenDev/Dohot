@@ -1,4 +1,5 @@
 import OpenAI, { toFile } from 'openai';
+import { logger } from '../lib/logger';
 
 const client = new OpenAI({ apiKey: process.env['OPENAI_API_KEY'] });
 
@@ -100,7 +101,7 @@ export async function transcribeAudioBuffer(
   buffer: Buffer,
   originalName: string = 'recording.m4a',
 ): Promise<string> {
-  console.log('[OpenAI] Transcription started, buffer size:', buffer.length, 'bytes');
+  logger.info({ originalName, sizeBytes: buffer.length }, 'Whisper transcription started');
   const mimeType = originalName.endsWith('.m4a') ? 'audio/mp4' : 'audio/mpeg';
   const file = await toFile(buffer, originalName, { type: mimeType });
   const result = await client.audio.transcriptions.create({
@@ -108,6 +109,6 @@ export async function transcribeAudioBuffer(
     file,
     language: 'he',
   });
-  console.log('[OpenAI] Transcription complete, text length:', result.text.length);
+  logger.info({ originalName, chars: result.text.length }, 'Whisper transcription complete');
   return result.text;
 }

@@ -1,5 +1,6 @@
 import puppeteer from 'puppeteer';
 import { supabaseAdmin } from '../lib/supabase';
+import { logger } from '../lib/logger';
 import type {
   BusinessProfile,
   Certification,
@@ -43,11 +44,15 @@ async function privateUrlToDataUri(url: string, bucket: string): Promise<string 
   if (!path) return null;
   try {
     const { data, error } = await supabaseAdmin.storage.from(bucket).download(path);
-    if (error || !data) return null;
+    if (error || !data) {
+      logger.warn({ bucket, err: error }, 'Storage download failed');
+      return null;
+    }
     const buffer = Buffer.from(await data.arrayBuffer());
     const mimeType = data.type || 'image/jpeg';
     return `data:${mimeType};base64,${buffer.toString('base64')}`;
-  } catch {
+  } catch (err) {
+    logger.warn({ bucket, err }, 'Storage download threw unexpectedly');
     return null;
   }
 }
@@ -833,6 +838,8 @@ async function launchBrowser() {
 }
 
 export async function renderPdf(html: string): Promise<Buffer> {
+  const tStart = Date.now();
+  logger.info('Puppeteer render started');
   const browser = await launchBrowser();
   try {
     const page = await browser.newPage();
@@ -842,7 +849,11 @@ export async function renderPdf(html: string): Promise<Buffer> {
       printBackground: true,
       margin: { top: '0', bottom: '0', left: '0', right: '0' },
     });
+    logger.info({ durationMs: Date.now() - tStart }, 'Puppeteer render succeeded');
     return Buffer.from(buffer);
+  } catch (err) {
+    logger.error({ err, durationMs: Date.now() - tStart }, 'Puppeteer render failed');
+    throw err;
   } finally {
     await browser.close();
   }
@@ -860,6 +871,8 @@ export async function renderPdfFromImage(
   imageBase64: string,
   mimeType: 'image/jpeg' | 'image/png' = 'image/jpeg',
 ): Promise<Buffer> {
+  const tStart = Date.now();
+  logger.info({ mimeType }, 'Puppeteer render-from-image started');
   const dataUri = `data:${mimeType};base64,${imageBase64}`;
 
   // Minimal HTML: the image fills A4 width and flows naturally across A4 pages.
@@ -891,7 +904,11 @@ export async function renderPdfFromImage(
       printBackground: true,
       margin: { top: '0', bottom: '0', left: '0', right: '0' },
     });
+    logger.info({ mimeType, durationMs: Date.now() - tStart }, 'Puppeteer render-from-image succeeded');
     return Buffer.from(buffer);
+  } catch (err) {
+    logger.error({ err, mimeType, durationMs: Date.now() - tStart }, 'Puppeteer render-from-image failed');
+    throw err;
   } finally {
     await browser.close();
   }
@@ -905,6 +922,8 @@ export async function renderPdfFromImages(
   images: string[],
   mimeType: 'image/jpeg' | 'image/png' = 'image/jpeg',
 ): Promise<Buffer> {
+  const tStart = Date.now();
+  logger.info({ mimeType, pageCount: images.length }, 'Puppeteer render-from-images started');
   const pages = images
     .map((img) => `<div class="page"><img src="data:${mimeType};base64,${img}" /></div>`)
     .join('');
@@ -945,7 +964,11 @@ export async function renderPdfFromImages(
       printBackground: true,
       margin: { top: '0', bottom: '0', left: '0', right: '0' },
     });
+    logger.info({ mimeType, pageCount: images.length, durationMs: Date.now() - tStart }, 'Puppeteer render-from-images succeeded');
     return Buffer.from(buffer);
+  } catch (err) {
+    logger.error({ err, mimeType, pageCount: images.length, durationMs: Date.now() - tStart }, 'Puppeteer render-from-images failed');
+    throw err;
   } finally {
     await browser.close();
   }
@@ -959,6 +982,9 @@ export async function uploadPdf(
   documentId: string,
 ): Promise<string> {
   const path = `${userId}/${documentId}.pdf`;
+  const sizeKb = Math.round(pdfBuffer.length / 1024);
+
+  logger.info({ documentId, sizeKb }, 'Storage upload started');
 
   const { error: uploadError } = await supabaseAdmin.storage
     .from('pdf-documents')
@@ -967,13 +993,21 @@ export async function uploadPdf(
       upsert: true,
     });
 
-  if (uploadError) throw uploadError;
+  if (uploadError) {
+    logger.error({ err: uploadError, documentId, sizeKb }, 'Storage upload failed');
+    throw uploadError;
+  }
 
   const { data: signed, error: signErr } = await supabaseAdmin.storage
     .from('pdf-documents')
     .createSignedUrl(path, 60 * 10); // 10-minute window — enough to download once for local sharing
 
-  if (signErr || !signed) throw new Error('Failed to create signed URL');
+  if (signErr || !signed) {
+    logger.error({ err: signErr, documentId }, 'Signed URL creation failed');
+    throw new Error('Failed to create signed URL');
+  }
+
+  logger.info({ documentId, sizeKb }, 'Storage upload succeeded');
   return signed.signedUrl;
 }
 

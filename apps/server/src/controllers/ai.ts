@@ -1,5 +1,6 @@
 import type { Request, Response } from 'express';
 import { cleanReportText, transcribeAudio, transcribeAudioBuffer } from '../services/openai';
+import { logger } from '../lib/logger';
 
 export async function cleanReportTextHandler(req: Request, res: Response): Promise<void> {
   const body = req.body as { rawText?: unknown; issueType?: unknown };
@@ -13,13 +14,15 @@ export async function cleanReportTextHandler(req: Request, res: Response): Promi
     return;
   }
 
+  logger.info({ issueType: body.issueType }, 'AI clean-report-text started');
+  const tStart = Date.now();
   try {
     const result = await cleanReportText(body.rawText, body.issueType);
+    logger.info({ issueType: body.issueType, durationMs: Date.now() - tStart }, 'AI clean-report-text succeeded');
     res.json(result);
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'AI processing failed';
-    console.error('[AI] cleanReportText error:', message);
-    res.status(500).json({ error: message });
+    logger.error({ err, issueType: body.issueType, durationMs: Date.now() - tStart }, 'AI clean-report-text failed');
+    res.status(500).json({ error: 'AI processing failed' });
   }
 }
 
@@ -29,13 +32,15 @@ export async function transcribeHandler(req: Request, res: Response): Promise<vo
     res.status(400).json({ error: 'audio must be a non-empty base64 string' });
     return;
   }
+  logger.info('AI transcribe (base64) started');
+  const tStart = Date.now();
   try {
     const transcript = await transcribeAudio(body.audio);
+    logger.info({ durationMs: Date.now() - tStart }, 'AI transcribe (base64) succeeded');
     res.json({ transcript });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Transcription failed';
-    console.error('[AI] transcribe error:', message);
-    res.status(500).json({ error: message });
+    logger.error({ err, durationMs: Date.now() - tStart }, 'AI transcribe (base64) failed');
+    res.status(500).json({ error: 'Transcription failed' });
   }
 }
 
@@ -46,30 +51,30 @@ export async function transcribeAudioFileHandler(req: Request, res: Response): P
   const file = req.file;
 
   if (!file) {
-    console.error('[AI] transcribe-audio: no file in request');
+    logger.warn('AI transcribe-audio: no file in request');
     res.status(400).json({ error: 'No audio file uploaded. Send multipart/form-data with field "audio".' });
     return;
   }
 
-  console.log(
-    `[AI] transcribe-audio: file received — ${file.originalname}, ` +
-    `${(file.size / 1024).toFixed(1)} KB, ${file.mimetype}`,
-  );
+  const fileSizeKb = Math.round(file.size / 1024);
+  logger.info({ originalName: file.originalname, sizeKb: fileSizeKb, mimeType: file.mimetype }, 'AI transcribe-audio started');
 
   try {
     const tWhisperStart = Date.now();
     const text = await transcribeAudioBuffer(file.buffer, file.originalname);
     const tWhisperEnd = Date.now();
 
-    console.log(
-      `[AI] transcribe-audio: ok — multer=${tWhisperStart - tStart}ms, ` +
-      `whisper=${tWhisperEnd - tWhisperStart}ms, total=${tWhisperEnd - tStart}ms, ` +
-      `chars=${text.length}`,
-    );
+    logger.info({
+      originalName: file.originalname,
+      sizeKb: fileSizeKb,
+      multerMs: tWhisperStart - tStart,
+      whisperMs: tWhisperEnd - tWhisperStart,
+      totalMs: tWhisperEnd - tStart,
+      chars: text.length,
+    }, 'AI transcribe-audio succeeded');
     res.json({ text });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Transcription failed';
-    console.error(`[AI] transcribe-audio error after ${Date.now() - tStart}ms:`, message);
-    res.status(500).json({ error: message });
+    logger.error({ err, originalName: file.originalname, sizeKb: fileSizeKb, durationMs: Date.now() - tStart }, 'AI transcribe-audio failed');
+    res.status(500).json({ error: 'Transcription failed' });
   }
 }

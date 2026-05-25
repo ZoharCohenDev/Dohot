@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { type Request, type Response, type NextFunction } from 'express';
 import cors from 'cors';
 import { rateLimit } from 'express-rate-limit';
 import dotenv from 'dotenv';
@@ -6,8 +6,18 @@ import { documentsRouter } from './routes/documents';
 import { pdfRouter } from './routes/pdf';
 import { aiRouter } from './routes/ai';
 import { adminRouter } from './routes/admin';
+import { logger } from './lib/logger';
 
 dotenv.config();
+
+process.on('unhandledRejection', (reason) => {
+  logger.error({ err: reason }, 'Unhandled promise rejection');
+});
+
+process.on('uncaughtException', (err) => {
+  logger.error({ err }, 'Uncaught exception — shutting down');
+  process.exit(1);
+});
 
 const app = express();
 const PORT = process.env['PORT'] ?? 3000;
@@ -24,6 +34,7 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 
 app.get('/health', (_req, res) => {
+  logger.debug('Health check');
   res.json({ status: 'ok' });
 });
 
@@ -60,8 +71,16 @@ app.use('/api/pdf', pdfLimiter, pdfRouter);
 app.use('/api/ai', aiLimiter, aiRouter);
 app.use('/api/admin', adminLimiter, adminRouter);
 
+// Global error handler — catches errors passed via next(err).
+// Must have 4 parameters so Express recognises it as an error handler.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+  logger.error({ err }, 'Unhandled Express error');
+  res.status(500).json({ error: 'Internal server error' });
+});
+
 app.listen(PORT, () => {
-  console.log(`Dohot server running on port ${PORT}`);
+  logger.info({ port: PORT, env: process.env['NODE_ENV'] ?? 'development' }, 'Dohot server started');
 });
 
 export default app;
