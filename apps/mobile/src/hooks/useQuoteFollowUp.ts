@@ -52,15 +52,17 @@ export function useQuoteFollowUp() {
   const [savingIds, setSavingIds] = useState<Set<string>>(new Set());
   const [statusFilter, setStatusFilter] = useState<QuoteStatusFilter>('all');
 
+  const profileId = businessProfile?.id;
+
   const load = useCallback(async () => {
-    if (!businessProfile) return;
+    if (!profileId) return;
     setLoading(true);
     setError('');
     try {
       const { data, error: qErr } = await supabase
         .from(tables.documents)
         .select('*, customers(name, phone, city, street, house_number, apartment, floor, address)')
-        .eq('professional_id', businessProfile.id)
+        .eq('professional_id', profileId)
         .eq('type', 'quote')
         .not('pdf_url', 'is', null)
         .order('created_at', { ascending: false });
@@ -71,19 +73,19 @@ export function useQuoteFollowUp() {
     } finally {
       setLoading(false);
     }
-  }, [businessProfile]);
+  }, [profileId]);
 
   useEffect(() => { load(); }, [load]);
 
   const setQuoteStatus = useCallback(async (documentId: string, status: QuoteStatus) => {
-    if (!businessProfile) return;
+    if (!profileId) return;
     setSavingIds((prev) => new Set(prev).add(documentId));
     try {
       const { error: updateErr } = await supabase
         .from(tables.documents)
         .update({ quote_status: status })
         .eq('id', documentId)
-        .eq('professional_id', businessProfile.id);
+        .eq('professional_id', profileId);
       if (updateErr) throw updateErr;
       // Optimistically update local state only after confirmed DB write.
       setQuotes((prev) =>
@@ -92,7 +94,7 @@ export function useQuoteFollowUp() {
     } finally {
       setSavingIds((prev) => { const s = new Set(prev); s.delete(documentId); return s; });
     }
-  }, [businessProfile]);
+  }, [profileId]);
 
   const deleteQuote = useCallback(async (documentId: string) => {
     await deleteDocument(documentId);

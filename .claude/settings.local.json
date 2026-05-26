@@ -39,7 +39,9 @@
       "Bash(xargs cat)",
       "Bash(grep -r \"wizard\" /Users/matancohen/Dohot/apps --include=\"*.ts\" --include=\"*.tsx\" -l ! --path \"*/node_modules/*\")",
       "Bash(node -e \"require\\('pino'\\)\")",
-      "Bash(node *)"
+      "Bash(node *)",
+      "Bash(git -C /Users/matancohen/Dohot diff HEAD -- apps/mobile/src/navigation/constants.ts)",
+      "Bash(git -C /Users/matancohen/Dohot diff -- apps/mobile/src/screens/auth/LoginScreen.tsx)"
     ]
   }
 }

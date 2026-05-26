@@ -14,8 +14,10 @@ export function useDashboard() {
   const [recent, setRecent] = useState<DocumentWithCustomer[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const profileId = businessProfile?.id;
+
   useEffect(() => {
-    if (!businessProfile) return;
+    if (!profileId) return;
 
     const load = async () => {
       setLoading(true);
@@ -28,19 +30,19 @@ export function useDashboard() {
           supabase
             .from(tables.documents)
             .select('*, customers(name)')
-            .eq('professional_id', businessProfile.id)
+            .eq('professional_id', profileId)
             .order('created_at', { ascending: false })
             .limit(3),
           supabase
             .from(tables.documents)
             .select('id', { count: 'exact', head: true })
-            .eq('professional_id', businessProfile.id)
+            .eq('professional_id', profileId)
             .eq('type', 'report')
             .gte('created_at', startOfMonth.toISOString()),
           supabase
             .from(tables.documents)
             .select('id', { count: 'exact', head: true })
-            .eq('professional_id', businessProfile.id)
+            .eq('professional_id', profileId)
             .eq('type', 'quote')
             .eq('status', 'pending'),
         ]);
@@ -56,7 +58,7 @@ export function useDashboard() {
     };
 
     load();
-  }, [businessProfile]);
+  }, [profileId]);
 
   return { stats, recent, loading };
 }

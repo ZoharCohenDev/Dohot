@@ -14,19 +14,26 @@ export function useCustomers(search = '', typeFilter?: CustomerType) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  const profileId = businessProfile?.id;
+
   const load = useCallback(async () => {
-    if (!businessProfile) return;
+    if (!profileId) return;
     setLoading(true);
     setError('');
     try {
       let query = supabase
         .from(tables.customers)
         .select('*, documents!customer_id(count)', { count: 'exact' })
-        .eq('professional_id', businessProfile.id)
+        .eq('professional_id', profileId)
         .order('last_contact_at', { ascending: false, nullsFirst: false });
 
       if (typeFilter) query = query.eq('type', typeFilter);
-      if (search.trim()) query = query.ilike('name', `%${search.trim()}%`);
+      if (search.trim()) {
+        const q = search.trim();
+        query = query.or(
+          `name.ilike.%${q}%,phone.ilike.%${q}%,address.ilike.%${q}%,city.ilike.%${q}%`
+        );
+      }
 
       const { data, error: queryError, count } = await query;
       if (queryError) throw queryError;
@@ -44,7 +51,7 @@ export function useCustomers(search = '', typeFilter?: CustomerType) {
     } finally {
       setLoading(false);
     }
-  }, [businessProfile, search, typeFilter]);
+  }, [profileId, search, typeFilter]);
 
   useEffect(() => { load(); }, [load]);
 

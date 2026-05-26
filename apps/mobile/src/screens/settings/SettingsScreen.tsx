@@ -556,6 +556,17 @@ function SignatureModal({ visible, onClose, colors }: SigModalProps) {
     }
   };
 
+  const handleRemoveSignature = async () => {
+    setSaving(true);
+    try {
+      await updateProfile({ signature_url: null });
+    } catch {
+      Alert.alert('שגיאה', 'לא ניתן להסיר את החתימה');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <BottomSheet
       visible={visible}
@@ -579,6 +590,18 @@ function SignatureModal({ visible, onClose, colors }: SigModalProps) {
               חתימה נוכחית
             </ScaledText>
             <SignaturePreview uri={businessProfile.signature_url} height={60} colors={colors} />
+            <View style={styles.currentSigActions}>
+              <Button
+                kind="danger"
+                size="sm"
+                full
+                onPress={handleRemoveSignature}
+                disabled={saving}
+                colors={colors}
+              >
+                הסר חתימה קיימת
+              </Button>
+            </View>
           </View>
         )}
 
@@ -643,11 +666,11 @@ function SignatureModal({ visible, onClose, colors }: SigModalProps) {
                 </ScaledText>
               )}
             </View>
-            <Pressable onPress={clearDrawing} style={styles.clearLink}>
-              <ScaledText style={[styles.linkText, { color: colors.ink3, fontFamily: fonts.sans }]}>
-                נקה
-              </ScaledText>
-            </Pressable>
+            <View style={styles.clearLink}>
+              <Button kind="ghost" size="sm" onPress={clearDrawing} colors={colors}>
+                נקה חתימה
+              </Button>
+            </View>
             <Button
               kind="primary"
               size="lg"
@@ -1814,6 +1837,7 @@ const styles = StyleSheet.create({
   currentSigBox: { borderRadius: 14, borderWidth: 1, padding: 12 },
   currentSigLabel: { fontSize: 12, fontWeight: '600', marginBottom: 8 },
   currentSigImg: { width: '100%' },
+  currentSigActions: { marginTop: 10 },
   tabRow: { flexDirection: 'row-reverse', padding: 4, borderRadius: 12, gap: 4 },
   tabPill: { flex: 1, height: 36, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   tabPillText: { fontSize: 14, fontWeight: '600' },

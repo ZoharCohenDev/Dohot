@@ -70,8 +70,9 @@ function getQuoteStatusConfig(
 // Order is RTL: first item renders on the far right.
 const FILTER_TABS: { label: string; value: QuoteStatusFilter }[] = [
   { label: 'הכל', value: 'all' },
-  { label: 'בוצעו', value: 'completed' },
   { label: 'ממתינים', value: 'waiting' },
+  { label: 'בוצעו', value: 'completed' },
+  
   { label: 'בוטלו', value: 'cancelled' },
 ];
 
@@ -227,6 +228,16 @@ function QuoteCard({
   );
 }
 
+function getIsraelGreeting(): string {
+  const hour = new Date(
+    new Date().toLocaleString('en-US', { timeZone: 'Asia/Jerusalem' })
+  ).getHours();
+  if (hour >= 5 && hour < 12) return 'בוקר טוב,';
+  if (hour >= 12 && hour < 17) return 'צהריים טובים,';
+  if (hour >= 17 && hour < 21) return 'ערב טוב,';
+  return 'לילה טוב,';
+}
+
 // ── Screen ────────────────────────────────────────────────────────────────────
 
 export function DashboardScreen({ colors = lightColors, onNavigate, onCreateType }: DashboardScreenProps) {
@@ -287,7 +298,7 @@ export function DashboardScreen({ colors = lightColors, onNavigate, onCreateType
                 <Avatar name={displayName} size={42} logoUrl={businessProfile?.logo_url} />
                 <View>
                   <ScaledText style={[styles.greetSub, { color: colors.ink3, fontFamily: fonts.sans }]}>
-                    בוקר טוב,
+                    {getIsraelGreeting()}
                   </ScaledText>
                   <ScaledText style={[styles.greetName, { color: colors.ink1, fontFamily: fonts.sans }]}>
                     {firstName}

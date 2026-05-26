@@ -3,8 +3,11 @@ export const ROUTES = {
   INDEX: '/',
 
   // Auth
+  AUTH_WELCOME: '/(auth)/welcome',
   AUTH_LOGIN: '/(auth)/login',
   AUTH_EXPIRED: '/(auth)/expired',
+  AUTH_REGISTER: '/(auth)/register',
+  AUTH_FORGOT_PASSWORD: '/(auth)/forgot-password',
 
   // Admin
   ADMIN_HOME: '/(admin)',
