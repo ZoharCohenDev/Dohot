@@ -127,6 +127,7 @@ interface WizardState {
   waPaymentTerms: WaPaymentTerm[];
   // Output
   documentId: string | null;
+  capturedImages: string[] | null;
   pdfUrl: string | null;
 }
 
@@ -184,7 +185,8 @@ interface WizardContextValue {
   setWaPaymentTerms: (terms: WaPaymentTerm[]) => void;
   // Document
   initDraft: (professionalId: string, fields: CustomerFields) => Promise<void>;
-  saveDocument: (professionalId: string, overrides?: SaveDocumentOverrides) => Promise<void>;
+  saveDocument: (professionalId: string, overrides?: SaveDocumentOverrides) => Promise<string>;
+  setCapturedImages: (images: string[]) => void;
   setPdfUrl: (url: string) => void;
   reset: () => void;
 }
@@ -217,6 +219,7 @@ const DEFAULT_STATE: WizardState = {
   waTotalPrice: '',
   waPaymentTerms: DEFAULT_WA_PAYMENT_TERMS.map((text, i) => ({ id: String(i + 1), text })),
   documentId: null,
+  capturedImages: null,
   pdfUrl: null,
 };
 
@@ -254,7 +257,8 @@ const WizardContext = createContext<WizardContextValue>({
   setWaTotalPrice: () => {},
   setWaPaymentTerms: () => {},
   initDraft: async () => {},
-  saveDocument: async () => {},
+  saveDocument: async () => '',
+  setCapturedImages: () => {},
   setPdfUrl: () => {},
   reset: () => {},
 });
@@ -440,6 +444,7 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
 
   // ── Document operations ───────────────────────────────────────────────────
 
+  const setCapturedImages = (capturedImages: string[]) => setState((s) => ({ ...s, capturedImages }));
   const setPdfUrl = (pdfUrl: string) => setState((s) => ({ ...s, pdfUrl }));
 
   // Auto-save draft to disk whenever state changes (debounced 500ms).
@@ -562,6 +567,7 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
       }
 
       setState((s) => ({ ...s, documentId: docId! }));
+      return docId!;
     } catch (error) {
       console.error('[Wizard] saveDocument failed:', error);
       throw error;
@@ -607,6 +613,7 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
         setWaPaymentTerms,
         initDraft,
         saveDocument,
+        setCapturedImages,
         setPdfUrl,
         reset,
       }}

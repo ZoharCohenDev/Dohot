@@ -7,7 +7,6 @@ import { lightColors, fonts } from '@/theme/tokens';
 import { useWizard, type WaPaymentTerm } from '@/context/WizardContext';
 import { useWizardStep } from '@/hooks/useWizardStep';
 import { useWizardExit } from '@/hooks/useWizardExit';
-import { useAuth } from '@/context/AuthContext';
 
 interface WaPaymentStepProps {
   colors?: typeof lightColors;
@@ -19,7 +18,6 @@ export function WaPaymentStep({ colors = lightColors, onNext, onBack }: WaPaymen
   const wizard = useWizard();
   const { progress, stepNum, stepOf, goNext, goBack } = useWizardStep();
   const { triggerExit } = useWizardExit();
-  const { businessProfile } = useAuth();
 
   const terms = wizard.state.waPaymentTerms;
   const setTerms = wizard.setWaPaymentTerms;
@@ -61,21 +59,9 @@ export function WaPaymentStep({ colors = lightColors, onNext, onBack }: WaPaymen
     ]);
   };
 
-  const handleNext = async () => {
-    if (!businessProfile?.id) {
-      Alert.alert('שגיאה', 'לא נמצא פרופיל עסקי. אנא התחבר מחדש.');
-      return;
-    }
-
-    try {
-      await wizard.saveDocument(businessProfile.id, {
-        waPaymentTerms: terms,
-      });
-      if (onNext) onNext();
-      else goNext();
-    } catch {
-      Alert.alert('שגיאה', 'לא ניתן היה לשמור את ההסכם. אנא נסה שוב.');
-    }
+  const handleNext = () => {
+    if (onNext) onNext();
+    else goNext();
   };
 
   return (

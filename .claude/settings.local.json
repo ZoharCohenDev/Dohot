@@ -41,7 +41,8 @@
       "Bash(node -e \"require\\('pino'\\)\")",
       "Bash(node *)",
       "Bash(git -C /Users/matancohen/Dohot diff HEAD -- apps/mobile/src/navigation/constants.ts)",
-      "Bash(git -C /Users/matancohen/Dohot diff -- apps/mobile/src/screens/auth/LoginScreen.tsx)"
+      "Bash(git -C /Users/matancohen/Dohot diff -- apps/mobile/src/screens/auth/LoginScreen.tsx)",
+      "Bash(xargs ls)"
     ]
   }
 }

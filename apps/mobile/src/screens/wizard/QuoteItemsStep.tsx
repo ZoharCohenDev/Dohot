@@ -7,7 +7,6 @@ import { lightColors, fonts } from '@/theme/tokens';
 import { useWizard, type WizardQuoteItem } from '@/context/WizardContext';
 import { useWizardStep } from '@/hooks/useWizardStep';
 import { useWizardExit } from '@/hooks/useWizardExit';
-import { useAuth } from '@/context/AuthContext';
 
 const VAT = 0.18;
 
@@ -29,7 +28,6 @@ export function QuoteItemsStep({ colors = lightColors, onNext, onBack }: QuoteIt
   const wizard = useWizard();
   const { progress, stepNum, stepOf, goNext, goBack } = useWizardStep();
   const { triggerExit } = useWizardExit();
-  const { businessProfile } = useAuth();
   const scrollRef = useRef<KeyboardAwareScrollViewHandle>(null);
 
   const [items, setItems] = useState<WizardQuoteItem[]>(wizard.state.quoteItems);
@@ -128,29 +126,14 @@ export function QuoteItemsStep({ colors = lightColors, onNext, onBack }: QuoteIt
     else goBack();
   };
 
-  const handleNext = async () => {
+  const handleNext = () => {
     if (items.length === 0) {
       Alert.alert('שגיאה', 'יש להוסיף לפחות פריט עבודה אחד');
       return;
     }
     flushToContext();
-
-    if (!businessProfile?.id) {
-      Alert.alert('שגיאה', 'לא נמצא פרופיל עסקי. אנא התחבר מחדש.');
-      return;
-    }
-
-    try {
-      await wizard.saveDocument(businessProfile.id, {
-        quoteItems: items,
-        quoteNotes: notes,
-        quoteValidityDate: effectiveValidity,
-      });
-      if (onNext) onNext();
-      else goNext();
-    } catch {
-      Alert.alert('שגיאה', 'לא ניתן היה לשמור את ההצעה. אנא נסה שוב.');
-    }
+    if (onNext) onNext();
+    else goNext();
   };
 
   const isEditing = editingKey !== null;

@@ -11,7 +11,6 @@ import { Icons } from '@/components/icons';
 import { lightColors, fonts } from '@/theme/tokens';
 import { useWizard, type WizardQuoteItem, type WaWorkItem } from '@/context/WizardContext';
 import { useAuth } from '@/context/AuthContext';
-import { generatePdfFromCapture } from '@/services/documents';
 import { DOCUMENT_TYPES } from '@/config/documentTypes';
 import type { Recommendation, Certification } from '@dohot/shared';
 
@@ -1160,7 +1159,6 @@ export function PdfPreviewScreen({ colors = lightColors, onBack, onSend }: PdfPr
   const isMultiPage = state.docType === 'report' || state.docType === 'work-agreement';
 
   const handleSend = async () => {
-    if (!state.documentId) return;
     if (!imagesReady) return; // guard against race between prefetch resolution and tap
     if (state.pdfUrl) { onSend?.(); return; }
 
@@ -1168,12 +1166,8 @@ export function PdfPreviewScreen({ colors = lightColors, onBack, onSend }: PdfPr
     setPdfError('');
 
     try {
-      // Yield two animation frames before captureRef fires.
-      // Frame 1: React Native commits pending state to the native view tree.
-      // Frame 2: The native layout engine resolves RTL measurements and image
-      // decode paints, so captureRef sees a fully-settled view.
-      // Images are already decoded at this point (guaranteed by prefetchAndDecode),
-      // so two frames is deterministically sufficient on any device.
+      // Yield two animation frames before captureRef fires so the native layout
+      // engine has fully settled (RTL measurements, image decode paints).
       await new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r())));
 
       let capturedImages: string[];
@@ -1220,7 +1214,7 @@ export function PdfPreviewScreen({ colors = lightColors, onBack, onSend }: PdfPr
           capturedImages.push(base64 as string);
         }
       } else {
-        // warranty — single page, content is short enough
+        // warranty — single page
         const view = pageRefs.current.get('single');
         if (!view) throw new Error('לא נמצא תוכן לייצוא');
         const base64 = await captureRef(view, { format: 'jpg', quality: 0.92, result: 'base64' });
@@ -1229,8 +1223,8 @@ export function PdfPreviewScreen({ colors = lightColors, onBack, onSend }: PdfPr
 
       if (capturedImages.length === 0) throw new Error('לא נוצרו עמודים לייצוא');
 
-      const url = await generatePdfFromCapture(state.documentId, capturedImages, 'image/jpeg');
-      wizard.setPdfUrl(url);
+      // Store captures in wizard state — SendScreen will do the DB save + upload on mount.
+      wizard.setCapturedImages(capturedImages);
       onSend?.();
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'שגיאה לא צפויה';
@@ -1245,6 +1239,7 @@ export function PdfPreviewScreen({ colors = lightColors, onBack, onSend }: PdfPr
       <Header
         title="תצוגה מקדימה"
         colors={colors}
+        onBack={state.docType === 'report' && onBack ? onBack : undefined}
       />
 
       <ScrollView

@@ -165,7 +165,6 @@ export function CustomerStep({
     };
     wizard.setCustomer(fields);
     wizard.setPropertyType(propertyType);
-    if (profId) wizard.initDraft(profId, fields);
     if (onNext) onNext();
     else goNext();
   };

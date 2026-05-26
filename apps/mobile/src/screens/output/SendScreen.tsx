@@ -8,6 +8,8 @@ import { Header } from '@/components/layout';
 import { Icons } from '@/components/icons';
 import { lightColors, fonts } from '@/theme/tokens';
 import { useWizard } from '@/context/WizardContext';
+import { useAuth } from '@/context/AuthContext';
+import { generatePdfFromCapture } from '@/services/documents';
 import { File } from 'expo-file-system';
 import { downloadPdfToCache, deleteCachedPdf, buildPdfFilename } from '@/services/pdfExport';
 import { sharePdfFile } from '@/services/shareService';
@@ -21,6 +23,7 @@ interface SendScreenProps {
 export function SendScreen({ colors = lightColors, onDone }: SendScreenProps) {
   const insets = useSafeAreaInsets();
   const wizard = useWizard();
+  const { businessProfile } = useAuth();
 
   const pdfUrl = wizard.state.pdfUrl;
   const customerPhone = wizard.state.customerPhone;
@@ -33,6 +36,45 @@ export function SendScreen({ colors = lightColors, onDone }: SendScreenProps) {
   const localUriRef = React.useRef<string | null>(null);
   const [busy, setBusy] = React.useState(false);
   const [activeAction, setActiveAction] = React.useState<string | null>(null);
+  const [preparing, setPreparing] = React.useState(!pdfUrl);
+  const [prepareError, setPrepareError] = React.useState('');
+
+  // On mount: save document to DB then upload the PDF.
+  // capturedImages were captured by PdfPreviewScreen just before navigation.
+  React.useEffect(() => {
+    if (pdfUrl) return; // already done (e.g. user navigated back and forward)
+    const capturedImages = wizard.state.capturedImages;
+    if (!capturedImages || capturedImages.length === 0) {
+      setPrepareError('לא נמצאו עמודים לייצוא. חזור לתצוגה מקדימה ונסה שוב.');
+      setPreparing(false);
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      try {
+        let documentId = wizard.state.documentId;
+        if (!documentId) {
+          if (!businessProfile?.id) throw new Error('לא נמצא פרופיל עסקי');
+          documentId = await wizard.saveDocument(businessProfile.id);
+        }
+        if (cancelled) return;
+        const url = await generatePdfFromCapture(documentId, capturedImages, 'image/jpeg');
+        if (cancelled) return;
+        wizard.setPdfUrl(url);
+        wizard.setCapturedImages([]);
+      } catch (err) {
+        if (cancelled) return;
+        const msg = err instanceof Error ? err.message : 'שגיאה לא צפויה';
+        setPrepareError(`לא ניתן היה ליצור PDF: ${msg}`);
+      } finally {
+        if (!cancelled) setPreparing(false);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   React.useEffect(() => {
     return () => {
@@ -145,6 +187,27 @@ export function SendScreen({ colors = lightColors, onDone }: SendScreenProps) {
     },
   ];
 
+  if (preparing) {
+    return (
+      <View style={[styles.root, styles.centered, { backgroundColor: colors.bg }]}>
+        <ActivityIndicator size="large" color={colors.ai2} />
+        <Text style={[styles.preparingText, { color: colors.ink3, fontFamily: fonts.sans }]}>
+          שומר ומכין PDF…
+        </Text>
+      </View>
+    );
+  }
+
+  if (prepareError) {
+    return (
+      <View style={[styles.root, styles.centered, { backgroundColor: colors.bg }]}>
+        <Text style={[styles.preparingText, { color: colors.danger ?? colors.ink1, fontFamily: fonts.sans }]}>
+          {prepareError}
+        </Text>
+      </View>
+    );
+  }
+
   return (
     <View style={[styles.root, { backgroundColor: colors.bg, paddingBottom: insets.bottom + 24 }]}>
       <Header colors={colors} />
@@ -250,6 +313,8 @@ export function SendScreen({ colors = lightColors, onDone }: SendScreenProps) {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  centered: { alignItems: 'center', justifyContent: 'center', gap: 16 },
+  preparingText: { fontSize: 15, textAlign: 'center', paddingHorizontal: 24 },
   body: { flex: 1, paddingHorizontal: 24, paddingTop: 20 },
 
   successWrap: { alignItems: 'center', marginTop: 20 },

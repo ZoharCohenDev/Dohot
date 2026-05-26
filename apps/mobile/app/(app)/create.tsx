@@ -1,29 +1,4 @@
-import { useRouter } from 'expo-router';
-import { CreateDocumentTypeScreen } from '@/screens/dashboard/CreateDocumentTypeScreen';
-import { ROUTES } from '@/navigation/constants';
-import type { DocType } from '@/config/documentTypes';
-import { useColors } from '@/theme';
-
+import { Redirect } from 'expo-router';
 export default function CreatePage() {
-  const router = useRouter();
-  const colors = useColors();
-
-  const handleSelectType = (docType: DocType) => {
-    router.push(`${ROUTES.WIZARD_CUSTOMER}?docType=${docType}` as never);
-  };
-
-  return (
-    <CreateDocumentTypeScreen
-      colors={colors}
-      onSelectType={handleSelectType}
-      onNavigate={(tab) => {
-        switch (tab) {
-          case 'home': return router.push(ROUTES.APP_HOME);
-          case 'docs': return router.push(ROUTES.APP_DOCUMENTS);
-          case 'customers': return router.push(ROUTES.APP_CUSTOMERS);
-          case 'me': return router.push(ROUTES.APP_ME);
-        }
-      }}
-    />
-  );
+  return <Redirect href="/(app)" />;
 }

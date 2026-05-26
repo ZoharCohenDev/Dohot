@@ -7,7 +7,6 @@ import { lightColors, fonts } from '@/theme/tokens';
 import { useWizard } from '@/context/WizardContext';
 import { useWizardStep } from '@/hooks/useWizardStep';
 import { useWizardExit } from '@/hooks/useWizardExit';
-import { useAuth } from '@/context/AuthContext';
 
 const PRESET_DURATIONS = ['3 חודשים', '6 חודשים', '12 חודשים', '24 חודשים', 'אחר'];
 
@@ -31,7 +30,6 @@ export function WarrantyTermsStep({
   const wizard = useWizard();
   const { progress, stepNum, stepOf, goNext, goBack } = useWizardStep();
   const { triggerExit } = useWizardExit();
-  const { businessProfile } = useAuth();
 
   // Duration
   const initDuration = wizard.state.warrantyDuration || '12 חודשים';
@@ -101,25 +99,10 @@ export function WarrantyTermsStep({
     else goBack();
   };
 
-  const handleNext = async () => {
+  const handleNext = () => {
     wizard.setWarrantyData(effectiveDuration, conditions, workDescription);
-
-    if (!businessProfile?.id) {
-      Alert.alert('שגיאה', 'לא נמצא פרופיל עסקי. אנא התחבר מחדש.');
-      return;
-    }
-
-    try {
-      await wizard.saveDocument(businessProfile.id, {
-        warrantyDuration: effectiveDuration,
-        warrantyConditions: conditions,
-        warrantyWorkDescription: workDescription,
-      });
-      if (onNext) onNext();
-      else goNext();
-    } catch {
-      Alert.alert('שגיאה', 'לא ניתן היה לשמור את האחריות. אנא נסה שוב.');
-    }
+    if (onNext) onNext();
+    else goNext();
   };
 
   return (
