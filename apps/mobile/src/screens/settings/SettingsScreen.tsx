@@ -11,12 +11,17 @@ import {
   ActivityIndicator,
   Image,
   Linking,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
 } from 'react-native';
 import Svg, { Path as SvgPath } from 'react-native-svg';
 import { SvgXml } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Header, BottomNav, useBottomNavSpacing, type TabId } from '@/components/layout';
-import { Card, Toggle, Button, ScaledText, KeyboardAwareScrollView } from '@/components/primitives';
+import { Card, Toggle, Button, ScaledText } from '@/components/primitives';
 import { Avatar } from '@/components/shared';
 import { Icons } from '@/components/icons';
 import { lightColors, fonts } from '@/theme/tokens';
@@ -53,32 +58,199 @@ interface SheetProps {
   colors: typeof lightColors;
   children: React.ReactNode;
   scrollable?: boolean;
+  /** Optional sticky footer. It stays outside the scroll area and above the keyboard. */
+  footer?: React.ReactNode;
 }
 
-function BottomSheet({ visible, onClose, title, colors, children, scrollable = true }: SheetProps) {
+interface SheetScrollController {
+  scrollToFocusedInput: (node: TextInput | null) => void;
+}
+
+const SheetScrollContext = React.createContext<SheetScrollController | null>(null);
+
+function BottomSheet({
+  visible,
+  onClose,
+  title,
+  colors,
+  children,
+  scrollable = true,
+  footer,
+}: SheetProps) {
   const insets = useSafeAreaInsets();
+  // ScrollView's TypeScript type omits the native host methods (measure,
+  // measureInWindow) that are present at runtime on all View-based components.
+  // Widening the ref type lets us call them with proper inference below.
+  const scrollRef = React.useRef<
+    | (ScrollView & {
+        measure(
+          cb: (x: number, y: number, w: number, h: number, pageX: number, pageY: number) => void,
+        ): void;
+        measureInWindow(cb: (x: number, y: number, w: number, h: number) => void): void;
+      })
+    | null
+  >(null);
+  const scrollYRef = React.useRef(0);
+  const keyboardHeightRef = React.useRef(0);
+
+  React.useEffect(() => {
+    if (!visible) return;
+
+    const showSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (event) => {
+        keyboardHeightRef.current = event.endCoordinates.height;
+      }
+    );
+
+    const hideSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => {
+        keyboardHeightRef.current = 0;
+      }
+    );
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, [visible]);
+
+  const handleScroll = React.useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    scrollYRef.current = event.nativeEvent.contentOffset.y;
+  }, []);
+
+  const scrollToFocusedInput = React.useCallback((node: TextInput | null) => {
+    if (!node || !scrollRef.current) return;
+
+    const delay = Platform.OS === 'ios' ? 280 : 160;
+
+    setTimeout(() => {
+      if (!scrollRef.current) return;
+
+      // Modern RN requires passing the ref object directly, not a node-handle
+      // number. ScrollView is a host component at runtime but its TS type is
+      // not statically assignable to the opaque HostComponent ref type that
+      // measureLayout expects, so we cross through unknown.
+      node.measureLayout(
+        scrollRef.current as unknown as Parameters<typeof node.measureLayout>[0],
+        (_x, y, _width, height) => {
+          scrollRef.current?.measure((_sx, _sy, _sw, scrollHeight) => {
+            const centerOffset = Math.max(80, (scrollHeight - height) / 2 - 24);
+            const targetY = Math.max(0, y - centerOffset);
+
+            scrollRef.current?.scrollTo({
+              y: targetY,
+              animated: true,
+            });
+          });
+        },
+        () => {
+          node.measureInWindow((_x, y, _width, height) => {
+            scrollRef.current?.measureInWindow((_sx, scrollTop, _sw, scrollHeight) => {
+              const currentScrollY = scrollYRef.current;
+              const desiredTop = scrollTop + Math.max(24, (scrollHeight - height) / 2 - 32);
+              const nextY = Math.max(0, currentScrollY + y - desiredTop);
+
+              scrollRef.current?.scrollTo({
+                y: nextY,
+                animated: true,
+              });
+            });
+          });
+        }
+      );
+    }, delay);
+  }, []);
+
+  const contextValue = React.useMemo(
+    () => ({ scrollToFocusedInput }),
+    [scrollToFocusedInput]
+  );
+
   return (
-    <Modal visible={visible} animationType="none" onRequestClose={onClose}>
-      <View style={[styles.fullScreen, { backgroundColor: colors.bg, paddingTop: insets.top, paddingBottom: insets.bottom }]}>
-        <View style={styles.sheetHeader}>
-          <ScaledText style={[styles.sheetTitle, { color: colors.ink1, fontFamily: fonts.sans }]}>
-            {title}
-          </ScaledText>
-          <Pressable onPress={onClose} hitSlop={12}>
-            <Icons.close size={20} color={colors.ink2} />
-          </Pressable>
-        </View>
-        {scrollable ? (
-          <KeyboardAwareScrollView
-            contentContainerStyle={styles.sheetContent}
-            extraScrollHeight={24}
-            extraHeight={24}
-          >
-            {children}
-          </KeyboardAwareScrollView>
-        ) : (
-          <View style={[styles.sheetContent, { flex: 1 }]}>{children}</View>
-        )}
+    <Modal
+      visible={visible}
+      animationType="none"
+      onRequestClose={onClose}
+      presentationStyle="fullScreen"
+      statusBarTranslucent={false}
+    >
+      <View
+        style={[
+          styles.fullScreen,
+          {
+            backgroundColor: colors.bg,
+            paddingTop: Platform.OS === 'ios' ? insets.top : 0,
+            paddingBottom: Platform.OS === 'ios' ? insets.bottom : 0,
+          },
+        ]}
+      >
+        <KeyboardAvoidingView
+          style={styles.fullScreen}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={0}
+        >
+          <View style={styles.sheetRoot}>
+            <View style={styles.sheetHeader}>
+              <ScaledText
+                style={[styles.sheetTitle, { color: colors.ink1, fontFamily: fonts.sans }]}
+              >
+                {title}
+              </ScaledText>
+              <Pressable onPress={onClose} hitSlop={12}>
+                <Icons.close size={20} color={colors.ink2} />
+              </Pressable>
+            </View>
+
+            <SheetScrollContext.Provider value={contextValue}>
+              {scrollable ? (
+                <ScrollView
+                  ref={scrollRef as React.Ref<ScrollView>}
+                  style={styles.sheetScroll}
+                  contentContainerStyle={[
+                    styles.sheetContent,
+                    footer ? styles.sheetContentWithFooter : styles.sheetContentNoFooter,
+                  ]}
+                  keyboardShouldPersistTaps="handled"
+                  keyboardDismissMode="interactive"
+                  showsVerticalScrollIndicator={false}
+                  onScroll={handleScroll}
+                  scrollEventThrottle={16}
+                  bounces={false}
+                >
+                  {children}
+                </ScrollView>
+              ) : (
+                <View
+                  style={[
+                    styles.sheetContent,
+                    footer ? styles.sheetContentWithFooter : styles.sheetContentNoFooter,
+                    { flex: 1 },
+                  ]}
+                >
+                  {children}
+                </View>
+              )}
+            </SheetScrollContext.Provider>
+
+            {footer ? (
+              <View
+                style={[
+                  styles.footerBar,
+                  // Android: the outer container no longer holds bottom inset
+                  // padding (see above), so the footer must reserve that space
+                  // itself to stay above the navigation bar / gesture handle.
+                  Platform.OS === 'android' && {
+                    paddingBottom: Math.max(insets.bottom, 16),
+                  },
+                ]}
+              >
+                {footer}
+              </View>
+            ) : null}
+          </View>
+        </KeyboardAvoidingView>
       </View>
     </Modal>
   );
@@ -154,7 +326,25 @@ function BusinessModal({ visible, onClose, colors }: BizModalProps) {
   };
 
   return (
-    <BottomSheet visible={visible} onClose={onClose} title="פרטי העסק" colors={colors}>
+    <BottomSheet
+      visible={visible}
+      onClose={onClose}
+      title="פרטי העסק"
+      colors={colors}
+      footer={
+        <Button
+          kind="primary"
+          size="lg"
+          full
+          onPress={handleSave}
+          disabled={saving}
+          colors={colors}
+          iconRight={saving ? <ActivityIndicator size="small" color={colors.bg} /> : undefined}
+        >
+          {saving ? 'שומר…' : 'שמור שינויים'}
+        </Button>
+      }
+    >
       {/* Logo */}
       <View style={styles.logoRow}>
         <Pressable
@@ -232,18 +422,6 @@ function BusinessModal({ visible, onClose, colors }: BizModalProps) {
         multiline
         rows={3}
       />
-
-      <Button
-        kind="primary"
-        size="lg"
-        full
-        onPress={handleSave}
-        disabled={saving}
-        colors={colors}
-        iconRight={saving ? <ActivityIndicator size="small" color={colors.bg} /> : undefined}
-      >
-        {saving ? 'שומר…' : 'שמור שינויים'}
-      </Button>
     </BottomSheet>
   );
 }
@@ -1132,6 +1310,13 @@ function InputField({
   rows = 3,
   keyboardType = 'default',
 }: InputFieldProps) {
+  const inputRef = React.useRef<TextInput | null>(null);
+  const sheetScroll = React.useContext(SheetScrollContext);
+
+  const handleFocus = React.useCallback(() => {
+    sheetScroll?.scrollToFocusedInput(inputRef.current);
+  }, [sheetScroll]);
+
   return (
     <View style={styles.inputWrap}>
       <ScaledText style={[styles.fieldLabel, { color: colors.ink2, fontFamily: fonts.sans }]}>
@@ -1151,7 +1336,9 @@ function InputField({
         ]}
       >
         <TextInput
+          ref={inputRef}
           value={value}
+          onFocus={handleFocus}
           onChangeText={onChangeText}
           placeholder={placeholder}
           placeholderTextColor={colors.ink4}
@@ -1470,7 +1657,7 @@ export function SettingsScreen({
         </Pressable>
 
         <ScaledText style={[styles.version, { color: colors.ink4, fontFamily: fonts.sans }]}>
-          דוחות 2.4.1 · נבנה בארץ
+          דוחות 1.0.0 · נבנה בארץ
         </ScaledText>
       </ScrollView>
 
@@ -1573,15 +1760,26 @@ const styles = StyleSheet.create({
 
   // BottomSheet (full-screen)
   fullScreen: { flex: 1 },
+  sheetRoot: { flex: 1, overflow: 'hidden' },
+  sheetScroll: { flex: 1 },
   sheetHeader: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingVertical: 14,
+    paddingTop: 14,
+    paddingBottom: 10,
   },
   sheetTitle: { fontSize: 18, fontWeight: '700' },
-  sheetContent: { paddingHorizontal: 20, paddingBottom: 45, gap: 14 },
+  sheetContent: { paddingHorizontal: 20, gap: 14 },
+  sheetContentNoFooter: { paddingBottom: 45 },
+  sheetContentWithFooter: { paddingBottom: 18 },
+  footerBar: {
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 10,
+    backgroundColor: 'transparent',
+  },
 
   // Business modal
   logoRow: { flexDirection: 'row-reverse', alignItems: 'center', gap: 14, marginBottom: 6 },

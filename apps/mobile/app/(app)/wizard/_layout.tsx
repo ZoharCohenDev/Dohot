@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { Alert } from 'react-native';
 import { Stack } from 'expo-router';
 import { WizardProvider, useWizard } from '@/context/WizardContext';
 import { loadWizardDraft } from '@/services/wizardDraft';
@@ -10,7 +9,7 @@ import { loadWizardDraft } from '@/services/wizardDraft';
  * only after the context is fully hydrated from the draft (if any).
  */
 function WizardRestoreGate({ children }: { children: React.ReactNode }) {
-  const { restoreDraft, discardDraft } = useWizard();
+  const { discardDraft } = useWizard();
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -18,25 +17,9 @@ function WizardRestoreGate({ children }: { children: React.ReactNode }) {
     loadWizardDraft().then((draft) => {
       if (!mounted) return;
       if (draft && draft.customerName) {
-        Alert.alert(
-          'טיוטה קודמת',
-          'נמצאה טיוטה קודמת, האם להמשיך?',
-          [
-            {
-              text: 'התחל מחדש',
-              style: 'destructive',
-              onPress: () => { discardDraft(); setReady(true); },
-            },
-            {
-              text: 'המשך טיוטה',
-              onPress: () => { restoreDraft(draft); setReady(true); },
-            },
-          ],
-          { cancelable: false }
-        );
-      } else {
-        setReady(true);
+        discardDraft();
       }
+      setReady(true);
     });
     return () => { mounted = false; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
