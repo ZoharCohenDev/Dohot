@@ -159,9 +159,11 @@ export const DocumentsScreen = React.memo(function DocumentsScreen({ colors = li
                       {item.title}
                     </ScaledText>
                     <View style={styles.docMeta}>
-                      <Pill bg={statusBg} color={statusColor}>
-                        {STATUS_LABELS[item.status]}
-                      </Pill>
+                      {item.status !== 'draft' && (
+                        <Pill bg={statusBg} color={statusColor}>
+                          {STATUS_LABELS[item.status]}
+                        </Pill>
+                      )}
                       <ScaledText style={[styles.docDate, { color: colors.ink3, fontFamily: fonts.sans }]}>
                         {relativeDate(item.created_at)}
                       </ScaledText>

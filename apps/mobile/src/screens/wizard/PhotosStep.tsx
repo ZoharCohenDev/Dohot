@@ -54,6 +54,11 @@ export function PhotosStep({ colors = lightColors, onNext, onBack, onAnnotate }:
       const assets = await pickImageAssets();
       if (assets.length === 0) return;
 
+      if (assets.length > 10) {
+        Alert.alert('יותר מדי תמונות', 'ניתן לבחור עד 10 תמונות בכל פעם');
+        return;
+      }
+
       if (assets.length === 1) {
         setPendingAsset(assets[0]!);
         return;

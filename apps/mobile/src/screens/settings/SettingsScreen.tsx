@@ -28,7 +28,7 @@ import { lightColors, fonts } from '@/theme/tokens';
 import { useAuth } from '@/context/AuthContext';
 import { useSettings, type FontSizePref } from '@/context/SettingsContext';
 import { signOut } from '@/services/auth';
-import { pickAndUploadImage } from '@/services/storage';
+import { pickAndUploadImage, pickImageAsset, uploadImageAsset } from '@/services/storage';
 import { encodeSignatureSvg } from '@/services/profile';
 import type { Certification, Profession } from '@dohot/shared';
 import { useWizard } from '@/context/WizardContext';
@@ -292,10 +292,17 @@ function BusinessModal({ visible, onClose, colors }: BizModalProps) {
     if (!session?.user) return;
     setUploadingLogo(true);
     try {
-      const url = await pickAndUploadImage(session.user.id, 'logos', { aspect: [1, 1] });
-      if (url) setLogoUrl(url);
-    } catch {
-      Alert.alert('שגיאה', 'לא ניתן להעלות תמונה');
+      const asset = await pickImageAsset({ aspect: [1, 1] });
+      if (!asset) return;
+      if (asset.fileSize !== undefined && asset.fileSize > 3 * 1024 * 1024) {
+        Alert.alert('הלוגו גדול מדי', 'הלוגו יכול להיות עד 3MB');
+        return;
+      }
+      const url = await uploadImageAsset(session.user.id, 'logos', asset);
+      setLogoUrl(url);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'לא ניתן להעלות תמונה';
+      Alert.alert('שגיאה', msg);
     } finally {
       setUploadingLogo(false);
     }
@@ -761,16 +768,17 @@ function CertificationsModal({ visible, onClose, colors }: CertsModalProps) {
     if (!session?.user) return;
     setUploadingNewImg(true);
     try {
-      const url = await pickAndUploadImage(
-        session.user.id,
-        'cert-images',
-        { aspect: [1, 1], quality: 0.9 },
-        (localUri) => {
-          setNewImageLocalUri(localUri);
-          setUploadingNewImg(false);
-        }
-      );
-      if (url) setNewImageUrl(url);
+      const asset = await pickImageAsset({ aspect: [1, 1], quality: 0.9 });
+      if (!asset) return;
+      if (asset.fileSize !== undefined && asset.fileSize > 5 * 1024 * 1024) {
+        Alert.alert('התמונה גדולה מדי', 'כל תעודה יכולה להיות עד 5MB');
+        return;
+      }
+      // Show local preview immediately while upload runs in background
+      setNewImageLocalUri(asset.uri);
+      setUploadingNewImg(false);
+      const url = await uploadImageAsset(session.user.id, 'cert-images', asset);
+      setNewImageUrl(url);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       console.error('[cert upload]', msg);
@@ -783,13 +791,15 @@ function CertificationsModal({ visible, onClose, colors }: CertsModalProps) {
   const handleUploadCertImg = async (idx: number) => {
     if (!session?.user) return;
     try {
-      const url = await pickAndUploadImage(
-        session.user.id,
-        'cert-images',
-        { aspect: [1, 1], quality: 0.9 },
-        (localUri) => setLocalUriMap((prev) => ({ ...prev, [idx]: localUri }))
-      );
-      if (!url) return;
+      const asset = await pickImageAsset({ aspect: [1, 1], quality: 0.9 });
+      if (!asset) return;
+      if (asset.fileSize !== undefined && asset.fileSize > 5 * 1024 * 1024) {
+        Alert.alert('התמונה גדולה מדי', 'כל תעודה יכולה להיות עד 5MB');
+        return;
+      }
+      // Show local preview immediately while upload runs
+      setLocalUriMap((prev) => ({ ...prev, [idx]: asset.uri }));
+      const url = await uploadImageAsset(session.user.id, 'cert-images', asset);
       const updated = certs.map((c, i) => (i === idx ? { ...c, image_url: url } : c));
       await updateProfile({ certifications: updated });
       setCerts(updated);
@@ -801,6 +811,10 @@ function CertificationsModal({ visible, onClose, colors }: CertsModalProps) {
   };
 
   const handleAdd = async () => {
+    if (certs.length >= 10) {
+      Alert.alert('הגעת למגבלה', 'ניתן להוסיף עד 10 תעודות בלבד');
+      return;
+    }
     if (!newName.trim()) {
       Alert.alert('שגיאה', 'יש להזין שם תעודה');
       return;
@@ -1102,7 +1116,13 @@ function CertificationsModal({ visible, onClose, colors }: CertsModalProps) {
           size="md"
           full
           icon={<Icons.plus size={18} color={colors.ink1} />}
-          onPress={() => setShowForm(true)}
+          onPress={() => {
+            if (certs.length >= 10) {
+              Alert.alert('הגעת למגבלה', 'ניתן להוסיף עד 10 תעודות בלבד');
+              return;
+            }
+            setShowForm(true);
+          }}
           colors={colors}
         >
           הוסף תעודה
@@ -1233,7 +1253,7 @@ function FontSizeModal({ visible, onClose, colors }: FontSizeModalProps) {
 
 const PROFESSIONS: { value: Profession; label: string; desc: string }[] = [
   { value: 'leak_detection', label: 'גילוי נזילות', desc: 'איתור ותיקון נזילות' },
-  { value: 'plumber', label: 'אינסטלאי', desc: 'עבודות אינסטלציה וצנרת' },
+  { value: 'plumber', label: 'אינסטלטור', desc: 'עבודות אינסטלציה וצנרת' },
   { value: 'electrician', label: 'חשמלאי', desc: 'עבודות חשמל ותאורה' },
   { value: 'renovation', label: 'שיפוצניק', desc: 'שיפוצים ובנייה' },
   { value: 'ac', label: 'מיזוג אוויר', desc: 'התקנה ותחזוקת מיזוג' },

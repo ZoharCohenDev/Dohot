@@ -10,7 +10,6 @@ import { Avatar } from '@/components/shared';
 import { Icons } from '@/components/icons';
 import { lightColors, fonts } from '@/theme/tokens';
 import { useAuth } from '@/context/AuthContext';
-import { useDashboard } from '@/hooks/useDashboard';
 import {
   useQuoteFollowUp,
   type QuoteFollowUpItem,
@@ -244,7 +243,6 @@ export const DashboardScreen = React.memo(function DashboardScreen({ colors = li
   const insets = useSafeAreaInsets();
   const navSpacing = useBottomNavSpacing();
   const { businessProfile, daysUntilExpiration, isSubscriptionExpired, isSubscriptionWarning } = useAuth();
-  const { stats } = useDashboard();
   const {
     items,
     counts,
@@ -330,10 +328,10 @@ export const DashboardScreen = React.memo(function DashboardScreen({ colors = li
             <View style={styles.statsRow}>
               <View style={[styles.statCard, { backgroundColor: colors.bgElev, borderColor: colors.line }]}>
                 <ScaledText style={[styles.statValue, { color: colors.ink1, fontFamily: fonts.sans }]}>
-                  {stats.monthlyReports}
+                  {counts.all}
                 </ScaledText>
                 <ScaledText style={[styles.statLabel, { color: colors.ink3, fontFamily: fonts.sans }]}>
-                  דוחות החודש
+                  הצעות מחיר
                 </ScaledText>
               </View>
               <View style={[styles.statCard, { backgroundColor: colors.bgElev, borderColor: colors.line }]}>
@@ -355,7 +353,6 @@ export const DashboardScreen = React.memo(function DashboardScreen({ colors = li
             <View style={styles.tabsRow}>
               {FILTER_TABS.map((tab) => {
                 const active = statusFilter === tab.value;
-                const count = counts[tab.value];
                 return (
                   <Pressable
                     key={tab.value}
@@ -375,19 +372,6 @@ export const DashboardScreen = React.memo(function DashboardScreen({ colors = li
                     ]}>
                       {tab.label}
                     </Text>
-                    {count > 0 && (
-                      <View style={[
-                        styles.filterTabBadge,
-                        { backgroundColor: active ? colors.bg : colors.bgSunken },
-                      ]}>
-                        <Text style={[
-                          styles.filterTabBadgeText,
-                          { color: active ? colors.ink1 : colors.ink3, fontFamily: fonts.sans },
-                        ]}>
-                          {count}
-                        </Text>
-                      </View>
-                    )}
                   </Pressable>
                 );
               })}

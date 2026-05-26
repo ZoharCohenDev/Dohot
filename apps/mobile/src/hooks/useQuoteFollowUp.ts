@@ -64,7 +64,6 @@ export function useQuoteFollowUp() {
         .select('*, customers(name, phone, city, street, house_number, apartment, floor, address)')
         .eq('professional_id', profileId)
         .eq('type', 'quote')
-        .not('pdf_url', 'is', null)
         .order('created_at', { ascending: false });
       if (qErr) throw qErr;
       setQuotes((data ?? []) as QuoteWithCustomer[]);
