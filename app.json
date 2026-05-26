@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "02af1aa6-b613-41a9-bc37-217b5830f41a"
+      }
+    },
+    "android": {
+      "package": "com.dohot.app"
+    }
+  }
+}
