@@ -79,9 +79,11 @@ export function Header({
         </View>
       )}
 
-      {/* Small centered title */}
+      {/* Small centered title — pinned to the same vertical band as topRow.
+          position:'absolute' in Yoga anchors top:0 before paddingTop, so we
+          explicitly offset by the same paddingTop the container uses. */}
       {!large && title && (
-        <View style={styles.centerTitleWrap} pointerEvents="none">
+        <View style={[styles.centerTitleWrap, { top: insets.top + 8 }]} pointerEvents="none">
           <ScaledText style={[styles.centerTitle, { color: colors.ink1, fontFamily: fonts.sans }]}>
             {title}
           </ScaledText>
