@@ -2,7 +2,7 @@
   "expo": {
     "name": "Dohot",
     "slug": "dohot",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "scheme": "dohot",
@@ -15,7 +15,7 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.dohot.app",
-      "buildNumber": "2",
+      "buildNumber": "3",
       "infoPlist": {
         "NSMicrophoneUsageDescription": "הקלטת קול ליצירת דוחות",
         "NSCameraUsageDescription": "צילום תמונות לדוח",
@@ -27,7 +27,7 @@
       }
     },
     "android": {
-      "versionCode": 7,
+      "versionCode": 8,
       "supportsRtl": true,
       "softwareKeyboardLayoutMode": "resize",
       "adaptiveIcon": {
