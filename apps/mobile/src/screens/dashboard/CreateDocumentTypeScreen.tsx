@@ -40,7 +40,7 @@ const TYPE_VISUALS: Record<DocType, {
   },
 };
 
-export function CreateDocumentTypeScreen({
+export const CreateDocumentTypeScreen = React.memo(function CreateDocumentTypeScreen({
   colors = lightColors,
   onSelectType,
   onNavigate,
@@ -107,7 +107,7 @@ export function CreateDocumentTypeScreen({
       <BottomNav active="create" onTab={onNavigate} colors={colors} />
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   root: { flex: 1 },

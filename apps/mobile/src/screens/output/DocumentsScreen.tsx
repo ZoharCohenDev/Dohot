@@ -57,7 +57,7 @@ function relativeDate(iso: string): string {
   return `לפני ${Math.floor(days / 7)} שבועות`;
 }
 
-export function DocumentsScreen({ colors = lightColors, onNavigate }: DocumentsScreenProps) {
+export const DocumentsScreen = React.memo(function DocumentsScreen({ colors = lightColors, onNavigate }: DocumentsScreenProps) {
   const [activeTab, setActiveTab] = React.useState(0);
   const { documents, loading, error, refetch } = useDocuments(TABS[activeTab]?.type);
   const navSpacing = useBottomNavSpacing();
@@ -182,7 +182,7 @@ export function DocumentsScreen({ colors = lightColors, onNavigate }: DocumentsS
       <BottomNav active="docs" onTab={onNavigate} colors={colors} />
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   root: { flex: 1 },

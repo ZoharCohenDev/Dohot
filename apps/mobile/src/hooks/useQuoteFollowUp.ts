@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase, tables } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import type { Document } from '@dohot/shared';
@@ -101,24 +101,37 @@ export function useQuoteFollowUp() {
     setQuotes((prev) => prev.filter((q) => q.id !== documentId));
   }, []);
 
-  const allItems = sortQuotes(
-    quotes.map((q) => ({
-      ...q,
-      followUp: {
-        status: (q.quote_status ?? 'waiting') as QuoteStatus,
-        updatedAt: q.updated_at,
-      },
-    })),
+  // Memoised: only recompute when the raw quotes array changes.
+  const allItems = useMemo(
+    () =>
+      sortQuotes(
+        quotes.map((q) => ({
+          ...q,
+          followUp: {
+            status: (q.quote_status ?? 'waiting') as QuoteStatus,
+            updatedAt: q.updated_at,
+          },
+        })),
+      ),
+    [quotes],
   );
 
-  const items = filterQuotesByStatus(allItems, statusFilter);
+  // Memoised: only refilter when allItems or the active filter changes.
+  const items = useMemo(
+    () => filterQuotesByStatus(allItems, statusFilter),
+    [allItems, statusFilter],
+  );
 
-  const counts: Record<QuoteStatusFilter, number> = {
-    all: allItems.length,
-    waiting: allItems.filter((q) => q.followUp.status === 'waiting').length,
-    completed: allItems.filter((q) => q.followUp.status === 'completed').length,
-    cancelled: allItems.filter((q) => q.followUp.status === 'cancelled').length,
-  };
+  // Memoised: badge counts only recalculate when allItems changes.
+  const counts: Record<QuoteStatusFilter, number> = useMemo(
+    () => ({
+      all: allItems.length,
+      waiting: allItems.filter((q) => q.followUp.status === 'waiting').length,
+      completed: allItems.filter((q) => q.followUp.status === 'completed').length,
+      cancelled: allItems.filter((q) => q.followUp.status === 'cancelled').length,
+    }),
+    [allItems],
+  );
 
   return {
     items,

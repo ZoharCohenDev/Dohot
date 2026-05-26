@@ -1,3 +1,7 @@
+// Keep-alive tab navigator — each screen mounts exactly once (lazily on first
+// visit) and is parked off-screen between visits.  This eliminates the
+// remount cost and repeated API calls that caused the "stuck" feeling during
+// tab transitions.
 import React, { useRef, useState, useCallback } from 'react';
 import { View, Animated, Dimensions, StyleSheet, Easing } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -23,25 +27,39 @@ const DURATION = 300;
 // Smooth deceleration — fast start, eases to rest. Matches iOS native feel.
 const EASING = Easing.bezier(0.25, 0.1, 0.25, 1.0);
 
+// Parking position for off-screen (inactive) tabs.  Must be far enough that
+// a tab at this offset is never visible even on the largest device during a
+// full-width slide animation (SCREEN_W * 3 ≈ 1200 px on a large phone).
+const HIDDEN = SCREEN_W * 3;
+
 export default function AppIndex() {
   const router = useRouter();
   const colors = useColors();
   const { dark, toggleTheme } = useSettings();
 
-  // `stableTab`  — the screen currently occupying the center (slideOut starts at 0).
-  // `incomingTab`— the screen sliding in; null when no transition is active.
+  // `stableTab`  — the screen currently at translateX 0 (fully visible).
+  // `incomingTab`— the screen currently sliding in; null between transitions.
   const [stableTab, setStableTab] = useState<TabId>('home');
   const [incomingTab, setIncomingTab] = useState<TabId | null>(null);
   const stableTabRef = useRef<TabId>('home');
   const isTransitioning = useRef(false);
 
-  // slideOut: animates the LEAVING screen (0 → off-screen).
-  //   Never reset with setValue before a transition — it's already at 0.
-  // slideIn:  animates the ENTERING screen (off-screen → 0).
-  //   Set to enterFrom BEFORE incomingTab is rendered, so no existing
-  //   view is ever teleported.
-  const slideOut = useRef(new Animated.Value(0)).current;
-  const slideIn  = useRef(new Animated.Value(SCREEN_W)).current;
+  // Track which tabs have been visited at least once.
+  // A tab is added on first visit and never removed — it stays alive in the
+  // tree indefinitely so its hook state and loaded data are preserved.
+  const [mountedTabs, setMountedTabs] = useState<Set<TabId>>(
+    () => new Set<TabId>(['home']),
+  );
+
+  // One Animated.Value per tab for translateX.
+  // 'home' starts at 0 (visible); all others start parked off-screen.
+  const tabTranslate = useRef<Record<TabId, Animated.Value>>({
+    home:      new Animated.Value(0),
+    docs:      new Animated.Value(HIDDEN),
+    create:    new Animated.Value(HIDDEN),
+    customers: new Animated.Value(HIDDEN),
+    me:        new Animated.Value(HIDDEN),
+  }).current;
 
   const navigateToTab = useCallback((targetTab: TabId) => {
     if (isTransitioning.current) return;
@@ -55,21 +73,31 @@ export default function AppIndex() {
     const exitTo     = -enterFrom;
 
     isTransitioning.current = true;
+    const fromTab = stableTabRef.current;
     stableTabRef.current = targetTab;
 
-    // Position the incoming screen off-screen BEFORE React renders it.
-    // slideOut is untouched — the stable screen stays at 0, no teleport.
-    slideIn.setValue(enterFrom);
+    // Lazily add the incoming tab to the tree on its first visit.
+    // If already mounted, this returns the same Set reference → no re-render.
+    setMountedTabs(prev => {
+      if (prev.has(targetTab)) return prev;
+      const next = new Set(prev);
+      next.add(targetTab);
+      return next;
+    });
+
+    // Position the incoming screen at the edge *before* React renders it, so
+    // it never appears at its previous parked position for even one frame.
+    tabTranslate[targetTab].setValue(enterFrom);
     setIncomingTab(targetTab);
 
     Animated.parallel([
-      Animated.timing(slideOut, {
+      Animated.timing(tabTranslate[fromTab], {
         toValue: exitTo,
         duration: DURATION,
         easing: EASING,
         useNativeDriver: true,
       }),
-      Animated.timing(slideIn, {
+      Animated.timing(tabTranslate[targetTab], {
         toValue: 0,
         duration: DURATION,
         easing: EASING,
@@ -77,72 +105,84 @@ export default function AppIndex() {
       }),
     ]).start(({ finished }) => {
       if (finished) {
-        // Promote incoming → stable; reset slideOut for the next transition.
-        slideOut.setValue(0);
+        // Park the outgoing tab far off-screen.  The snap is invisible because
+        // the tab just animated to the screen edge (exitTo ≈ ±SCREEN_W);
+        // moving it further to HIDDEN produces no visible change.
+        tabTranslate[fromTab].setValue(HIDDEN);
         setStableTab(targetTab);
         setIncomingTab(null);
       }
       isTransitioning.current = false;
     });
-  }, [slideOut, slideIn]);
+  }, [tabTranslate]);
 
-  const renderTab = (tab: TabId): React.ReactElement | null => {
-    switch (tab) {
-      case 'home':
-        return (
-          <DashboardScreen
-            colors={colors}
-            onNavigate={navigateToTab}
-            onCreateType={() => navigateToTab('create')}
-            onCreateReport={() => router.push(ROUTES.WIZARD_VOICE_IDLE)}
-          />
-        );
-      case 'docs':
-        return <DocumentsScreen colors={colors} onNavigate={navigateToTab} />;
-      case 'create':
-        return (
-          <CreateDocumentTypeScreen
-            colors={colors}
-            onNavigate={navigateToTab}
-            onSelectType={(docType: DocType) =>
-              router.push(`${ROUTES.WIZARD_CUSTOMER}?docType=${docType}` as never)
-            }
-          />
-        );
-      case 'customers':
-        return <CustomersScreen colors={colors} onNavigate={navigateToTab} />;
-      case 'me':
-        return (
-          <SettingsScreen
-            dark={dark}
-            colors={colors}
-            onToggleTheme={toggleTheme}
-            onNavigate={navigateToTab}
-          />
-        );
-      default:
-        return null;
-    }
-  };
+  // Stable callbacks — memoised once so React.memo'd screens never re-render
+  // just because the parent re-renders during a transition.
+  const onCreateReport = useCallback(
+    () => router.push(ROUTES.WIZARD_VOICE_IDLE as never),
+    [router],
+  );
+  const onCreateType = useCallback(
+    () => navigateToTab('create'),
+    [navigateToTab],
+  );
+  const onSelectDocType = useCallback(
+    (docType: DocType) => router.push(`${ROUTES.WIZARD_CUSTOMER}?docType=${docType}` as never),
+    [router],
+  );
 
   return (
     <View style={StyleSheet.absoluteFill}>
-      {/* Exiting screen — starts centered, slides out */}
-      <Animated.View
-        style={[StyleSheet.absoluteFill, { transform: [{ translateX: slideOut }] }]}
-        pointerEvents={incomingTab !== null ? 'none' : 'auto'}
-      >
-        {renderTab(stableTab)}
-      </Animated.View>
+      {TAB_ORDER.map((tab) => {
+        // Don't render tabs that have never been visited (lazy mount).
+        if (!mountedTabs.has(tab)) return null;
 
-      {/* Entering screen — starts off-screen, slides to center */}
-      {incomingTab !== null && (
-        <Animated.View
-          style={[StyleSheet.absoluteFill, { transform: [{ translateX: slideIn }] }]}
-        >
-          {renderTab(incomingTab)}
-        </Animated.View>
-      )}
+        // Only the fully-visible stable tab (with no pending transition)
+        // should receive touch events.
+        const pointerEvents =
+          tab === stableTab && incomingTab === null ? 'auto' : 'none';
+
+        return (
+          <Animated.View
+            key={tab}
+            style={[
+              StyleSheet.absoluteFill,
+              { transform: [{ translateX: tabTranslate[tab] }] },
+            ]}
+            pointerEvents={pointerEvents}
+          >
+            {tab === 'home' && (
+              <DashboardScreen
+                colors={colors}
+                onNavigate={navigateToTab}
+                onCreateType={onCreateType}
+                onCreateReport={onCreateReport}
+              />
+            )}
+            {tab === 'docs' && (
+              <DocumentsScreen colors={colors} onNavigate={navigateToTab} />
+            )}
+            {tab === 'create' && (
+              <CreateDocumentTypeScreen
+                colors={colors}
+                onNavigate={navigateToTab}
+                onSelectType={onSelectDocType}
+              />
+            )}
+            {tab === 'customers' && (
+              <CustomersScreen colors={colors} onNavigate={navigateToTab} />
+            )}
+            {tab === 'me' && (
+              <SettingsScreen
+                dark={dark}
+                colors={colors}
+                onToggleTheme={toggleTheme}
+                onNavigate={navigateToTab}
+              />
+            )}
+          </Animated.View>
+        );
+      })}
     </View>
   );
 }

@@ -11,7 +11,6 @@ import { lightColors, fonts, radii } from '@/theme/tokens';
 interface Contact {
   name: string;
   initials: string;
-  role: string;
   phone: string;
   intlPhone: string;
   avatarBg: string;
@@ -22,7 +21,6 @@ const CONTACTS: Contact[] = [
   {
     name: 'זוהר כהן',
     initials: 'זכ',
-    role: 'מייסד · יחס אישי',
     phone: '0526402708',
     intlPhone: '972526402708',
     avatarBg: '#4F7BA1',
@@ -31,7 +29,6 @@ const CONTACTS: Contact[] = [
   {
     name: 'רוני טויטו',
     initials: 'רט',
-    role: 'הצטרפות לקוחות',
     phone: '0549879533',
     intlPhone: '972549879533',
     avatarBg: '#B58A4C',
@@ -113,7 +110,6 @@ export function RegisterScreen({ colors = lightColors }: RegisterScreenProps) {
         </Text>
         <Text style={[styles.subtitle, { color: colors.ink2, fontFamily: fonts.sans }]}>
           פתיחת חשבון בדוחות נעשית באופן אישי.{'\n'}
-          בחר נציג — נחזור אליך תוך פחות משעה.
         </Text>
       </Animated.View>
 
@@ -241,9 +237,6 @@ function TeamCard({ contact, colors }: TeamCardProps) {
         <View style={styles.cardInfo}>
           <Text style={[styles.contactName, { color: colors.ink1, fontFamily: fonts.serif }]}>
             {contact.name}
-          </Text>
-          <Text style={[styles.contactRole, { color: colors.ink3, fontFamily: fonts.sans }]}>
-            {contact.role}
           </Text>
           <Text style={[styles.contactPhone, { color: colors.ink2, fontFamily: fonts.sans }]}>
             {prettyPhone}

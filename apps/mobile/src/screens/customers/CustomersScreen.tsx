@@ -121,7 +121,7 @@ function CustomerCard({
   );
 }
 
-export function CustomersScreen({ colors = lightColors, onNavigate }: CustomersScreenProps) {
+export const CustomersScreen = React.memo(function CustomersScreen({ colors = lightColors, onNavigate }: CustomersScreenProps) {
   const [searchQuery, setSearchQuery] = React.useState('');
   const [debouncedSearch, setDebouncedSearch] = React.useState('');
 
@@ -232,7 +232,7 @@ export function CustomersScreen({ colors = lightColors, onNavigate }: CustomersS
       <BottomNav active="customers" onTab={onNavigate} colors={colors} />
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   root: { flex: 1 },

@@ -240,7 +240,7 @@ function getIsraelGreeting(): string {
 
 // ── Screen ────────────────────────────────────────────────────────────────────
 
-export function DashboardScreen({ colors = lightColors, onNavigate, onCreateType }: DashboardScreenProps) {
+export const DashboardScreen = React.memo(function DashboardScreen({ colors = lightColors, onNavigate, onCreateType }: DashboardScreenProps) {
   const insets = useSafeAreaInsets();
   const navSpacing = useBottomNavSpacing();
   const { businessProfile, daysUntilExpiration, isSubscriptionExpired, isSubscriptionWarning } = useAuth();
@@ -260,7 +260,7 @@ export function DashboardScreen({ colors = lightColors, onNavigate, onCreateType
   const displayName = businessProfile?.full_name || businessProfile?.business_name || '';
   const firstName = displayName.split(' ')[0] ?? displayName;
 
-  const handleLongPress = (item: QuoteFollowUpItem) => {
+  const handleLongPress = React.useCallback((item: QuoteFollowUpItem) => {
     const name = item.customers?.name ?? 'הצעה זו';
     Alert.alert(
       'מחק הצעת מחיר',
@@ -280,7 +280,7 @@ export function DashboardScreen({ colors = lightColors, onNavigate, onCreateType
         },
       ],
     );
-  };
+  }, [deleteQuote]);
 
   return (
     <View style={[styles.root, { backgroundColor: colors.bg }]}>
@@ -453,7 +453,7 @@ export function DashboardScreen({ colors = lightColors, onNavigate, onCreateType
       <BottomNav active="home" onTab={onNavigate} colors={colors} />
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
