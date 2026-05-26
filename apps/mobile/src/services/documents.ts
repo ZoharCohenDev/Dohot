@@ -1,4 +1,6 @@
+import * as FileSystemLegacy from 'expo-file-system/legacy';
 import { supabase, tables } from '@/lib/supabase';
+import { pathFromStorageUrl } from '@/services/storage';
 import type {
   InsertCustomer,
   InsertDocument,
@@ -271,11 +273,15 @@ export async function deleteDocument(documentId: string): Promise<void> {
  * Generates a PDF by sending a base64 capture of the rendered preview to the server.
  * The server wraps the image in A4 HTML and renders it with Puppeteer, so the output
  * is pixel-for-pixel identical to what the user sees in the preview screen.
+ *
+ * The PDF is returned as base64 from the server (no cloud storage involved) and saved
+ * directly to the app's local cache directory. Returns a local file:// URI.
  */
 export async function generatePdfFromCapture(
   documentId: string,
   images: string[],
-  mimeType: 'image/jpeg' | 'image/png' = 'image/jpeg'
+  mimeType: 'image/jpeg' | 'image/png' = 'image/jpeg',
+  filename?: string
 ): Promise<string> {
   const {
     data: { session },
@@ -300,8 +306,63 @@ export async function generatePdfFromCapture(
     throw new Error(payload.error ?? `Server error ${response.status}`);
   }
 
-  const result = (await response.json()) as { url: string };
-  return result.url;
+  const result = (await response.json()) as { url?: string };
+
+  if (!result.url) {
+    throw new Error('השרת לא החזיר קישור PDF');
+  }
+
+  // Download the PDF directly to the local cache using the native downloader.
+  // This avoids buffering a potentially multi-MB file through the JS bridge.
+  const cacheDir = FileSystemLegacy.cacheDirectory;
+  if (!cacheDir) throw new Error('Cache directory unavailable');
+  const safeFilename = filename ? filename : `pdf_${documentId}`;
+  const localUri = `${cacheDir}${safeFilename}.pdf`;
+  await FileSystemLegacy.downloadAsync(result.url, localUri);
+
+  // Now that the file is safely cached, delete it from cloud storage.
+  // The signed URL is no longer needed. Fire-and-forget — failure is non-fatal.
+  const userId = session?.user?.id;
+  if (userId) {
+    const storagePath = `${userId}/${documentId}.pdf`;
+    Promise.all([
+      supabase.storage.from('pdf-documents').remove([storagePath]),
+      supabase.from(tables.documents).update({ pdf_url: null }).eq('id', documentId),
+    ]).catch((err) => console.warn('[generatePdfFromCapture] PDF storage cleanup failed:', err));
+  }
+
+  return localUri;
+}
+
+/**
+ * Deletes the temporary report images from cloud storage after the PDF has been
+ * generated, and clears the photo_urls column in the reports table.
+ *
+ * This is a best-effort fire-and-forget operation — failures are logged but
+ * must not block the user from sharing the PDF.
+ */
+export async function deleteReportStorageImages(
+  documentId: string,
+  photoUrls: string[]
+): Promise<void> {
+  // Extract the storage path from each signed URL
+  const paths = photoUrls
+    .map((url) => pathFromStorageUrl(url, 'report-images'))
+    .filter(Boolean);
+
+  if (paths.length > 0) {
+    // Batch-remove all report image files from the bucket
+    const { error } = await supabase.storage.from('report-images').remove(paths);
+    if (error) {
+      console.warn('[deleteReportStorageImages] Storage removal error:', error.message);
+    }
+  }
+
+  // Clear the now-stale photo_urls column so the DB has no dead references
+  await supabase
+    .from(tables.reports)
+    .update({ photo_urls: [] })
+    .eq('document_id', documentId);
 }
 
 const SERVER_URL = process.env['EXPO_PUBLIC_API_URL']?.replace(/\/$/, '');

@@ -2,11 +2,13 @@ import { File, Directory, Paths } from 'expo-file-system';
 import { DOCUMENT_TYPES } from '@/config/documentTypes';
 import type { DocType } from '@/config/documentTypes';
 
-const FALLBACK_CUSTOMER = 'לקוח ללא שם';
+const FALLBACK_CUSTOMER = 'מסמך';
 
 /**
  * Builds the human-readable PDF filename (without extension) from the wizard state.
- * Returns e.g. "ישראל ישראלי - דוח בדיקה"
+ * Returns e.g. "דוח בדיקה - רוני טויטו"
+ *
+ * Format: [Hebrew document type] - [customer name]
  *
  * This is the single source of truth for PDF filenames — used for both the
  * local cache file (which WhatsApp shows to recipients) and the share dialog.
@@ -14,7 +16,7 @@ const FALLBACK_CUSTOMER = 'לקוח ללא שם';
 export function buildPdfFilename(docType: DocType, customerName: string): string {
   const typeLabel = DOCUMENT_TYPES[docType]?.filenameLabel ?? 'דוח';
   const name = customerName.trim() || FALLBACK_CUSTOMER;
-  return `${name} - ${typeLabel}`
+  return `${typeLabel} - ${name}`
     // Strip characters that are invalid on iOS / Android / Windows filesystems.
     .replace(/[/\\:*?"<>|]/g, '')
     .replace(/\s{2,}/g, ' ')

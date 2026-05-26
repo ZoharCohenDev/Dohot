@@ -9,7 +9,7 @@ import { Icons } from '@/components/icons';
 import { lightColors, fonts } from '@/theme/tokens';
 import { useWizard } from '@/context/WizardContext';
 import { useAuth } from '@/context/AuthContext';
-import { generatePdfFromCapture } from '@/services/documents';
+import { generatePdfFromCapture, deleteReportStorageImages } from '@/services/documents';
 import { File } from 'expo-file-system';
 import { downloadPdfToCache, deleteCachedPdf, buildPdfFilename } from '@/services/pdfExport';
 import { sharePdfFile } from '@/services/shareService';
@@ -59,10 +59,22 @@ export function SendScreen({ colors = lightColors, onDone }: SendScreenProps) {
           documentId = await wizard.saveDocument(businessProfile.id);
         }
         if (cancelled) return;
-        const url = await generatePdfFromCapture(documentId, capturedImages, 'image/jpeg');
+        const url = await generatePdfFromCapture(documentId, capturedImages, 'image/jpeg', pdfFilename);
         if (cancelled) return;
+        // Track the local URI now so the unmount cleanup can delete it
+        // even if the user taps Done without sharing first.
+        localUriRef.current = url;
         wizard.setPdfUrl(url);
         wizard.setCapturedImages([]);
+
+        // Delete report images from cloud storage (fire-and-forget).
+        // Runs after the PDF is safely cached locally; failures are non-fatal.
+        if (wizard.state.docType === 'report') {
+          const photoUrls = wizard.state.reportIssues.flatMap((issue) => issue.photos);
+          deleteReportStorageImages(documentId, photoUrls).catch((err) =>
+            console.warn('[SendScreen] Report image cleanup failed:', err)
+          );
+        }
       } catch (err) {
         if (cancelled) return;
         const msg = err instanceof Error ? err.message : 'שגיאה לא צפויה';
@@ -91,13 +103,26 @@ export function SendScreen({ colors = lightColors, onDone }: SendScreenProps) {
       Alert.alert('PDF לא מוכן', 'המתן לסיום יצירת ה-PDF ונסה שוב.');
       return null;
     }
+
+    // Verify any previously resolved local URI is still on disk
+    // (Android can evict cache under memory pressure)
     if (localUriRef.current) {
-      // Verify the cached file still exists — Android can evict cache under
-      // memory pressure; re-download silently if it has been cleared.
       if (new File(localUriRef.current).exists) return localUriRef.current;
       localUriRef.current = null;
     }
 
+    // New flow: pdfUrl is already a local file URI saved by generatePdfFromCapture —
+    // no download needed, just verify the file still exists.
+    if (pdfUrl.startsWith('file://')) {
+      if (new File(pdfUrl).exists) {
+        localUriRef.current = pdfUrl;
+        return pdfUrl;
+      }
+      Alert.alert('קובץ PDF לא נמצא', 'הקובץ נמחק מהמטמון. חזור לתצוגה מקדימה ונסה שוב.');
+      return null;
+    }
+
+    // Legacy flow: pdfUrl is a remote signed URL — download to cache first.
     try {
       const uri = await downloadPdfToCache(pdfUrl, pdfFilename);
       localUriRef.current = uri;
