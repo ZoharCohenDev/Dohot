@@ -2,13 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase, tables } from '@/lib/supabase';
 import { useAuth } from '@/context/AuthContext';
 import type { Document } from '@dohot/shared';
-import {
-  loadFollowUpStore,
-  setQuoteStatus as persistQuoteStatus,
-  removeFollowUp,
-  type FollowUpEntry,
-  type QuoteStatus,
-} from '@/services/followUpStorage';
+import type { FollowUpEntry, QuoteStatus } from '@/services/followUpStorage';
 import { deleteDocument } from '@/services/documents';
 
 export type { QuoteStatus, FollowUpEntry };
@@ -30,8 +24,6 @@ export type QuoteWithCustomer = Document & {
 export type QuoteFollowUpItem = QuoteWithCustomer & {
   followUp: FollowUpEntry;
 };
-
-const DEFAULT_FOLLOW_UP: FollowUpEntry = { status: 'waiting', updatedAt: null };
 
 // Sort: waiting first, then completed, then cancelled; newest-first within each group.
 const STATUS_ORDER: Record<QuoteStatus, number> = { waiting: 0, completed: 1, cancelled: 2 };
@@ -55,9 +47,9 @@ export function filterQuotesByStatus(
 export function useQuoteFollowUp() {
   const { businessProfile } = useAuth();
   const [quotes, setQuotes] = useState<QuoteWithCustomer[]>([]);
-  const [followUpStore, setFollowUpStore] = useState<Record<string, FollowUpEntry>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [savingIds, setSavingIds] = useState<Set<string>>(new Set());
   const [statusFilter, setStatusFilter] = useState<QuoteStatusFilter>('all');
 
   const load = useCallback(async () => {
@@ -65,19 +57,15 @@ export function useQuoteFollowUp() {
     setLoading(true);
     setError('');
     try {
-      const [{ data, error: qErr }, store] = await Promise.all([
-        supabase
-          .from(tables.documents)
-          .select('*, customers(name, phone, city, street, house_number, apartment, floor, address)')
-          .eq('professional_id', businessProfile.id)
-          .eq('type', 'quote')
-          .not('pdf_url', 'is', null)
-          .order('created_at', { ascending: false }),
-        loadFollowUpStore(),
-      ]);
+      const { data, error: qErr } = await supabase
+        .from(tables.documents)
+        .select('*, customers(name, phone, city, street, house_number, apartment, floor, address)')
+        .eq('professional_id', businessProfile.id)
+        .eq('type', 'quote')
+        .not('pdf_url', 'is', null)
+        .order('created_at', { ascending: false });
       if (qErr) throw qErr;
       setQuotes((data ?? []) as QuoteWithCustomer[]);
-      setFollowUpStore(store);
     } catch {
       setError('לא ניתן לטעון הצעות מחיר');
     } finally {
@@ -88,21 +76,36 @@ export function useQuoteFollowUp() {
   useEffect(() => { load(); }, [load]);
 
   const setQuoteStatus = useCallback(async (documentId: string, status: QuoteStatus) => {
-    const updated = await persistQuoteStatus(documentId, status);
-    setFollowUpStore(updated);
-  }, []);
+    if (!businessProfile) return;
+    setSavingIds((prev) => new Set(prev).add(documentId));
+    try {
+      const { error: updateErr } = await supabase
+        .from(tables.documents)
+        .update({ quote_status: status })
+        .eq('id', documentId)
+        .eq('professional_id', businessProfile.id);
+      if (updateErr) throw updateErr;
+      // Optimistically update local state only after confirmed DB write.
+      setQuotes((prev) =>
+        prev.map((q) => (q.id === documentId ? { ...q, quote_status: status } : q)),
+      );
+    } finally {
+      setSavingIds((prev) => { const s = new Set(prev); s.delete(documentId); return s; });
+    }
+  }, [businessProfile]);
 
   const deleteQuote = useCallback(async (documentId: string) => {
     await deleteDocument(documentId);
-    const updated = await removeFollowUp(documentId);
-    setFollowUpStore(updated);
     setQuotes((prev) => prev.filter((q) => q.id !== documentId));
   }, []);
 
   const allItems = sortQuotes(
     quotes.map((q) => ({
       ...q,
-      followUp: followUpStore[q.id] ?? DEFAULT_FOLLOW_UP,
+      followUp: {
+        status: (q.quote_status ?? 'waiting') as QuoteStatus,
+        updatedAt: q.updated_at,
+      },
     })),
   );
 
@@ -120,6 +123,7 @@ export function useQuoteFollowUp() {
     counts,
     loading,
     error,
+    savingIds,
     statusFilter,
     setStatusFilter,
     refetch: load,

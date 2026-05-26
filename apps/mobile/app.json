@@ -27,7 +27,7 @@
       }
     },
     "android": {
-      "versionCode": 6,
+      "versionCode": 7,
       "supportsRtl": true,
       "softwareKeyboardLayoutMode": "resize",
       "adaptiveIcon": {

@@ -18,6 +18,7 @@ import {
   type QuoteStatusFilter,
 } from '@/hooks/useQuoteFollowUp';
 
+
 interface DashboardScreenProps {
   colors?: typeof lightColors;
   onCreateReport?: () => void;
@@ -81,11 +82,13 @@ function QuoteCard({
   colors,
   onSetStatus,
   onLongPress,
+  saving,
 }: {
   item: QuoteFollowUpItem;
   colors: typeof lightColors;
   onSetStatus: (status: QuoteStatus) => void;
   onLongPress: () => void;
+  saving: boolean;
 }) {
   const address = formatAddress(item);
   const phone = item.customers?.phone;
@@ -164,8 +167,8 @@ function QuoteCard({
         {status === 'waiting' && (
           <>
             <Pressable
-              style={[styles.actionBtn, { backgroundColor: colors.aiBg }]}
-              onPress={() => onSetStatus('completed')}
+              style={[styles.actionBtn, { backgroundColor: colors.aiBg, opacity: saving ? 0.5 : 1 }]}
+              onPress={() => !saving && onSetStatus('completed')}
               hitSlop={4}
             >
               <Icons.check size={13} color={colors.ai2} stroke={2.5} />
@@ -174,8 +177,8 @@ function QuoteCard({
               </Text>
             </Pressable>
             <Pressable
-              style={[styles.actionBtn, { backgroundColor: colors.dangerBg }]}
-              onPress={() => onSetStatus('cancelled')}
+              style={[styles.actionBtn, { backgroundColor: colors.dangerBg, opacity: saving ? 0.5 : 1 }]}
+              onPress={() => !saving && onSetStatus('cancelled')}
               hitSlop={4}
             >
               <Icons.close size={13} color={colors.danger} />
@@ -187,8 +190,8 @@ function QuoteCard({
         )}
         {status === 'completed' && (
           <Pressable
-            style={[styles.actionBtn, { backgroundColor: colors.bgSunken }]}
-            onPress={() => onSetStatus('waiting')}
+            style={[styles.actionBtn, { backgroundColor: colors.bgSunken, opacity: saving ? 0.5 : 1 }]}
+            onPress={() => !saving && onSetStatus('waiting')}
             hitSlop={4}
           >
             <Text style={[styles.actionBtnText, { color: colors.ink3, fontFamily: fonts.sans }]}>
@@ -199,8 +202,8 @@ function QuoteCard({
         {status === 'cancelled' && (
           <>
             <Pressable
-              style={[styles.actionBtn, { backgroundColor: colors.aiBg }]}
-              onPress={() => onSetStatus('completed')}
+              style={[styles.actionBtn, { backgroundColor: colors.aiBg, opacity: saving ? 0.5 : 1 }]}
+              onPress={() => !saving && onSetStatus('completed')}
               hitSlop={4}
             >
               <Icons.check size={13} color={colors.ai2} stroke={2.5} />
@@ -209,8 +212,8 @@ function QuoteCard({
               </Text>
             </Pressable>
             <Pressable
-              style={[styles.actionBtn, { backgroundColor: colors.bgSunken }]}
-              onPress={() => onSetStatus('waiting')}
+              style={[styles.actionBtn, { backgroundColor: colors.bgSunken, opacity: saving ? 0.5 : 1 }]}
+              onPress={() => !saving && onSetStatus('waiting')}
               hitSlop={4}
             >
               <Text style={[styles.actionBtnText, { color: colors.ink3, fontFamily: fonts.sans }]}>
@@ -236,6 +239,7 @@ export function DashboardScreen({ colors = lightColors, onNavigate, onCreateType
     counts,
     loading,
     error,
+    savingIds,
     statusFilter,
     setStatusFilter,
     setQuoteStatus,
@@ -422,7 +426,14 @@ export function DashboardScreen({ colors = lightColors, onNavigate, onCreateType
           <QuoteCard
             item={item}
             colors={colors}
-            onSetStatus={(status) => setQuoteStatus(item.id, status)}
+            saving={savingIds.has(item.id)}
+            onSetStatus={async (status) => {
+              try {
+                await setQuoteStatus(item.id, status);
+              } catch {
+                Alert.alert('שגיאה', 'לא ניתן לעדכן את הסטטוס. נסה שנית.');
+              }
+            }}
             onLongPress={() => handleLongPress(item)}
           />
         )}

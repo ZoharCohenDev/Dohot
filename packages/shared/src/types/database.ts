@@ -24,6 +24,8 @@ export type DocumentType = 'report' | 'quote' | 'worklog' | 'agreement';
 
 export type DocumentStatus = 'draft' | 'sent' | 'pending' | 'signed' | 'approved';
 
+export type QuoteFollowUpStatus = 'waiting' | 'completed' | 'cancelled';
+
 export type PropertyType =
   | 'apartment'   // דירה
   | 'house'       // בית פרטי
@@ -122,6 +124,7 @@ export interface Document {
   amount: number | null;
   pdf_url: string | null;
   sent_at: string | null;
+  quote_status?: QuoteFollowUpStatus | null;
   created_at: string;
   updated_at: string;
 }
