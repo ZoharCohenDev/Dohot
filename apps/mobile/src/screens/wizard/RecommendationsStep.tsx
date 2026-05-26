@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Pressable, StyleSheet, Modal, TextInput, Alert } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Modal, TextInput, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { Header, ProgressBar, KeyboardAwareFormLayout } from '@/components/layout';
 import { Button, Card, Pill, KeyboardAwareScrollView } from '@/components/primitives';
 import { Icons } from '@/components/icons';
@@ -119,6 +119,8 @@ function RecEditModal({ editState, colors, onSave, onClose }: RecEditModalProps)
   const [keyboardHeight, setKeyboardHeight] = React.useState(0);
 
   React.useEffect(() => {
+    // iOS uses KeyboardAvoidingView to lift the sheet — no listener needed there.
+    if (Platform.OS !== 'android') return;
     const show = Keyboard.addListener('keyboardDidShow', (e) => {
       setKeyboardHeight(e.endCoordinates.height);
     });
@@ -154,7 +156,10 @@ function RecEditModal({ editState, colors, onSave, onClose }: RecEditModalProps)
 
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onClose}>
-      <View style={styles.editOverlay}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={styles.editOverlay}
+      >
         <Pressable style={styles.editBackdrop} onPress={onClose} />
         <View style={[styles.editSheet, { backgroundColor: colors.bg }]}>
           <View style={[styles.editHandle, { backgroundColor: colors.line }]} />
@@ -167,6 +172,8 @@ function RecEditModal({ editState, colors, onSave, onClose }: RecEditModalProps)
             bounces={false}
             extraScrollHeight={0}
             extraHeight={0}
+            enableAutomaticScroll={false}
+            automaticallyAdjustKeyboardInsets={false}
           >
             {/* Priority chips */}
             <Text style={[styles.editLabel, { color: colors.ink2, fontFamily: fonts.sans }]}>
@@ -288,7 +295,7 @@ function RecEditModal({ editState, colors, onSave, onClose }: RecEditModalProps)
             </Button>
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

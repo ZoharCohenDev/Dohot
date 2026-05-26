@@ -61,7 +61,11 @@ export function FixedBottom({ children, colors = lightColors }: FixedBottomProps
   const resolvedKeyboardHeight =
     keyboardHeight > 0 ? keyboardHeight : Platform.OS === 'android' ? 300 : 0;
 
-  const bottomOffset = keyboardOpen ? resolvedKeyboardHeight + 50 : 0;
+  // Android needs +50 to compensate for edge-to-edge keyboard height measurement;
+  // iOS endCoordinates.height is already exact, so no extra offset needed.
+  const bottomOffset = keyboardOpen
+    ? resolvedKeyboardHeight + (Platform.OS === 'android' ? 50 : 0)
+    : 0;
 
   const verticalPadding = keyboardOpen
     ? 8
