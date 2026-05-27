@@ -297,31 +297,36 @@ adminRouter.get('/users/check-username', requireAdmin, async (req, res) => {
 
 adminRouter.get('/users/find', requireAdmin, async (req, res) => {
   const rawUsername = Array.isArray(req.query.username) ? req.query.username[0] : req.query.username;
-  const username = normalizeUsernameInput(rawUsername);
+  logger.info({ rawUsername }, 'Admin: received username query param');
 
-  if (!username) {
+  const searchTerm = normalizeUsernameInput(rawUsername);
+  logger.info({ searchTerm }, 'Admin: normalized search term');
+
+  if (!searchTerm) {
     res.status(400).json({ error: 'username is required' });
     return;
   }
 
-  if (!isValidUsername(username)) {
-    res.status(400).json({ error: 'Invalid username' });
+  if (searchTerm.length < 2) {
+    res.status(400).json({ error: 'Search term must be at least 2 characters' });
     return;
   }
 
-  const { data, error } = await findProfileByUsername(username);
+  const { data, error } = await supabaseAdmin
+    .from('business_profiles')
+    .select('id, username, full_name, phone, profession, role, subscription_expiration_date, is_active, created_at, updated_at')
+    .ilike('username', `%${searchTerm}%`)
+    .limit(10);
 
   if (error) {
     res.status(500).json({ error: error.message });
     return;
   }
 
-  if (!data) {
-    res.status(404).json({ error: 'User not found' });
-    return;
-  }
+  const users = data ?? [];
+  logger.info({ count: users.length, searchTerm }, 'Admin: number of users found');
 
-  res.json({ user: data });
+  res.json({ users });
 });
 
 // ─── POST /api/admin/users ────────────────────────────────────────────────────
