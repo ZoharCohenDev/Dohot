@@ -42,7 +42,10 @@
       "Bash(node *)",
       "Bash(git -C /Users/matancohen/Dohot diff HEAD -- apps/mobile/src/navigation/constants.ts)",
       "Bash(git -C /Users/matancohen/Dohot diff -- apps/mobile/src/screens/auth/LoginScreen.tsx)",
-      "Bash(xargs ls)"
+      "Bash(xargs ls)",
+      "Bash(npm -v)",
+      "Artifact",
+      "WebFetch(domain:claude.ai)"
     ]
   }
 }

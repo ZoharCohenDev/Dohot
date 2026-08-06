@@ -54,6 +54,12 @@ const EST_ISSUE_REC_PADDING_V = 10;        // pdfRecRow paddingVertical: 5 × 2
 const EST_ISSUE_REC_TITLE_H = 11;          // pdfRecTitle fontSize 8, one line ≈ 11px
 const EST_ISSUE_REC_DESC_CHARS_PER_LINE = 50;
 const EST_ISSUE_REC_DESC_LINE_H = 12;      // pdfRecDesc fontSize 7.5, lineHeight ≈ 12
+const PHOTOS_PER_ROW = 2;                  // pdfImageCell width: '47%' → 2 columns per row
+
+// Warranty page splitting
+const EST_WARRANTY_TERM_ROW_H = 20;        // warrantyTermRow paddingVertical(4×2) + text line ≈ 20
+const EST_WARRANTY_CONDITION_ROW_H = 17;   // warrantyConditionText lineHeight(13) + row gap(4) ≈ 17
+const EST_WARRANTY_SIG_H = 90;             // pdfSigRow marginTop(22)+paddingTop(14)+border+sig block ≈ 90
 
 // ─── Page-group builders (pure functions, no component state) ─────────────────
 
@@ -173,8 +179,10 @@ type ReportIssue = WizardState['reportIssues'][number];
 // ─── Issue page-splitting helpers ─────────────────────────────────────────────
 
 interface IssuePageGroup {
-  /** True only on the first page of an issue: renders title + description + photos. */
+  /** True only on the first page of an issue: renders title + description. */
   showMainContent: boolean;
+  /** Subset of photos to render as a grid on this page. */
+  photos: string[];
   /** Subset of recommendations to render on this page. */
   recs: Recommendation[];
 }
@@ -191,12 +199,35 @@ function estimateDescHeight(text: string): number {
   return lines * EST_ISSUE_DESC_LINE_H;
 }
 
-/** Estimates rendered height of the 2-column photo grid (capped at 4 photos). */
-function estimatePhotosHeight(photoCount: number): number {
+/** Estimates rendered height of the 2-column photo grid for any photo count. */
+function estimatePhotoGridHeight(photoCount: number): number {
   if (photoCount === 0) return 0;
-  const rows = Math.ceil(Math.min(photoCount, 4) / 2);
+  const rows = Math.ceil(photoCount / PHOTOS_PER_ROW);
   // marginTop(10) + rows × rowH + row-gaps(6 each) + grid marginBottom(12)
   return EST_ISSUE_PHOTOS_MARGIN_H + rows * EST_ISSUE_PHOTOS_ROW_H + (rows - 1) * 6 + 12;
+}
+
+/**
+ * Greedily fits as many *whole* photo rows as possible within availableH.
+ * Never splits a row across pages — a row only moves to the next page as a unit.
+ */
+function fitPhotoRows(photos: string[], availableH: number): { onPage: string[]; rest: string[] } {
+  if (photos.length === 0) return { onPage: [], rest: [] };
+  const totalRows = Math.ceil(photos.length / PHOTOS_PER_ROW);
+  let rows = 0;
+  while (rows < totalRows) {
+    const candidateCount = Math.min((rows + 1) * PHOTOS_PER_ROW, photos.length);
+    if (estimatePhotoGridHeight(candidateCount) > availableH) break;
+    rows++;
+  }
+  const onPageCount = Math.min(rows * PHOTOS_PER_ROW, photos.length);
+  return { onPage: photos.slice(0, onPageCount), rest: photos.slice(onPageCount) };
+}
+
+/** Estimates rendered height of the warranty terms section (title + duration + conditions). */
+function estimateWarrantyTermsHeight(conditionCount: number): number {
+  const base = EST_SECTION_TITLE_H + EST_SECTION_MARGIN_H + EST_WARRANTY_TERM_ROW_H;
+  return conditionCount === 0 ? base : base + 8 + conditionCount * EST_WARRANTY_CONDITION_ROW_H;
 }
 
 /** Estimates rendered height of a single recommendation row. */
@@ -210,51 +241,129 @@ function estimateRecRowHeight(rec: Recommendation): number {
 
 /**
  * Splits a single report issue across as many A4 page groups as needed.
- * The first group always contains the section title + description + photos, plus
- * as many recommendations as fit in the remaining space.
- * Overflow recommendations are distributed across continuation page groups.
+ * Photos are placed first: page 1 gets the title + description + as many photo
+ * rows as fit, and any overflow continues onto photo-only continuation pages.
+ * Recommendations then fill whatever room is left on the *last* photo page —
+ * page 1 if every photo fit there, or the final continuation page otherwise —
+ * before spilling onto their own continuation pages. This avoids stranding a
+ * couple of recommendations on an otherwise near-empty trailing page.
+ * No photo or recommendation is ever dropped.
  */
 function buildIssuePageGroups(issue: ReportIssue, pageHeight: number): IssuePageGroup[] {
   const recs = issue.recommendations;
   const bodyH = getAvailablePageHeight(pageHeight);
+  const titleOverheadH = EST_SECTION_TITLE_H + EST_SECTION_MARGIN_H;
 
-  // Space consumed by the non-recommendation content on the first page
+  // Space consumed by the title + description on page 1.
   const descText = issue.aiSummary || issue.description || issue.issueNote || '';
-  const mainContentH =
-    EST_SECTION_TITLE_H +
-    EST_SECTION_MARGIN_H +
-    estimateDescHeight(descText) +
-    estimatePhotosHeight(issue.photos.length);
+  const mainFixedH = titleOverheadH + estimateDescHeight(descText);
 
-  // Space left on page 1 for recommendations
-  let page1Remaining = bodyH - mainContentH;
-  if (recs.length > 0) page1Remaining -= EST_ISSUE_REC_SECTION_MARGIN_H;
+  // Fit as many whole photo rows as possible on page 1.
+  const page1PhotoAvail = Math.max(bodyH - mainFixedH, 0);
+  const { onPage: page1Photos, rest: photosAfterPage1 } = fitPhotoRows(issue.photos, page1PhotoAvail);
 
-  // Greedy fill for page 1
-  const page1Recs: Recommendation[] = [];
-  for (const rec of recs) {
-    const h = estimateRecRowHeight(rec);
-    if (page1Remaining - h < 0) break;
-    page1Recs.push(rec);
-    page1Remaining -= h;
+  const groups: IssuePageGroup[] = [
+    { showMainContent: true, photos: page1Photos, recs: [] },
+  ];
+
+  // Distribute remaining photos across photo-only continuation pages.
+  let overflowPhotos = photosAfterPage1;
+  while (overflowPhotos.length > 0) {
+    const contAvail = Math.max(bodyH - titleOverheadH, 0);
+    const { onPage, rest } = fitPhotoRows(overflowPhotos, contAvail);
+    // Guarantee forward progress even in a pathological (very small) page size.
+    const placed = onPage.length > 0 ? onPage : overflowPhotos.slice(0, PHOTOS_PER_ROW);
+    const remaining = onPage.length > 0 ? rest : overflowPhotos.slice(PHOTOS_PER_ROW);
+    groups.push({ showMainContent: false, photos: placed, recs: [] });
+    overflowPhotos = remaining;
   }
 
-  const groups: IssuePageGroup[] = [{ showMainContent: true, recs: page1Recs }];
+  // Fill recommendations into the room left on the last photo page. The recs
+  // wrapper gets a marginTop whenever it follows page-1 content or a photo
+  // grid (see IssuePage) — mirror that here so the space reserved matches.
+  const lastGroup = groups[groups.length - 1]!;
+  const lastFixedH = lastGroup.showMainContent ? mainFixedH : titleOverheadH;
+  let lastRemaining = bodyH - lastFixedH - estimatePhotoGridHeight(lastGroup.photos.length);
+  const recsFollowMargin = lastGroup.showMainContent || lastGroup.photos.length > 0;
+  if (recs.length > 0 && recsFollowMargin) lastRemaining -= EST_ISSUE_REC_SECTION_MARGIN_H;
+  const placedRecs: Recommendation[] = [];
+  for (const rec of recs) {
+    const h = estimateRecRowHeight(rec);
+    if (lastRemaining - h < 0) break;
+    placedRecs.push(rec);
+    lastRemaining -= h;
+  }
+  lastGroup.recs = placedRecs;
 
-  // Distribute remaining recs across continuation pages
-  let overflow = recs.slice(page1Recs.length);
-  while (overflow.length > 0) {
-    const contBodyH = getAvailablePageHeight(pageHeight);
+  // Distribute remaining recs across their own continuation pages.
+  let overflowRecs = recs.slice(placedRecs.length);
+  while (overflowRecs.length > 0) {
+    const contBodyH = bodyH - titleOverheadH;
     const contRecs: Recommendation[] = [];
     let contUsed = 0;
-    for (const rec of overflow) {
+    for (const rec of overflowRecs) {
       const h = estimateRecRowHeight(rec);
       if (contUsed + h > contBodyH && contRecs.length > 0) break;
       contRecs.push(rec);
       contUsed += h;
     }
-    groups.push({ showMainContent: false, recs: contRecs });
-    overflow = overflow.slice(contRecs.length);
+    groups.push({ showMainContent: false, photos: [], recs: contRecs });
+    overflowRecs = overflowRecs.slice(contRecs.length);
+  }
+
+  return groups;
+}
+
+interface WarrantyPageGroup {
+  /** True only on the first page: renders the work-description title + text. */
+  showWorkDescription: boolean;
+  /** Subset of photos to render as a grid on this page. */
+  photos: string[];
+  /** True on exactly one page — the last one — which renders terms + signature. */
+  showTerms: boolean;
+}
+
+/**
+ * Splits the warranty document across as many A4 page groups as needed.
+ * Page 1 always contains the work description plus as many photo rows as fit.
+ * Overflow photos continue onto photo-only continuation pages. The warranty-terms
+ * + signature block is placed on whichever page has room left after photos —
+ * otherwise it gets its own trailing page. No photo is ever dropped.
+ */
+function buildWarrantyPageGroups(state: WizardState, pageHeight: number): WarrantyPageGroup[] {
+  const photos = state.reportIssues[0]?.photos ?? [];
+  const bodyH = getAvailablePageHeight(pageHeight);
+  const titleOverheadH = EST_SECTION_TITLE_H + EST_SECTION_MARGIN_H;
+
+  const mainFixedH = titleOverheadH + estimateDescHeight(state.warrantyWorkDescription || '');
+  const termsH = estimateWarrantyTermsHeight(state.warrantyConditions.length) + EST_WARRANTY_SIG_H;
+
+  const page1Avail = Math.max(bodyH - mainFixedH, 0);
+  const { onPage: page1Photos, rest: photosAfterPage1 } = fitPhotoRows(photos, page1Avail);
+
+  const groups: WarrantyPageGroup[] = [
+    { showWorkDescription: true, photos: page1Photos, showTerms: false },
+  ];
+
+  let overflow = photosAfterPage1;
+  while (overflow.length > 0) {
+    const contAvail = Math.max(bodyH - titleOverheadH, 0);
+    const { onPage, rest } = fitPhotoRows(overflow, contAvail);
+    const placed = onPage.length > 0 ? onPage : overflow.slice(0, PHOTOS_PER_ROW);
+    const remaining = onPage.length > 0 ? rest : overflow.slice(PHOTOS_PER_ROW);
+    groups.push({ showWorkDescription: false, photos: placed, showTerms: false });
+    overflow = remaining;
+  }
+
+  // Place terms+signature on the last page if there's room, else give it its own page.
+  const last = groups[groups.length - 1]!;
+  const lastUsedH = last.showWorkDescription
+    ? mainFixedH + estimatePhotoGridHeight(last.photos.length)
+    : titleOverheadH + estimatePhotoGridHeight(last.photos.length);
+  if (bodyH - lastUsedH >= termsH) {
+    last.showTerms = true;
+  } else {
+    groups.push({ showWorkDescription: false, photos: [], showTerms: true });
   }
 
   return groups;
@@ -310,11 +419,11 @@ function collectPdfImageUrls(
         add(cert.image_url);
       }
       for (const issue of state.reportIssues) {
-        issue.photos.slice(0, 4).forEach(add);
+        issue.photos.forEach(add);
       }
       break;
     case 'warranty':
-      (state.reportIssues[0]?.photos ?? []).slice(0, 4).forEach(add);
+      (state.reportIssues[0]?.photos ?? []).forEach(add);
       break;
     // 'quote' and 'work-agreement' only use logo + signature (added above)
   }
@@ -630,12 +739,14 @@ function CertificationsPage({
 }
 
 function IssuePage({
-  issue, pageNum, businessProfile, showMainContent, recs, isContinuation, recOffset,
+  issue, pageNum, businessProfile, showMainContent, photos, photoOffset, recs, isContinuation, recOffset,
 }: {
   issue: ReportIssue;
   pageNum: number;
   businessProfile: BusinessProfile;
   showMainContent: boolean;
+  photos: string[];
+  photoOffset: number;
   recs: Recommendation[];
   isContinuation: boolean;
   recOffset: number;
@@ -655,22 +766,22 @@ function IssuePage({
                 <Text style={styles.pdfBody}>{issue.issueNote}</Text>
               </View>
             )}
-            {issue.photos.length > 0 && (
-              <View style={[styles.pdfImageGrid, { marginTop: 10 }]}>
-                {issue.photos.slice(0, 4).map((uri, j) => (
-                  <View key={uri} style={styles.pdfImageCell}>
-                    <Image source={{ uri }} style={styles.pdfImage} resizeMode="cover" />
-                    <Text style={styles.pdfImageLabel}>{`תמונה ${j + 1}`}</Text>
-                  </View>
-                ))}
-              </View>
-            )}
           </>
         ) : isContinuation ? (
           <SectionTitle num={pageNum} label={`${issue.issueLabel} (המשך)`} />
         ) : null}
+        {photos.length > 0 && (
+          <View style={[styles.pdfImageGrid, showMainContent && { marginTop: 10 }]}>
+            {photos.map((uri, j) => (
+              <View key={uri} style={styles.pdfImageCell}>
+                <Image source={{ uri }} style={styles.pdfImage} resizeMode="cover" />
+                <Text style={styles.pdfImageLabel}>{`תמונה ${photoOffset + j + 1}`}</Text>
+              </View>
+            ))}
+          </View>
+        )}
         {recs.length > 0 && (
-          <View style={showMainContent ? { marginTop: 10 } : undefined}>
+          <View style={(showMainContent || photos.length > 0) ? { marginTop: 10 } : undefined}>
             {recs.map((r: Recommendation, j: number) => (
               <View
                 key={j}
@@ -797,42 +908,51 @@ function QuoteContent({
 
 // ─── Warranty sections ────────────────────────────────────────────────────────
 
-function WarrantyContent({ state }: { state: WizardState }) {
+function WarrantyContent({
+  state, group, photoOffset,
+}: { state: WizardState; group: WarrantyPageGroup; photoOffset: number }) {
   return (
     <>
-      <View style={styles.pdfSection}>
-        <SectionTitle num={1} label="פירוט העבודה שבוצעה" />
-        <Text style={styles.pdfBody}>
-          {state.warrantyWorkDescription || 'לא צוין תיאור עבודה.'}
-        </Text>
-      </View>
-      {(state.reportIssues[0]?.photos ?? []).length > 0 && (
+      {group.showWorkDescription && (
+        <View style={styles.pdfSection}>
+          <SectionTitle num={1} label="פירוט העבודה שבוצעה" />
+          <Text style={styles.pdfBody}>
+            {state.warrantyWorkDescription || 'לא צוין תיאור עבודה.'}
+          </Text>
+        </View>
+      )}
+      {!group.showWorkDescription && group.photos.length > 0 && (
+        <SectionTitle num={1} label="תמונות (המשך)" />
+      )}
+      {group.photos.length > 0 && (
         <View style={styles.pdfImageGrid}>
-          {(state.reportIssues[0]?.photos ?? []).slice(0, 4).map((uri, i) => (
+          {group.photos.map((uri, i) => (
             <View key={uri} style={styles.pdfImageCell}>
               <Image source={{ uri }} style={styles.pdfImage} resizeMode="cover" />
-              <Text style={styles.pdfImageLabel}>{`${i + 1}`}</Text>
+              <Text style={styles.pdfImageLabel}>{`${photoOffset + i + 1}`}</Text>
             </View>
           ))}
         </View>
       )}
-      <View style={styles.pdfSection}>
-        <SectionTitle num={2} label="תנאי האחריות" />
-        <View style={styles.warrantyTermRow}>
-          <Text style={styles.warrantyTermLabel}>תקופת אחריות</Text>
-          <Text style={styles.warrantyTermValue}>{state.warrantyDuration || 'לא צוין'}</Text>
-        </View>
-        {state.warrantyConditions.length > 0 && (
-          <View style={{ marginTop: 8, gap: 4 }}>
-            {state.warrantyConditions.map((cond, i) => (
-              <View key={i} style={styles.warrantyConditionRow}>
-                <Text style={styles.warrantyConditionNum}>{i + 1}.</Text>
-                <Text style={styles.warrantyConditionText}>{cond}</Text>
-              </View>
-            ))}
+      {group.showTerms && (
+        <View style={styles.pdfSection}>
+          <SectionTitle num={2} label="תנאי האחריות" />
+          <View style={styles.warrantyTermRow}>
+            <Text style={styles.warrantyTermLabel}>תקופת אחריות</Text>
+            <Text style={styles.warrantyTermValue}>{state.warrantyDuration || 'לא צוין'}</Text>
           </View>
-        )}
-      </View>
+          {state.warrantyConditions.length > 0 && (
+            <View style={{ marginTop: 8, gap: 4 }}>
+              {state.warrantyConditions.map((cond, i) => (
+                <View key={i} style={styles.warrantyConditionRow}>
+                  <Text style={styles.warrantyConditionNum}>{i + 1}.</Text>
+                  <Text style={styles.warrantyConditionText}>{cond}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
+      )}
     </>
   );
 }
@@ -1143,6 +1263,13 @@ export function PdfPreviewScreen({ colors = lightColors, onBack, onSend }: PdfPr
     [issues, pageHeight],
   );
 
+  // ── Warranty page splitting ─────────────────────────────────────────────────
+  const warrantyPageGroups = React.useMemo(
+    (): WarrantyPageGroup[] =>
+      state.docType === 'warranty' ? buildWarrantyPageGroups(state, pageHeight) : [],
+    [state, pageHeight],
+  );
+
   // Dynamic section numbering (sections 1+2 are on page 1: customer + professional)
   let _sec = 3;
   const aboutSectionNum = _sec;
@@ -1214,11 +1341,14 @@ export function PdfPreviewScreen({ colors = lightColors, onBack, onSend }: PdfPr
           capturedImages.push(base64 as string);
         }
       } else {
-        // warranty — single page
-        const view = pageRefs.current.get('single');
-        if (!view) throw new Error('לא נמצא תוכן לייצוא');
-        const base64 = await captureRef(view, { format: 'jpg', quality: 0.92, result: 'base64' });
-        capturedImages = [base64 as string];
+        // warranty — one page normally; more when photos overflow onto continuation pages.
+        capturedImages = [];
+        for (let i = 0; i < warrantyPageGroups.length; i++) {
+          const view = pageRefs.current.get(`warranty_${i}`);
+          if (!view) continue;
+          const base64 = await captureRef(view, { format: 'jpg', quality: 0.92, result: 'base64' });
+          capturedImages.push(base64 as string);
+        }
       }
 
       if (capturedImages.length === 0) throw new Error('לא נוצרו עמודים לייצוא');
@@ -1283,12 +1413,15 @@ export function PdfPreviewScreen({ colors = lightColors, onBack, onSend }: PdfPr
             ))}
 
             {issues.map((issue, issueIdx) => {
-              const groups = issuePageGroupsList[issueIdx] ?? [{ showMainContent: true, recs: issue.recommendations }];
+              const groups = issuePageGroupsList[issueIdx] ?? [{ showMainContent: true, photos: issue.photos, recs: issue.recommendations }];
               let recOffset = 0;
+              let photoOffset = 0;
               return groups.map((group, groupIdx) => {
                 const pageKey = groupIdx === 0 ? `issue_${issueIdx}` : `issue_${issueIdx}_${groupIdx}`;
-                const thisOffset = recOffset;
+                const thisRecOffset = recOffset;
                 recOffset += group.recs.length;
+                const thisPhotoOffset = photoOffset;
+                photoOffset += group.photos.length;
                 return (
                   <View key={pageKey} ref={setPageRef(pageKey)} style={[styles.pdfPage, dynPage]}>
                     <PdfPageHeader {...headerProps} />
@@ -1297,9 +1430,11 @@ export function PdfPreviewScreen({ colors = lightColors, onBack, onSend }: PdfPr
                       pageNum={issueBasePageNum + issueIdx}
                       businessProfile={businessProfile}
                       showMainContent={group.showMainContent}
+                      photos={group.photos}
+                      photoOffset={thisPhotoOffset}
                       recs={group.recs}
                       isContinuation={!group.showMainContent}
-                      recOffset={thisOffset}
+                      recOffset={thisRecOffset}
                     />
                   </View>
                 );
@@ -1364,40 +1499,50 @@ export function PdfPreviewScreen({ colors = lightColors, onBack, onSend }: PdfPr
           });
         })()}
 
-        {/* Warranty — short content, single page always fits. */}
-        {state.docType === 'warranty' && (
-          <View ref={setPageRef('single')} style={[styles.pdfPage, dynPage]}>
-            <PdfPageHeader {...headerProps} />
-            <WarrantyContent state={state} />
-            <View style={[styles.pdfSigRow, { borderTopColor: '#C7C1B6' }]}>
-              <View>
-                {businessProfile?.signature_url
-                  ? businessProfile.signature_url.startsWith('data:image/svg+xml;base64,')
-                    ? (
-                      <SvgXml
-                        xml={atob(businessProfile.signature_url.replace('data:image/svg+xml;base64,', ''))}
-                        width={80}
-                        height={28}
-                      />
-                    )
-                    : (
-                      <Image
-                        source={{ uri: businessProfile.signature_url }}
-                        style={styles.pdfSigImage}
-                        resizeMode="contain"
-                      />
-                    )
-                  : <View style={styles.pdfSigLine} />
-                }
-                <Text style={styles.pdfSigName}>
-                  {[businessProfile?.full_name, businessProfile?.license_number && `ח.פ ${businessProfile.license_number}`]
-                    .filter(Boolean).join(' · ') || 'חתימה'}
-                </Text>
+        {/* Warranty — one page normally; extra photo-only pages when photos overflow. */}
+        {state.docType === 'warranty' && (() => {
+          let photoOffset = 0;
+          return warrantyPageGroups.map((group, pageIdx) => {
+            const pageKey = `warranty_${pageIdx}`;
+            const thisPhotoOffset = photoOffset;
+            photoOffset += group.photos.length;
+            return (
+              <View key={pageKey} ref={setPageRef(pageKey)} style={[styles.pdfPage, dynPage]}>
+                <PdfPageHeader {...headerProps} />
+                <WarrantyContent state={state} group={group} photoOffset={thisPhotoOffset} />
+                {group.showTerms && (
+                  <View style={[styles.pdfSigRow, { borderTopColor: '#C7C1B6' }]}>
+                    <View>
+                      {businessProfile?.signature_url
+                        ? businessProfile.signature_url.startsWith('data:image/svg+xml;base64,')
+                          ? (
+                            <SvgXml
+                              xml={atob(businessProfile.signature_url.replace('data:image/svg+xml;base64,', ''))}
+                              width={80}
+                              height={28}
+                            />
+                          )
+                          : (
+                            <Image
+                              source={{ uri: businessProfile.signature_url }}
+                              style={styles.pdfSigImage}
+                              resizeMode="contain"
+                            />
+                          )
+                        : <View style={styles.pdfSigLine} />
+                      }
+                      <Text style={styles.pdfSigName}>
+                        {[businessProfile?.full_name, businessProfile?.license_number && `ח.פ ${businessProfile.license_number}`]
+                          .filter(Boolean).join(' · ') || 'חתימה'}
+                      </Text>
+                    </View>
+                    <Text style={styles.pdfQrPlaceholder}>QR</Text>
+                  </View>
+                )}
               </View>
-              <Text style={styles.pdfQrPlaceholder}>QR</Text>
-            </View>
-          </View>
-        )}
+            );
+          });
+        })()}
 
         {state.docType === 'work-agreement' && (
           <>
